@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+  # API Gateway
+  api-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: smart-health-gateway
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - JWT_SECRET=c21hcnRIZWFsdGhTZWNyZXRLZXlGb3JKV1RUb2tlbkdlbmVyYXRpb25BbmRWYWxpZGF0aW9uMjAyNA==
+      - AUTH_SERVICE_URL=http://host.docker.internal:8081
+      - PATIENT_SERVICE_URL=http://host.docker.internal:8082
+      - DOCTOR_SERVICE_URL=http://host.docker.internal:8083
+      - APPOINTMENT_SERVICE_URL=http://host.docker.internal:8084
+      - NOTIFICATION_SERVICE_URL=http://host.docker.internal:8085
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - CORS_ORIGIN=http://localhost:3001,http://localhost:3002
+      - LOG_LEVEL=info
+    depends_on:
+      - redis
+    networks:
+      - smart-health-network
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Redis for caching and rate limiting
+  redis:
+    image: redis:7-alpine
+    container_name: smart-health-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - smart-health-network
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    command: redis-server --appendonly yes
+
+  # Redis Commander for Redis management (optional, for development)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: smart-health-redis-commander
+    ports:
+      - "8081:8081"
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    networks:
+      - smart-health-network
+    depends_on:
+      - redis
+    profiles:
+      - dev
+
+networks:
+  smart-health-network:
+    driver: bridge
+    name: smart-health-network
+
+volumes:
+  redis_data:
+    driver: local 
