@@ -14,6 +14,13 @@ from prediction_service.schemas import (
     RootResponse
 )
 from prediction_service.model import ModelLoader, TENSORFLOW_AVAILABLE
+from prediction_service.database import save_prediction_log
+
+# Feature names for logging
+FEATURE_NAMES = [
+    "age", "sex", "cp", "trestbps", "chol", "fbs", "restecg", 
+    "thalach", "exang", "oldpeak", "slope", "ca", "thal"
+]
 
 # Initialize router and logger
 router = APIRouter()
@@ -72,6 +79,15 @@ async def make_prediction(request: PredictionRequest):
         logger.info(f"Making prediction with input data of length {len(request.input_data)}")
         prediction = model_loader.predict(request.input_data)
         logger.info("Prediction completed successfully")
+        
+        # Save prediction log to MongoDB
+        # Convert input data to named features for logging
+        input_features = dict(zip(FEATURE_NAMES, request.input_data))
+        save_prediction_log(
+            input_features=input_features,
+            prediction_result=prediction[0],  # Take first prediction value
+            model_version="1.0.0"
+        )
         
         return PredictionResponse(prediction=prediction)
         

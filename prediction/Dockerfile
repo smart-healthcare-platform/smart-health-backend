@@ -1,1 +1,38 @@
-#Use Python 3.9 slim image as base\nFROM python:3.9-slim\n\n# Set working directory\nWORKDIR /app\n\n# Set environment variables\nENV PYTHONDONTWRITEBYTECODE=1 \\\n    PYTHONUNBUFFERED=1 \\\n    PYTHONPATH=/app\n\n# Install system dependencies\nRUN apt-get update \\\n    && apt-get install -y --no-install-recommends \\\n        build-essential \\\n    && rm -rf /var/lib/apt/lists/*\n\n# Copy requirements file\nCOPY requirements.txt .\n\n# Install Python dependencies\nRUN pip install --no-cache-dir --upgrade pip \\\n    && pip install --no-cache-dir -r requirements.txt\n\n# Copy application code\nCOPY src/ ./src/\n\n# Create directory for model file\nRUN mkdir -p ./models\n\n# Expose port\nEXPOSE 8000\n\n# Run the application\nCMD [\"python\", \"src/main.py\"]
+# Use Python 3.9 slim image as base
+FROM python:3.9-slim
+
+# Set working directory
+WORKDIR /app
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app
+
+# Install system dependencies
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements file
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY src/ ./src/
+
+# Copy environment file
+COPY .env.example .env
+
+# Create directory for model file
+RUN mkdir -p ./models
+
+# Expose port
+EXPOSE 8000
+
+# Run the application
+CMD ["python", "src/main.py"]

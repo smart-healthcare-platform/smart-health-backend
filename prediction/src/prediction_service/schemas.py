@@ -3,7 +3,8 @@ Pydantic models for request/response validation in the Prediction Service.
 """
 
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
+from datetime import datetime
 
 
 class PredictionRequest(BaseModel):
@@ -43,3 +44,13 @@ class RootResponse(BaseModel):
     message: str
     service: str
     version: str
+
+
+class PredictionLog(BaseModel):
+    """
+    Model for prediction log entries stored in MongoDB.
+    """
+    features: Dict[str, Any]
+    result: float
+    model_version: str
+    created_at: datetime

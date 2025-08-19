@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     # Logging settings
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
     
+    # MongoDB settings
+    MONGODB_URL: str = os.getenv("MONGODB_URL", "mongodb://localhost:27017")
+    MONGODB_DATABASE: str = os.getenv("MONGODB_DATABASE", "prediction_service")
+    MONGODB_COLLECTION: str = os.getenv("MONGODB_COLLECTION", "prediction_logs")
+    
     class Config:
         env_file = ".env"
         case_sensitive = False

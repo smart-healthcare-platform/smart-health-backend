@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 
 from prediction_service.config import Settings
 from prediction_service.routes import router as prediction_router
+from prediction_service.database import close_mongo_connection
 
 # Load environment variables
 load_dotenv()
@@ -44,6 +45,11 @@ async def root():
         "service": "prediction-service",
         "version": "1.0.0"
     }
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Event handler for application shutdown."""
+    close_mongo_connection()
 
 if __name__ == "__main__":
     import uvicorn
