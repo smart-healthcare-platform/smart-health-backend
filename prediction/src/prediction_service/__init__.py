@@ -1,6 +1,3 @@
 """
-Initialization file for the prediction_service package.
+Database package for the Prediction Service.
 """
-
-__version__ = "1.0.0"
-__author__ = "Smart Health Backend Team"

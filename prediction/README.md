@@ -11,6 +11,7 @@ A microservice for making predictions using a Keras/TensorFlow model for heat di
 - Environment-based configuration
 - Comprehensive logging
 - Input validation with Pydantic
+- Prediction logging to MongoDB
 
 ## Project Structure
 
@@ -21,6 +22,7 @@ prediction/
 │   ├── prediction_service/  # Main service package
 │   │   ├── __init__.py      # Package initialization
 │   │   ├── config.py        # Configuration management
+│   │   ├── database.py      # MongoDB connection and operations
 │   │   ├── model.py         # Model loading and prediction
 │   │   ├── schemas.py       # Request/response schemas
 │   │   └── routes.py        # API routes
@@ -37,6 +39,7 @@ prediction/
 - Python 3.9+
 - pip (Python package manager)
 - Docker (optional, for containerization)
+- MongoDB (for prediction logging)
 
 ## Installation
 
@@ -65,6 +68,10 @@ prediction/
 
 5. Place your model file:
    - Put your `heat_disease_prediction.h5` file in the project root directory
+
+6. Set up MongoDB:
+   - Install MongoDB locally or use a cloud service
+   - Update the MongoDB connection settings in your `.env` file
 
 ## Usage
 
@@ -119,6 +126,9 @@ Environment variables can be set in a `.env` file:
 | DEBUG | Debug mode | False |
 | MODEL_PATH | Path to model file | heat_disease_prediction.h5 |
 | LOG_LEVEL | Logging level | INFO |
+| MONGODB_URL | MongoDB connection URL | mongodb://localhost:27017 |
+| MONGODB_DATABASE | MongoDB database name | prediction_service |
+| MONGODB_COLLECTION | MongoDB collection name | prediction_logs |
 
 ## Development
 
