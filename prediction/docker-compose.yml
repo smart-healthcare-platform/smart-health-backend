@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:5.0
+    container_name: prediction-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+
+  prediction-service:
+    build: .
+    container_name: prediction-service
+    ports:
+      - "8000:8000"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - DEBUG=False
+      - MODEL_PATH=./models/heat_disease_prediction.h5
+      - MONGODB_URL=mongodb://mongodb:27017
+      - MONGODB_DATABASE=prediction_service
+      - MONGODB_COLLECTION=prediction_logs
+    volumes:
+      - ./models:/app/models
+    restart: unless-stopped
+    depends_on:
+      - mongodb
+
+volumes:
+  mongodb_data:
