@@ -3,13 +3,19 @@ package fit.iuh.auth.service;
 import fit.iuh.auth.dto.request.LoginRequest;
 import fit.iuh.auth.dto.request.RegisterRequest;
 import fit.iuh.auth.dto.response.AuthResponse;
+import fit.iuh.auth.entity.RefreshToken;
 import fit.iuh.auth.entity.User;
+import fit.iuh.auth.repository.RefreshTokenRepository;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
 
 @Service
 @RequiredArgsConstructor
@@ -20,8 +26,8 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
-
-    public AuthResponse register(RegisterRequest request) {
+    private final RefreshTokenRepository refreshTokenRepository;
+    public AuthResponse register(RegisterRequest request,HttpServletResponse response) {
         log.info("Attempting to register user: {}", request.getUsername());
         
         // Check if user already exists
@@ -44,9 +50,14 @@ public class AuthService {
         String jwtToken = jwtService.generateToken(savedUser);
         String refreshToken = jwtService.generateRefreshToken(savedUser);
 
+        saveRefreshToken(savedUser, refreshToken, LocalDateTime.now().plusDays(7));
+
+        // Set cookie
+        setRefreshTokenCookie(response, refreshToken);
+
         return AuthResponse.builder()
                 .token(jwtToken)
-                .refreshToken(refreshToken)
+//                .refreshToken(refreshToken) đảm bảo bảo mật nên không gửi kèm
                 .user(AuthResponse.UserInfo.builder()
                         .id(savedUser.getId())
                         .username(savedUser.getUsername())
@@ -56,7 +67,7 @@ public class AuthService {
                 .build();
     }
 
-    public AuthResponse login(LoginRequest request) {
+    public AuthResponse login(LoginRequest request,HttpServletResponse response) {
         log.info("Attempting to login user: {}", request.getUsername());
         
         // Authenticate user
@@ -81,9 +92,18 @@ public class AuthService {
         String jwtToken = jwtService.generateToken(user);
         String refreshToken = jwtService.generateRefreshToken(user);
 
+        // Xoá refreshToken cũ (nếu có) để tránh rác
+        refreshTokenRepository.deleteByUserId(user.getId());
+
+        // Lưu refreshToken mới
+        saveRefreshToken(user, refreshToken, LocalDateTime.now().plusDays(7));
+
+        // Set cookie
+        setRefreshTokenCookie(response, refreshToken);
+
         return AuthResponse.builder()
                 .token(jwtToken)
-                .refreshToken(refreshToken)
+//                .refreshToken(refreshToken)
                 .user(AuthResponse.UserInfo.builder()
                         .id(user.getId())
                         .username(user.getUsername())
@@ -93,7 +113,7 @@ public class AuthService {
                 .build();
     }
 
-    public AuthResponse refreshToken(String refreshToken) {
+    public AuthResponse refreshToken(String refreshToken, HttpServletResponse response) {
         log.info("Attempting to refresh token");
         
         String username = jwtService.extractUsername(refreshToken);
@@ -108,10 +128,15 @@ public class AuthService {
         String newRefreshToken = jwtService.generateRefreshToken(user);
 
         log.info("Token refreshed successfully for user: {}", user.getUsername());
+        // update refreshToken DB
+        refreshTokenRepository.deleteByUserId(user.getId());
+        saveRefreshToken(user, newRefreshToken, LocalDateTime.now().plusDays(7));
 
+        // update cookie
+        setRefreshTokenCookie(response, newRefreshToken);
         return AuthResponse.builder()
                 .token(newJwtToken)
-                .refreshToken(newRefreshToken)
+//                .refreshToken(newRefreshToken)
                 .user(AuthResponse.UserInfo.builder()
                         .id(user.getId())
                         .username(user.getUsername())
@@ -119,5 +144,20 @@ public class AuthService {
                         .createdAt(user.getCreatedAt())
                         .build())
                 .build();
+    }
+    private void saveRefreshToken(User user, String token, LocalDateTime expiryDate) {
+        RefreshToken refreshToken = new RefreshToken();
+        refreshToken.setUser(user);
+        refreshToken.setToken(token);
+        refreshToken.setExpiryDate(expiryDate);
+        refreshTokenRepository.save(refreshToken);
+    }
+    private void setRefreshTokenCookie(HttpServletResponse response, String refreshToken) {
+        Cookie cookie = new Cookie("refreshToken", refreshToken);
+        cookie.setHttpOnly(true);
+        cookie.setSecure(true);
+        cookie.setPath("/");
+        cookie.setMaxAge(7 * 24 * 60 * 60); // 7 ngày
+        response.addCookie(cookie);
     }
 } 
