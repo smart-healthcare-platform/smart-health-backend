@@ -79,13 +79,24 @@ Hệ thống hỗ trợ 3 vai trò người dùng:
 
 ```sql
 CREATE TABLE users (
-    id CHAR(36) PRIMARY KEY,
-    username VARCHAR(50) UNIQUE NOT NULL,
+    id BINARY(16) NOT NULL PRIMARY KEY,
+    username VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
-    role ENUM('PATIENT', 'DOCTOR', 'ADMIN') NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    is_active BOOLEAN DEFAULT TRUE
+    role VARCHAR(50) NOT NULL,
+    created_at DATETIME NOT NULL,
+    is_active BOOLEAN NOT NULL
 );
+
+CREATE TABLE refresh_tokens (
+    id BINARY(16) NOT NULL PRIMARY KEY,
+    user_id BINARY(16) NOT NULL,
+    token VARCHAR(512) NOT NULL UNIQUE,
+    expiry_date DATETIME NOT NULL,
+    created_at DATETIME NOT NULL,
+    CONSTRAINT fk_refresh_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+
 ```
 
 ## Cài đặt và Chạy
@@ -333,3 +344,4 @@ SERVER_PORT=8081
 2. Update SecurityConfig permissions
 3. Update database if needed
 4. Test authorization
+
