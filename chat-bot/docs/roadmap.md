@@ -13,7 +13,7 @@ Xây dựng phiên bản cơ bản của Chatbot Service với các chức năng
 
 #### Tuần 1-2: Thiết lập Infrastructure
 - [ ] Thiết lập Docker environment với các service cơ bản
-- [ ] Cấu hình PostgreSQL database cho lưu trữ lịch sử trò chuyện
+- [ ] Cấu hình MySQL database cho lưu trữ lịch sử trò chuyện (đã chuyển từ PostgreSQL)
 - [ ] Cấu hình Redis cho cache và session management
 - [ ] Triển khai Ollama và cài đặt mô hình ngôn ngữ cơ bản
 

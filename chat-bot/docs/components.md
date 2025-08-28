@@ -171,9 +171,9 @@ Database là thành phần lưu trữ dữ liệu lâu dài, đặc biệt là l
   - Fine-tune model trong tương lai
 
 ### Công nghệ sử dụng
-- Hệ quản trị cơ sở dữ liệu: PostgreSQL hoặc MongoDB
+- Hệ quản trị cơ sở dữ liệu: MySQL (tối ưu cho LLM và production environments)
 - Containerization: Docker
-- ORM: Sequelize (Node.js) hoặc SQLAlchemy (Python)
+- ORM: Sequelize (Node.js) với mysql2 driver
 
 ### Schema dữ liệu
 - Bảng `conversations`: Lưu trữ thông tin cuộc trò chuyện

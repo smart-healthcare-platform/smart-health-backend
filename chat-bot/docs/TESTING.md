@@ -429,7 +429,7 @@ export const seedTestData = async (db: DatabaseService) => {
 version: '3.8'
 services:
   test-db:
-    image: postgres:13
+    image: mysql:8
     environment:
       POSTGRES_DB: chatbot_test
       POSTGRES_USER: test_user
@@ -482,8 +482,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     services:
-      postgres:
-        image: postgres:13
+      mysql:
+        image: mysql:8
         env:
           POSTGRES_DB: chatbot_test
           POSTGRES_USER: test_user

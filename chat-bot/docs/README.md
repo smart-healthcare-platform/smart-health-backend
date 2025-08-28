@@ -20,7 +20,7 @@ Chatbot Service là một thành phần quan trọng trong Dự án Chăm sóc S
 - **RAG System**: Hệ thống truy xuất thông tin tăng cường
 - **n8n**: Nền tảng tự động hóa workflow
 - **Redis**: Bộ nhớ cache/session store
-- **PostgreSQL**: Cơ sở dữ liệu lưu trữ lịch sử trò chuyện
+- **MySQL**: Cơ sở dữ liệu lưu trữ lịch sử trò chuyện (đã chuyển từ PostgreSQL để tối ưu cho LLM)
 - **Docker**: Container hóa service
 
 ## Kiến trúc tổng quan
