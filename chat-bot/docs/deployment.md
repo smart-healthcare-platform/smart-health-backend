@@ -53,10 +53,11 @@ Tạo file `.env` trong thư mục chat-bot với các biến môi trường sau
 ```env
 # Database configuration
 DB_HOST=localhost
-DB_PORT=5432
+DB_PORT=3306
 DB_NAME=chatbot_db
 DB_USER=chatbot_user
 DB_PASSWORD=secure_password
+MYSQL_ROOT_PASSWORD=root_password
 
 # Redis configuration
 REDIS_HOST=localhost
@@ -103,15 +104,17 @@ services:
       - ./logs:/app/logs
 
   database:
-    image: postgres:13
+    image: mysql:8.0
     environment:
-      - POSTGRES_DB=chatbot_db
-      - POSTGRES_USER=chatbot_user
-      - POSTGRES_PASSWORD=secure_password
+      - MYSQL_DATABASE=chatbot_db
+      - MYSQL_USER=chatbot_user
+      - MYSQL_PASSWORD=secure_password
+      - MYSQL_ROOT_PASSWORD=root_password
     volumes:
-      - db_data:/var/lib/postgresql/data
+      - db_data:/var/lib/mysql
     ports:
-      - "5432:5432"
+      - "3306:3306"
+    command: --default-authentication-plugin=mysql_native_password
 
   redis:
     image: redis:6-alpine
@@ -203,8 +206,13 @@ npm start
 ### 5.3. Chạy Các Dịch vụ Phụ trợ
 
 ```bash
-# Chạy database (PostgreSQL)
-docker run -d --name chatbot-db -p 5432:5432 -e POSTGRES_DB=chatbot_db -e POSTGRES_USER=chatbot_user -e POSTGRES_PASSWORD=secure_password postgres:13
+# Chạy database (MySQL)
+docker run -d --name chatbot-db -p 3306:3306 \
+  -e MYSQL_DATABASE=chatbot_db \
+  -e MYSQL_USER=chatbot_user \
+  -e MYSQL_PASSWORD=secure_password \
+  -e MYSQL_ROOT_PASSWORD=root_password \
+  mysql:8.0 --default-authentication-plugin=mysql_native_password
 
 # Chạy Redis
 docker run -d --name chatbot-redis -p 6379:6379 redis:6-alpine redis-server --requirepass redis_password
@@ -398,14 +406,14 @@ Cấu hình alerting trong Prometheus hoặc Grafana để nhận thông báo kh
 
 ```bash
 # Backup database
-docker exec chatbot-db pg_dump -U chatbot_user chatbot_db > backup/chatbot_db_$(date +%Y%m%d).sql
+docker exec chatbot-db mysqldump -u chatbot_user -psecure_password chatbot_db > backup/chatbot_db_$(date +%Y%m%d).sql
 ```
 
 ### 13.2. Restore Database
 
 ```bash
 # Restore database
-docker exec -i chatbot-db psql -U chatbot_user chatbot_db < backup/chatbot_db_20230101.sql
+docker exec -i chatbot-db mysql -u chatbot_user -psecure_password chatbot_db < backup/chatbot_db_20230101.sql
 ```
 
 ## 14. Troubleshooting

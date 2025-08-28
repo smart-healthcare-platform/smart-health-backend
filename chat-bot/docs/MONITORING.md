@@ -104,7 +104,7 @@ scrape_configs:
 
   - job_name: 'database'
     static_configs:
-      - targets: ['localhost:9187']  # PostgreSQL exporter
+      - targets: ['localhost:9104']  # MySQL exporter
 
   - job_name: 'redis'
     static_configs:
@@ -519,9 +519,9 @@ GROUP BY DATE_TRUNC('week', timestamp);
 - High error rate for database operations
 
 **Solutions**:
-1. Check database service status: `systemctl status postgresql`
+1. Check database service status: `systemctl status mysql`
 2. Verify connection parameters in config
-3. Check database logs: `/var/log/postgresql/postgresql-13-main.log`
+3. Check database logs: `/var/log/mysql/error.log`
 
 ## Redis Connection Issues
 **Symptoms**:

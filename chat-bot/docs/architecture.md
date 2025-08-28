@@ -104,8 +104,15 @@ graph TD
   - Fine-tune model trong tương lai
 
 **Công nghệ**:
-- PostgreSQL hoặc MongoDB
+- MySQL (được chọn để tối ưu hiệu năng với LLM và phổ biến trong production)
 - Docker container
+
+**Lý do chọn MySQL**:
+- Tương thích tốt với các mô hình ngôn ngữ lớn (LLM) như llama3.1
+- Hiệu năng cao cho các tác vụ read/write intensive
+- Ecosystem phong phú với tools và monitoring solutions
+- Phổ biến trong enterprise environments
+- Dễ dàng scaling và replication
 
 ### 7. Cache/Session Store
 
