@@ -40,6 +40,9 @@ services:
       - ./logs:/app/logs
       # Mount node_modules to avoid overwriting with local modules
       - /app/node_modules
+      # For production, mount only necessary files
+      - ./package.json:/app/package.json
+      - ./package-lock.json:/app/package-lock.json
     restart: unless-stopped
     # Health check for the chatbot service
     healthcheck:
@@ -48,6 +51,9 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    # For production, use production environment
+    # environment:
+    #   - NODE_ENV=production
 
   # MySQL Database - Primary data store
   database:
