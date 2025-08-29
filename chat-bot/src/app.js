@@ -11,6 +11,8 @@ const logger = require('./utils/logger');
 // Import routes
 const healthRoutes = require('./routes/health');
 const chatRoutes = require('./routes/chat');
+const historyRoutes = require('./routes/history');
+const sessionRoutes = require('./routes/session');
 
 const app = express();
 
@@ -35,6 +37,8 @@ app.use(limiter);
 // Routes
 app.use('/health', healthRoutes);
 app.use('/api/chat', chatRoutes);
+app.use('/api/history', historyRoutes);
+app.use('/api/session', sessionRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
