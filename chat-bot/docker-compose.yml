@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   # Chatbot Service - Main application
@@ -8,11 +8,11 @@ services:
       dockerfile: Dockerfile
     container_name: chatbot-service
     ports:
-      - "3001:3001"  # Expose API port
+      - "3001:3001" # Expose API port
     environment:
       # Database configuration
       - DB_HOST=database
-      - DB_PORT=3306
+      - DB_PORT=3307
       - DB_NAME=chatbot_db
       - DB_USER=chatbot_user
       - DB_PASSWORD=secure_password
@@ -21,8 +21,8 @@ services:
       - REDIS_PORT=6379
       - REDIS_PASSWORD=redis_password
       # Ollama configuration
-      - OLLAMA_HOST=http://ollama:11434
-      - OLLAMA_MODEL=llama2:7b
+      - OLLAMA_HOST=http://ollama:11435
+      - OLLAMA_MODEL=llama3.2:3b
       # Service configuration
       - NODE_ENV=development
       - PORT=3001
@@ -65,7 +65,7 @@ services:
       - MYSQL_PASSWORD=secure_password
       - MYSQL_ROOT_PASSWORD=root_password
     ports:
-      - "3306:3306"  # Expose for external tools if needed
+      - "3307:3306" # Expose for external tools if needed
     volumes:
       # Persistent data storage
       - mysql_data:/var/lib/mysql
@@ -74,7 +74,17 @@ services:
     restart: unless-stopped
     # Health check for database
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "chatbot_user", "-psecure_password"]
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "localhost",
+          "-u",
+          "chatbot_user",
+          "-psecure_password",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -85,7 +95,7 @@ services:
     container_name: chatbot-redis
     command: redis-server --requirepass redis_password
     ports:
-      - "6379:6379"  # Expose for external tools if needed
+      - "6379:6379" # Expose for external tools if needed
     volumes:
       # Persistent data storage
       - redis_data:/data
@@ -104,18 +114,18 @@ services:
     image: ollama/ollama:latest
     container_name: chatbot-ollama
     ports:
-      - "11434:11434"  # Ollama API port
+      - "11435:11434" # Ollama API port
     volumes:
       # Persistent model storage
       - ollama_data:/root/.ollama
     restart: unless-stopped
     # Health check for Ollama
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      test: ["CMD", "curl", "-f", "http://localhost:11435/api/tags"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s  # Ollama may take longer to start
+      start_period: 120s # Ollama may take longer to start
 
 # Named volumes for data persistence
 volumes:
