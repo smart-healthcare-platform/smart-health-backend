@@ -10,7 +10,7 @@ services:
     ports:
       - "3001:3001" # Expose API port
     # When running tests, we can override the command
-    command: npm start
+    command: npm run test:integration
     environment:
       # Database configuration
       - DB_HOST=database
@@ -38,13 +38,13 @@ services:
       #   condition: service_healthy
     volumes:
       # Mount source code for hot-reloading in development
-      - ./src:/app/src
-      - ./logs:/app/logs
       # Mount node_modules to avoid overwriting with local modules
       - /app/node_modules
+      # Mount tests directory for Jest globalSetup/globalTeardown
+      - ./tests:/app/tests
       # For production, mount only necessary files
-      - ./package.json:/app/package.json
-      - ./package-lock.json:/app/package-lock.json
+      # - ./package.json:/app/package.json
+      # - ./package-lock.json:/app/package-lock.json
     restart: unless-stopped
     # Health check for the chatbot service
     healthcheck:
