@@ -20,8 +20,6 @@ module.exports = {
   testMatch: [
     '**/tests/**/*.test.js'
   ],
-  setupFilesAfterEnv: [
-    '<rootDir>/tests/setup.js'
-  ],
-  // globalTeardown: './tests/teardown.js'
+  globalSetup: '<rootDir>/tests/global-setup.js',
+  globalTeardown: '<rootDir>/tests/global-teardown.js'
 };

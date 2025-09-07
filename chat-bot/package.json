@@ -6,10 +6,10 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
-    "test": "jest",
-    "test:integration": "jest tests/integration/ --verbose",
-    "test:coverage": "jest --coverage",
-    "test:watch": "jest --watch",
+    "test": "jest --detectOpenHandles",
+    "test:integration": "jest tests/integration/ --verbose --detectOpenHandles",
+    "test:coverage": "jest --coverage --detectOpenHandles",
+    "test:watch": "jest --watch --detectOpenHandles",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
     "format": "prettier --write src/"
