@@ -27,14 +27,16 @@ class RuleEngine {
     };
 
     const startTime = Date.now();
+    logger.debug(`Evaluating rules for context: ${JSON.stringify(context)}`);
 
     try {
       for (const rule of this.rules) {
         if (!rule.enabled) continue;
+        logger.debug(`Checking rule: ${rule.name} (ID: ${rule.id}, Priority: ${rule.priority})`);
 
         const ruleResult = await this.evaluateRule(rule, context);
         if (ruleResult.matched) {
-          logger.debug(`Rule matched: ${rule.name} (ID: ${rule.id})`);
+          logger.info(`Rule matched: ${rule.name} (ID: ${rule.id})`);
           results.matchedRules.push({
             ruleId: rule.id,
             ruleName: rule.name,
@@ -42,6 +44,8 @@ class RuleEngine {
           });
 
           results.actions.push(...ruleResult.actions);
+        } else {
+          logger.debug(`Rule did not match: ${rule.name} (ID: ${rule.id})`);
         }
       }
 
@@ -56,6 +60,7 @@ class RuleEngine {
       logger.debug(`Rule evaluation completed in ${results.executionTime}ms. Matched ${results.matchedRules.length} rules.`);
     }
 
+    logger.info(`Rule evaluation complete. Matched rules: ${results.matchedRules.length}`);
     return results;
   }
 

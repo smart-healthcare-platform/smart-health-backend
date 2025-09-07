@@ -2,25 +2,28 @@ const logger = require('../../utils/logger');
 
 class RuleParser {
   constructor() {
-    this.operators = {
-      'contains': (fieldValue, conditionValue) => {
-        if (typeof fieldValue !== 'string') return false;
-        if (Array.isArray(conditionValue)) {
-          return conditionValue.some(val => 
-            fieldValue.toLowerCase().includes(String(val).toLowerCase())
-          );
-        }
-        return fieldValue.toLowerCase().includes(String(conditionValue).toLowerCase());
-      },
-      'equals': (fieldValue, conditionValue) => fieldValue === conditionValue,
-      'matches': (fieldValue, conditionValue) => {
-        if (typeof fieldValue !== 'string') return false;
-        const regex = new RegExp(conditionValue, 'i');
-        return regex.test(fieldValue);
-      },
-      'greaterThan': (fieldValue, conditionValue) => fieldValue > conditionValue,
-      'lessThan': (fieldValue, conditionValue) => fieldValue < conditionValue
-    };
+    this.operators = (() => {
+      const ops = {
+        'contains': (fieldValue, conditionValue) => {
+          if (typeof fieldValue !== 'string') return false;
+          if (Array.isArray(conditionValue)) {
+            return conditionValue.some(val =>
+              fieldValue.toLowerCase().includes(String(val).toLowerCase())
+            );
+          }
+          return fieldValue.toLowerCase().includes(String(conditionValue).toLowerCase());
+        },
+        'equals': (fieldValue, conditionValue) => fieldValue === conditionValue,
+        'matches': (fieldValue, conditionValue) => {
+          if (typeof fieldValue !== 'string') return false;
+          const regex = new RegExp(conditionValue, 'i');
+          return regex.test(fieldValue);
+        },
+        'greaterThan': (fieldValue, conditionValue) => parseFloat(fieldValue) > parseFloat(conditionValue),
+        'lessThan': (fieldValue, conditionValue) => parseFloat(fieldValue) < parseFloat(conditionValue)
+      };
+      return ops;
+    })();
   }
 
   parseRule(ruleData) {
@@ -35,7 +38,7 @@ class RuleParser {
     } catch (error) {
       logger.error('Rule parsing failed:', { ruleId: ruleData.id, error: error.message });
       throw new Error(`Invalid rule format: ${error.message}`);
-    }
+    };
   }
 
   validateRule(rule) {
