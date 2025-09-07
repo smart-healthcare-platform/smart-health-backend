@@ -3,8 +3,14 @@ const app = require('./app');
 const logger = require('./utils/logger');
 const { testConnection } = require('./config/database');
 const { syncDatabase } = require('./utils/databaseSync');
+const RuleService = require('./rule-engine/storage/RuleService'); // Import RuleService
 
 const PORT = process.env.PORT || 3001;
+
+const chatService = require('./services/chatService');
+const seedRulesModule = require('../scripts/seed-rules'); // Import entire module
+
+const ruleService = new RuleService(); // Create an instance of RuleService globally
 
 const startServer = async () => {
   try {
@@ -13,6 +19,12 @@ const startServer = async () => {
     
     // Sync database
     await syncDatabase();
+
+    // Seed rules after database sync
+    await seedRulesModule.seedRules(ruleService); // Access seedRules from the imported module
+
+    // Initialize services
+    await chatService.initialize();
     
     // Start server
     app.listen(PORT, () => {
