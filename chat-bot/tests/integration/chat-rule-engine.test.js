@@ -7,21 +7,13 @@ const { medicalRules, ruleService } = require('../../scripts/seed-rules-for-test
 describe('Chat Service and Rule Engine Integration', () => {
 
   beforeAll(async () => {
-    // Ensure the database is clean and seeded before tests
-    await sequelize.sync({ force: true });
-
-    // Manually run the seeding logic in a safe way
-    for (const ruleData of medicalRules) {
-        await ruleService.createRule(ruleData);
-    }
-    
-    // Re-initialize the service to load the new rules
-    chatService.isInitialized = false; 
+    // Re-initialize the service to load the new rules after global setup
+    chatService.isInitialized = false;
     await chatService.initialize();
   });
 
   afterAll(async () => {
-    await sequelize.close();
+    // No specific teardown needed here as globalTeardown handles DB closing
   });
 
   test('should trigger the chest pain emergency rule for English text', async () => {
