@@ -59,6 +59,7 @@ class ChatService {
       },
       timestamp: new Date().toISOString()
     };
+    logger.debug(`Processing message: ${message}, Language: ${language}, UserId: ${userId}, SessionId: ${currentSessionId}`);
 
     try {
       const ruleResults = await this.ruleEngine.evaluate(context);
