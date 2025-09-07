@@ -3,11 +3,13 @@ const logger = require('./logger');
 
 const syncDatabase = async () => {
   try {
-    await sequelize.sync({ force: process.env.NODE_ENV === 'development' });
-    logger.info('Database synchronized successfully');
+    // Only force sync (drop and recreate tables) if FORCE_DB_SYNC is explicitly true
+    const forceSync = process.env.FORCE_DB_SYNC === 'true';
+    await sequelize.sync({ force: forceSync });
+    logger.info(`Database synchronized successfully (force: ${forceSync})`);
     
-    // Create test data if in development
-    if (process.env.NODE_ENV === 'development') {
+    // Create test data if in development and forceSync was true
+    if (process.env.NODE_ENV === 'development' && forceSync) {
       await createTestData();
     }
   } catch (error) {
@@ -18,8 +20,9 @@ const syncDatabase = async () => {
 
 const createTestData = async () => {
   try {
-    // Create test user
+    // Create test user with a fixed UUID for easier testing
     const user = await User.create({
+      id: '00000000-0000-0000-0000-000000000001',
       username: 'test_user',
       email: 'test@example.com'
     });
