@@ -31,7 +31,7 @@
     - Test endpoint `/api/chat` với một tin nhắn thông thường (ví dụ: "xin chào"). Mong đợi response trả về từ AI (fallback).
 
 ## ✅ Success Criteria
-- [ ] `chatService.js` được cập nhật và có thể điều phối giữa Rule Engine và AI.
-- [ ] Có ít nhất 2-3 rule y tế trong cơ sở dữ liệu để phục vụ việc test.
-- [ ] Integration test cho thấy luồng xử lý hoạt động chính xác.
+- [x] `chatService.js` được cập nhật và có thể điều phối giữa Rule Engine và AI.
+- [x] Có ít nhất 2-3 rule y tế trong cơ sở dữ liệu để phục vụ việc test.
+- [ ] Integration test cho thấy luồng xử lý hoạt động chính xác. (Đang gặp lỗi SyntaxError trong RuleParser.js khi chạy test)
 - [ ] Chạy thử ứng dụng và gửi tin nhắn qua Postman/curl cho kết quả đúng.

@@ -37,7 +37,7 @@
     - Mock `Rule` model và test các hàm của `RuleService`.
 
 ## ✅ Success Criteria
-- [ ] File `RuleEngine.js` được implement đầy đủ.
-- [ ] File `RuleService.js` và `Rule.js` được implement.
-- [ ] Bảng `rules` được tạo thành công trong MySQL.
-- [ ] Unit tests cho các thành phần mới đều pass.
+- [x] File `RuleEngine.js` được implement đầy đủ.
+- [x] File `RuleService.js` và `Rule.js` được implement.
+- [x] Bảng `rules` được tạo thành công trong MySQL.
+- [ ] Unit tests cho các thành phần mới đều pass. (Thiếu Unit test cho RuleService)

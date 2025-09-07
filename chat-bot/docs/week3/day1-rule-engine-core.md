@@ -31,7 +31,7 @@
     - Test `RuleCompiler` với một danh sách các rule, đảm bảo nó bỏ qua các rule lỗi và biên dịch thành công các rule hợp lệ.
 
 ## ✅ Success Criteria
-- [ ] File `RuleParser.js` được implement đầy đủ.
-- [ ] File `RuleCompiler.js` được implement đầy đủ.
-- [ ] Unit tests cho cả hai file đạt trên 80% coverage.
-- [ ] Tất cả các bài test đều pass.
+- [x] File `RuleParser.js` được implement đầy đủ.
+- [x] File `RuleCompiler.js` được implement đầy đủ.
+- [x] Unit tests cho cả hai file đạt trên 80% coverage.
+- [x] Tất cả các bài test đều pass.
