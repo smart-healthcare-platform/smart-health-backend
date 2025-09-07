@@ -28,7 +28,7 @@ const Message = sequelize.define('Message', {
     defaultValue: DataTypes.NOW
   },
   urgencyLevel: {
-    type: DataTypes.ENUM('NORMAL', 'URGENT', 'CRITICAL'),
+    type: DataTypes.ENUM('NORMAL', 'INFO', 'URGENT', 'CRITICAL', 'HIGH', 'SYSTEM_ERROR'),
     defaultValue: 'NORMAL'
   }
 }, {
