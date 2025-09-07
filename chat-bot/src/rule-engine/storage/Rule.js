@@ -40,8 +40,9 @@ const Rule = sequelize.define('Rule', {
   tableName: 'rules',
   timestamps: true,
   indexes: [
-    { fields: ['priority'] },
-    { fields: ['language'] },
+    // Remove the priority and language indexes to avoid "Duplicate key name" error during sync
+    // { fields: ['priority'] },
+    // { fields: ['language'] },
     { fields: ['enabled'] }
   ]
 });
