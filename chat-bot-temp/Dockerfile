@@ -1,0 +1,33 @@
+# Chatbot Service Dockerfile
+FROM node:18-alpine
+
+# Create app directory
+WORKDIR /app
+
+# Install dependencies
+COPY package*.json ./
+RUN npm install
+
+# Bundle app source
+# Bundle app source
+COPY src ./src
+COPY scripts ./scripts
+# Create data directory for RAG
+RUN mkdir -p data/medical-docs
+
+# Create non-root user
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S chatbot -u 1001 && \
+    chown -R chatbot:nodejs /app
+
+USER chatbot
+
+# Expose port
+EXPOSE 3001
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s \
+  CMD curl -f http://localhost:3001/health || exit 1
+
+# Start application
+CMD ["npm", "start"]
