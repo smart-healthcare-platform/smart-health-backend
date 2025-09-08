@@ -1,0 +1,35 @@
+{
+  "name": "chest_pain_emergency",
+  "description": "Detect chest pain emergency situations",
+  "priority": 10,
+  "conditions": [
+    {
+      "field": "message.text",
+      "operator": "contains",
+      "value": ["chest pain", "đau ngực", "heart pain"]
+    },
+    {
+      "field": "message.text", 
+      "operator": "contains",
+      "value": ["can't breathe", "khó thở", "shortness of breath"]
+    }
+  ],
+  "actions": [
+    {
+      "type": "response",
+      "payload": {
+        "message": "🚨 EMERGENCY: Please seek immediate medical attention! Chest pain with breathing difficulties could indicate a serious condition.",
+        "urgency": "CRITICAL"
+      }
+    },
+    {
+      "type": "redirect", 
+      "payload": {
+        "service": "emergency",
+        "priority": "HIGHEST"
+      }
+    }
+  ],
+  "language": "multi",
+  "enabled": true
+}
