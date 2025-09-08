@@ -10,7 +10,7 @@ services:
     ports:
       - "3001:3001" # Expose API port
     # When running tests, we can override the command
-    command: npm run test:integration
+    command: npm start
     environment:
       # Database configuration
       - DB_HOST=database
@@ -38,10 +38,9 @@ services:
       #   condition: service_healthy
     volumes:
       # Mount source code for hot-reloading in development
-      # Mount node_modules to avoid overwriting with local modules
+      - .:/app
+      # Use an anonymous volume to prevent local node_modules from overwriting the container's
       - /app/node_modules
-      # Mount tests directory for Jest globalSetup/globalTeardown
-      - ./tests:/app/tests
       # For production, mount only necessary files
       # - ./package.json:/app/package.json
       # - ./package-lock.json:/app/package-lock.json
@@ -129,6 +128,22 @@ services:
       retries: 3
       start_period: 120s # Ollama may take longer to start
 
+  # ChromaDB - Vector database for RAG
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: chatbot-chromadb
+    ports:
+      - "8000:8000" # Expose ChromaDB API port
+    volumes:
+      - chromadb_data:/chroma/chroma
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
 # Named volumes for data persistence
 volumes:
   mysql_data:
@@ -137,3 +152,5 @@ volumes:
     name: chatbot-redis-data
   ollama_data:
     name: chatbot-ollama-data
+  chromadb_data:
+    name: chatbot-chromadb-data

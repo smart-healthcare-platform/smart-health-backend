@@ -10,7 +10,10 @@ RUN npm install
 
 # Bundle app source
 # Bundle app source
-COPY . .
+COPY src ./src
+COPY scripts ./scripts
+# Create data directory for RAG
+RUN mkdir -p data/medical-docs
 
 # Create non-root user
 RUN addgroup -g 1001 -S nodejs && \

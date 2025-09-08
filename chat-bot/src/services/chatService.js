@@ -1,5 +1,6 @@
 const RuleEngine = require('../rule-engine/engine/RuleEngine');
 const RuleService = require('../rule-engine/storage/RuleService');
+const ragService = require('./ragService'); // Import RAG Service
 const logger = require('../utils/logger');
 const { v4: uuidv4 } = require('uuid');
 const { Conversation, Message } = require('../models'); // Import Conversation and Message models
@@ -8,6 +9,7 @@ class ChatService {
   constructor() {
     this.ruleEngine = new RuleEngine();
     this.ruleService = new RuleService();
+    this.ragService = ragService;
     this.isInitialized = false;
   }
 
@@ -19,10 +21,11 @@ class ChatService {
 
     try {
       await this.reinitializeRuleEngine(); // Initial load of rules
+      await this.ragService.initialize(); // Initialize RAG service
       this.isInitialized = true;
-      logger.info('ChatService initialized successfully with Rule Engine.');
+      logger.info('ChatService initialized successfully with Rule Engine and RAG Service.');
     } catch (error) {
-      logger.error('Failed to initialize ChatService with Rule Engine:', error);
+      logger.error('Failed to initialize ChatService:', error);
       throw error;
     }
   }
@@ -104,16 +107,41 @@ class ChatService {
     };
   }
 
-  async handleAIFallback(messageData) {
-    // This is the fallback when no rules match.
-    // For now, it returns a default message.
-    // Later, this can be integrated with an AI model like Ollama.
-    logger.debug('No rule matched. Using AI fallback.', { userId: messageData.userId });
-    return {
-      message: 'Thank you for your message. How else can I assist you?',
-      urgency: 'INFO',
-      source: 'ai_fallback'
-    };
+  async handleAIFallback(messageData, context) {
+    logger.debug('No rule matched. Using AI fallback with RAG.', { userId: messageData.userId });
+
+    try {
+      const retrievedDocs = await this.ragService.query(context.message.text);
+      
+      let ragContext = "No additional information found.";
+      if (retrievedDocs && retrievedDocs.length > 0) {
+        ragContext = retrievedDocs.join('\n\n---\n\n');
+      }
+
+      // Construct a detailed prompt for the AI
+      const prompt = `Based on the following medical information: \n\n${ragContext}\n\nPlease provide a helpful and safe response to the user's query: "${context.message.text}"`;
+
+      // In a real implementation, you would send this prompt to Ollama.
+      // For this demo, we will simulate the AI response.
+      const simulatedAIResponse = `(Simulated AI Response) Based on our documents, for a query about "${context.message.text}", I recommend consulting a doctor.`;
+
+      logger.debug('AI prompt prepared with RAG context.', { prompt: prompt.substring(0, 200) + '...' });
+
+      return {
+        message: simulatedAIResponse,
+        urgency: 'INFO',
+        source: 'ai_rag_fallback'
+      };
+
+    } catch (error) {
+      logger.error('RAG-based AI fallback failed:', error);
+      // Fallback to a simpler AI response if RAG fails
+      return {
+        message: 'I am having trouble accessing my knowledge base, but I will try to help. How can I assist you?',
+        urgency: 'SYSTEM_WARNING',
+        source: 'ai_fallback_no_rag'
+      };
+    }
   }
 
   handleErrorResponse(error, sessionId) {

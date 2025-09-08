@@ -9,6 +9,7 @@ const PORT = process.env.PORT || 3001;
 
 const chatService = require('./services/chatService');
 const seedRulesModule = require('../scripts/seed-rules'); // Import entire module
+const { setupDummyData, ingestData } = require('../scripts/ingest-rag-data');
 
 const ruleService = new RuleService(); // Create an instance of RuleService globally
 
@@ -25,6 +26,12 @@ const startServer = async () => {
 
     // Initialize services
     await chatService.initialize();
+
+    // Setup and ingest RAG data
+    logger.info('Setting up RAG data...');
+    await setupDummyData();
+    await ingestData();
+    logger.info('RAG data setup complete.');
     
     // Start server
     app.listen(PORT, () => {

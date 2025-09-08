@@ -16,7 +16,7 @@ Lộ trình này được tối ưu hóa để hoàn thành các tính năng c�
 - **[x]** Xây dựng Chatbot Service Core với các API endpoints cơ bản (`/chat`, `/history`, `/health`).
 - **[x]** Tích hợp ban đầu với Ollama AI Model.
 - **[x]** Triển khai cơ chế lưu trữ session và context với Redis.
-- **[x]** Bắt đầu phát triển Rule Engine.
+- **[x]** Hoàn thiện Core Rule Engine (compiler, parser, engine).
 
 ---
 
@@ -30,11 +30,11 @@ Lộ trình này được tối ưu hóa để hoàn thành các tính năng c�
 
 #### **Các nhiệm vụ chính:**
 - **[ ] Core Service:**
-    - Hoàn thiện và kiểm thử các API endpoints (`/chat`, `/history`, `/health`, `/session`).
+    - Hoàn thiện và kiểm thử các API endpoints đã thiết kế (`/chat`, `/history`, `/health`, `/session`).
     - Tích hợp chặt chẽ logic điều phối giữa Rule Engine, RAG và AI.
 - **[ ] Rule Engine:**
-    - Hoàn thiện implementation của Rule Engine.
-    - Định nghĩa và import các bộ luật y tế cơ bản (ví dụ: nhận biết triệu chứng khẩn cấp, trả lời câu hỏi thường gặp).
+    - Định nghĩa và nạp các bộ luật y tế cơ bản (ví dụ: nhận biết triệu chứng khẩn cấp, trả lời câu hỏi thường gặp).
+    - Xây dựng API quản lý bộ luật (thêm/sửa/xóa).
 - **[ ] RAG System (MVP):**
     - Thiết lập vector database (ưu tiên ChromaDB vì tính đơn giản, dễ cài đặt).
     - Chuẩn bị và vector hóa một bộ tài liệu y tế cốt lõi (5-10 tài liệu quan trọng nhất).
