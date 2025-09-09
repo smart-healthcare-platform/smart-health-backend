@@ -8,6 +8,7 @@ import fit.iuh.auth.entity.User;
 import fit.iuh.auth.repository.RefreshTokenRepository;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -20,6 +21,7 @@ import java.time.LocalDateTime;
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@Transactional
 public class AuthService {
 
     private final UserService userService;
@@ -31,13 +33,14 @@ public class AuthService {
         log.info("Attempting to register user: {}", request.getUsername());
         
         // Check if user already exists
-        if (userService.existsByUsername(request.getUsername())) {
+        if (userService.existsByEmail(request.getUsername())) {
             throw new RuntimeException("Username đã tồn tại: " + request.getUsername());
         }
 
         // Create new user
         User user = new User();
         user.setUsername(request.getUsername());
+        user.setEmail(request.getEmail());
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         user.setRole(request.getRole());
         user.setIsActive(true);
@@ -68,18 +71,18 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest request,HttpServletResponse response) {
-        log.info("Attempting to login user: {}", request.getUsername());
+        log.info("Attempting to login user: {}", request.getEmail());
         
         // Authenticate user
         authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
-                        request.getUsername(),
+                        request.getEmail(),
                         request.getPassword()
                 )
         );
 
         // Get user
-        User user = userService.findByUsername(request.getUsername())
+        User user = userService.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         if (!user.getIsActive()) {
@@ -117,7 +120,7 @@ public class AuthService {
         log.info("Attempting to refresh token");
         
         String username = jwtService.extractUsername(refreshToken);
-        User user = userService.findByUsername(username)
+        User user = userService.findByUserName(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         if (!jwtService.isTokenValid(refreshToken, user)) {
@@ -158,6 +161,20 @@ public class AuthService {
         cookie.setSecure(true);
         cookie.setPath("/");
         cookie.setMaxAge(7 * 24 * 60 * 60); // 7 ngày
+        response.addCookie(cookie);
+    }
+    public void logout(HttpServletResponse response, String refreshToken) {
+        log.info("Logging out user with refreshToken: {}", refreshToken);
+
+        // Xoá refreshToken trong DB
+        refreshTokenRepository.deleteByToken(refreshToken);
+
+        // Xoá cookie
+        Cookie cookie = new Cookie("refreshToken", null);
+        cookie.setHttpOnly(true);
+        cookie.setSecure(true);
+        cookie.setPath("/");
+        cookie.setMaxAge(0);
         response.addCookie(cookie);
     }
 } 

@@ -88,14 +88,16 @@ const createServiceProxy = (serviceName) => {
     changeOrigin: true,
 
     pathRewrite: (path, req) => {
-      // Fix path rewriting: Remove API Gateway prefix and add service basePath
       let cleanPath = path;
 
       if (serviceName === "auth") {
-        // /v1/auth/login -> /login -> /api/auth/login
+        // /v1/auth/login -> /login
         cleanPath = path.replace(/^\/v1\/auth/, "");
+      } else if (path.startsWith(`/v1/public/${serviceName}`)) {
+        // /v1/public/doctors or /v1/public/doctors/:id -> /doctors or /doctors/:id
+        return `${service.basePath}${path.replace(`/v1/public/${serviceName}`, '')}`;
       } else {
-        // /v1/patients/123 -> /123 -> /api/patients/123
+        // /v1/doctors/123 -> /123
         cleanPath = path.replace(new RegExp(`^/v1/${serviceName}`), "");
       }
 

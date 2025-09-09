@@ -45,11 +45,11 @@ public class AuthController {
             @Valid @RequestBody LoginRequest request,
             HttpServletResponse response) {
         try {
-            log.info("Login request for username: {}", request.getUsername());
+            log.info("Login request for username: {}", request.getEmail());
             AuthResponse authResponse = authService.login(request, response);
             return ResponseEntity.ok(ApiResponse.success("Đăng nhập thành công", authResponse));
         } catch (Exception e) {
-            log.error("Login failed for username: {}", request.getUsername(), e);
+            log.error("Login failed for username: {}", request.getEmail(), e);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error("Tên đăng nhập hoặc mật khẩu không đúng",
                             HttpStatus.UNAUTHORIZED.value()));
@@ -93,4 +93,18 @@ public class AuthController {
     public ResponseEntity<ApiResponse<String>> health() {
         return ResponseEntity.ok(ApiResponse.success("Auth service is running"));
     }
+    @PostMapping("/logout")
+    public ResponseEntity<ApiResponse<Void>> logout(
+            @CookieValue(name = "refreshToken", required = false) String refreshToken,
+            HttpServletResponse response
+    ) {
+        if (refreshToken == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error("Không tìm thấy refresh token", 401));
+        }
+
+        authService.logout(response, refreshToken);
+        return ResponseEntity.ok(ApiResponse.success("Đăng xuất thành công", null));
+    }
+
 }

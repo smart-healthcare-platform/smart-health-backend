@@ -11,7 +11,7 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=development
-      - PORT=3000
+      - PORT=8080
       - JWT_SECRET=c21hcnRIZWFsdGhTZWNyZXRLZXlGb3JKV1RUb2tlbkdlbmVyYXRpb25BbmRWYWxpZGF0aW9uMjAyNA==
       - AUTH_SERVICE_URL=http://host.docker.internal:8081
       - PATIENT_SERVICE_URL=http://host.docker.internal:8082
@@ -20,7 +20,7 @@ services:
       - NOTIFICATION_SERVICE_URL=http://host.docker.internal:8085
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - CORS_ORIGIN=http://localhost:3001,http://localhost:3002
+      - CORS_ORIGIN=http://localhost:3000,http://localhost:3001,http://localhost:3002
       - LOG_LEVEL=info
     depends_on:
       - redis

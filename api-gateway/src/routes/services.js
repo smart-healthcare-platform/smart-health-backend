@@ -1,15 +1,31 @@
 const express = require('express');
 const router = express.Router();
 const { getServiceProxy } = require('../services/serviceProxy');
-const { 
-  authenticateJWT, 
-  requireAdmin, 
-  requireDoctorOrAdmin, 
-  requireAnyRole 
+const {
+  authenticateJWT,
+  requireAdmin,
+  requireDoctorOrAdmin,
+  requireAnyRole
 } = require('../middleware/auth');
 const { dynamicLimiter } = require('../middleware/rateLimiter');
 const logger = require('../config/logger');
 
+// --- PUBLIC: ai cũng có thể xem danh sách bác sĩ hoặc xem chi tiết
+try {
+  const doctorProxy = getServiceProxy('doctors');
+  router.use('/public/doctors', doctorProxy);  // GET /v1/public/doctors
+} catch (error) {
+  logger.error('Failed to configure public doctor service proxy', { error: error.message });
+  router.use('/public/doctors', (req, res) => {
+    res.status(503).json({
+      success: false,
+      message: 'Doctor service (public) is temporarily unavailable',
+      code: 503,
+      service: 'doctor',
+      timestamp: new Date().toISOString(),
+    });
+  });
+}
 /**
  * Apply authentication and rate limiting to all service routes
  */
@@ -48,12 +64,11 @@ try {
   });
 }
 
-/**
- * Doctor Service Routes
- * Only doctors and admins can access doctor service
- */
-router.use('/doctors', requireDoctorOrAdmin, (req, res, next) => {
-  logger.info('Doctor service access', {
+
+
+// --- PROTECTED: thêm/sửa/xóa bác sĩ -> chỉ Doctor hoặc Admin
+router.use('/doctors', authenticateJWT, requireDoctorOrAdmin, (req, res, next) => {
+  logger.info('Doctor service access (protected)', {
     userId: req.user.id,
     role: req.user.role,
     path: req.path,
@@ -62,10 +77,9 @@ router.use('/doctors', requireDoctorOrAdmin, (req, res, next) => {
   next();
 });
 
-// Configure doctor service proxy
 try {
-  const doctorProxy = getServiceProxy('doctor');
-  router.use('/doctors', doctorProxy);
+  const doctorProxyProtected = getServiceProxy('doctors');
+  router.use('/doctors', doctorProxyProtected);
 } catch (error) {
   logger.error('Failed to configure doctor service proxy', { error: error.message });
   router.use('/doctors', (req, res) => {
@@ -181,10 +195,10 @@ router.use((error, req, res, next) => {
     userId: req.user?.id,
     service: error.serviceName,
   });
-  
+
   const statusCode = error.statusCode || 500;
   const message = error.message || 'Service error';
-  
+
   res.status(statusCode).json({
     success: false,
     message,
