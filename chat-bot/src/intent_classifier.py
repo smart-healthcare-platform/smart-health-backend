@@ -7,8 +7,8 @@ class Intent(Enum):
     LLM = "llm"
 
 # --- Keyword Definitions ---
-EMERGENCY_KEYWORDS = ["đau ngực", "khó thở", "ngất", "hoa mắt", "chóng mặt", "tức ngực"]
-RULE_BASED_KEYWORDS = ["chào", "bạn là ai", "giờ làm việc", "liên hệ", "cảm ơn"]
+EMERGENCY_KEYWORDS = ["đau tim", "nhói tim", "tim đập nhanh", "đau ngực", "khó thở", "ngất", "hoa mắt", "chóng mặt", "tức ngực"]
+RULE_BASED_KEYWORDS = ["chào", "bạn là ai", "giờ làm việc", "liên hệ", "cảm ơn", "triệu chứng", "phòng ngừa", "tăng huyết áp"]
 
 # --- Classifier Logic ---
 def classify_intent(message: str) -> Intent:
