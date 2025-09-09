@@ -133,126 +133,15 @@ Dịch vụ Chatbot sẽ được xây dựng trên kiến trúc Microservices c
 
 ### 5. KẾ HOẠCH TRIỂN KHAI (7 NGÀY)
 
-Kế hoạch này tập trung vào việc xây dựng một MVP (Minimum Viable Product) hoạt động được, ưu tiên các tính năng cốt lõi theo yêu cầu.
+Kế hoạch này tập trung vào việc xây dựng một MVP (Minimum Viable Product) hoạt động được trong 7 ngày. Dưới đây là tổng quan về các mục tiêu cho mỗi ngày. Để xem chi tiết nhiệm vụ, mã nguồn ví dụ và hướng dẫn cụ thể, vui lòng tham khảo các tài liệu sau:
 
----
-
-#### **NGÀY 1: Cài đặt môi trường & REST API cơ bản với Ollama**
-
-- **Mục tiêu:** Thiết lập dự án, cài đặt Ollama và tạo endpoint API đầu tiên để giao tiếp trực tiếp với LLM.
-- **Nhiệm vụ:**
-  - Khởi tạo dự án Python, môi trường ảo.
-  - Cài đặt `FastAPI`, `uvicorn`, `httpx`.
-  - Cài đặt Ollama trên máy chủ/máy phát triển.
-  - Kéo một mô hình LLM cơ bản (ví dụ: `ollama pull llama3`).
-  - Xây dựng file `main.py` với FastAPI.
-  - Tạo endpoint `POST /chat/ollama` nhận `{ "message": "string" }` và gửi request đến Ollama, trả về phản hồi.
-  - Kiểm tra API bằng `curl` hoặc Swagger UI (FastAPI tự động tạo).
-- **Kết quả mong đợi:** Một API hoạt động, có thể gửi tin nhắn đến Ollama và nhận phản hồi.
-- **Ưu tiên:** Cao nhất.
-
----
-
-#### **NGÀY 2: Xây dựng Rules Engine & Intent Classifier cơ bản**
-
-- **Mục tiêu:** Tích hợp Rules Engine để xử lý các câu hỏi đơn giản và một bộ phân loại ý định cơ bản để định tuyến.
-- **Nhiệm vụ:**
-  - Xây dựng module `rules_engine.py` chứa một dictionary hoặc cấu trúc `if-elif-else` đơn giản cho các câu hỏi thường gặp (ví dụ: "Chào bạn", "Giờ làm việc", "Liên hệ").
-  - Xây dựng module `intent_classifier.py` với logic keyword-based để phát hiện:
-    - Các câu hỏi Rules Engine.
-    - Các câu hỏi khẩn cấp (ví dụ: "đau ngực", "khó thở", "ngất").
-    - Các câu hỏi thông thường (mặc định gửi đến LLM).
-  - Cập nhật endpoint `POST /chat` chính:
-    - Nhận `message`.
-    - Sử dụng Intent Classifier để định tuyến.
-    - Nếu khẩn cấp: Trả về cảnh báo.
-    - Nếu Rules Engine: Trả về câu trả lời từ Rules Engine.
-    - Nếu LLM: Gửi đến Ollama (tạm thời không RAG).
-- **Kết quả mong đợi:** Chatbot có thể phân biệt và trả lời các câu hỏi đơn giản, và đưa ra cảnh báo khẩn cấp.
-- **Ưu tiên:** Cao.
-
----
-
-#### **NGÀY 3: Chuẩn bị dữ liệu và Thiết lập RAG - Data Ingestion**
-
-- **Mục tiêu:** Chuẩn bị cơ sở kiến thức y khoa và xây dựng quy trình nạp dữ liệu vào Vector Database.
-- **Nhiệm vụ:**
-  - Thu thập một số tài liệu y khoa mẫu về tim mạch (ví dụ: PDF, TXT) và đặt vào thư mục `knowledge_base/`.
-  - Cài đặt `LangChain` (hoặc `LlamaIndex`), `chromadb`, `sentence-transformers`.
-  - Xây dựng module `rag_pipeline.py`:
-    - Chức năng `load_documents()`: Tải tài liệu từ thư mục.
-    - Chức năng `split_documents()`: Chia tài liệu thành các đoạn nhỏ (chunks).
-    - Chức năng `create_embeddings()`: Sử dụng `SentenceTransformer` (hoặc Ollama embeddings nếu có) để tạo vector nhúng.
-    - Chức năng `store_embeddings()`: Lưu trữ các chunk và embeddings vào ChromaDB.
-  - Chạy script nạp dữ liệu ban đầu để populate ChromaDB.
-- **Kết quả mong đợi:** Cơ sở dữ liệu Vector (ChromaDB) được khởi tạo và chứa các vector nhúng từ tài liệu y khoa của bạn.
-- **Ưu tiên:** Cao.
-
----
-
-#### **NGÀY 4: Triển khai RAG - Retrieval và LLM Integration**
-
-- **Mục tiêu:** Hoàn thiện luồng RAG, cho phép LLM sử dụng tài liệu tìm được để trả lời.
-- **Nhiệm vụ:**
-  - Trong `rag_pipeline.py`, thêm chức năng `retrieve_documents(query)`: Truy vấn ChromaDB để tìm các đoạn tài liệu liên quan nhất đến câu hỏi.
-  - Cập nhật logic trong endpoint `POST /chat`:
-    - Khi ý định là "LLM", trước tiên gọi `retrieve_documents()` với câu hỏi của người dùng.
-    - Xây dựng một prompt mới cho Ollama, bao gồm câu hỏi của người dùng và các đoạn tài liệu đã tìm được (context).
-    - Gửi prompt này đến Ollama.
-  - Tinh chỉnh prompt để hướng dẫn LLM trả lời dựa trên context và chỉ rõ nếu thông tin không có trong context.
-- **Kết quả mong đợi:** Chatbot có thể trả lời các câu hỏi phức tạp bằng cách tham khảo tài liệu y khoa.
-- **Ưu tiên:** Cao.
-
----
-
-#### **NGÀY 5: Quản lý ngữ cảnh & Tuyên bố miễn trừ trách nhiệm**
-
-- **Mục tiêu:** Cải thiện trải nghiệm hội thoại và đảm bảo tuân thủ các quy định y tế.
-- **Nhiệm vụ:**
-  - **Quản lý ngữ cảnh:**
-    - Triển khai một lớp `ConversationMemory` đơn giản (có thể dùng `dict` trong bộ nhớ cho MVP) để lưu trữ `(user_message, bot_response)` của N lượt hội thoại gần nhất.
-    - Mỗi khi có tin nhắn mới, lấy lịch sử hội thoại và thêm vào prompt gửi đến LLM.
-  - **Tuyên bố miễn trừ trách nhiệm:**
-    - Tạo một `MEDICAL_DISCLAIMER` dạng string.
-    - Cập nhật logic xử lý phản hồi trong `main.py` để tự động nối `MEDICAL_DISCLAIMER` vào cuối mọi câu trả lời được tạo bởi LLM hoặc RAG.
-  - Kiểm tra end-to-end các luồng hội thoại.
-- **Kết quả mong đợi:** Chatbot có thể duy trì ngữ cảnh cơ bản và luôn hiển thị tuyên bố miễn trừ trách nhiệm.
-- **Ưu tiên:** Trung bình - Cao (đặc biệt là Disclaimer).
-
----
-
-#### **NGÀY 6: Đánh giá, Tối ưu & Dockerization**
-
-- **Mục tiêu:** Kiểm tra lại toàn bộ hệ thống, tối ưu hiệu suất và chuẩn bị cho triển khai.
-- **Nhiệm vụ:**
-  - **Kiểm thử:**
-    - Kiểm tra các trường hợp cạnh của Rules Engine.
-    - Kiểm tra chất lượng trả lời của RAG với các câu hỏi khác nhau.
-    - Kiểm tra phát hiện khẩn cấp.
-    - Kiểm tra tính năng ngữ cảnh.
-    - Đảm bảo Disclaimer luôn hiển thị.
-  - **Tối ưu:**
-    - Tối ưu kích thước chunk, số lượng tài liệu trả về từ RAG.
-    - Điều chỉnh prompt cho LLM.
-    - Kiểm tra hiệu suất API.
-  - **Dockerization:**
-    - Tạo `Dockerfile` để đóng gói ứng dụng FastAPI, Ollama (nếu chạy trong cùng container, hoặc kết nối đến Ollama host riêng).
-    - Tạo `docker-compose.yml` để dễ dàng khởi động dịch vụ (FastAPI app, ChromaDB, Ollama nếu cần).
-- **Kết quả mong đợi:** Một chatbot MVP ổn định, tối ưu hóa cơ bản và sẵn sàng để triển khai bằng Docker.
-- **Ưu tiên:** Cao.
-
----
-
-#### **NGÀY 7: Tài liệu API, Hướng dẫn sử dụng & Báo cáo**
-
-- **Mục tiêu:** Hoàn thiện tài liệu dự án và chuẩn bị báo cáo kết quả.
-- **Nhiệm vụ:**
-  - **Tài liệu API:** FastAPI tự động tạo Swagger UI (OpenAPI docs) tại `/docs` và `/redoc`. Đảm bảo các docstring và type hints đầy đủ để tài liệu tự động được sinh ra chính xác.
-  - **Hướng dẫn sử dụng:** Viết một file `README.md` chi tiết về cách cài đặt, chạy, cấu hình và sử dụng dịch vụ.
-  - **Báo cáo kết quả:** Tổng hợp các tính năng đã hoàn thành, những thách thức gặp phải và đề xuất cho các bước tiếp theo.
-  - **Sửa lỗi cuối cùng:** Khắc phục các lỗi nhỏ phát hiện trong quá trình kiểm thử.
-- **Kết quả mong đợi:** Tài liệu dự án hoàn chỉnh, API được ghi nhận rõ ràng, và một bản báo cáo tổng kết.
-- **Ưu tiên:** Cao.
+- **[Ngày 1: Cài đặt môi trường & REST API cơ bản với Ollama](day1.md)**
+- **[Ngày 2: Xây dựng Rules Engine & Intent Classifier cơ bản](day2.md)**
+- **[Ngày 3: Chuẩn bị dữ liệu và Thiết lập RAG - Data Ingestion](day3.md)**
+- **[Ngày 4: Triển khai RAG - Retrieval và LLM Integration](day4.md)**
+- **[Ngày 5: Quản lý ngữ cảnh & Tuyên bố miễn trừ trách nhiệm](day5.md)**
+- **[Ngày 6: Đánh giá, Tối ưu & Dockerization](day6.md)**
+- **[Ngày 7: Tài liệu API, Hướng dẫn sử dụng & Báo cáo](day7.md)**
 
 ---
 
