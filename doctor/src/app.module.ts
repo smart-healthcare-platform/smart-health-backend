@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 import { DoctorModule } from './modules/doctor/doctor.module';
+import { AppointmentSlotModule } from './modules/appointment-slot/appointment-slot.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { DoctorModule } from './modules/doctor/doctor.module';
       synchronize: true, 
     }),
     DoctorModule,
+    AppointmentSlotModule
   ],
 })
 export class AppModule {}

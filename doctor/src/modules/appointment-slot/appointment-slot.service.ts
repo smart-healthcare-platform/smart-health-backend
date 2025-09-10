@@ -2,43 +2,43 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AppointmentSlot } from './appointment-slot.entity';
-import { CreateDoctorLicenseDto } from './dto/create-doctor-certificates.dto';
-import { UpdateDoctorLicenseDto } from './dto/update-doctor-certificates.dto';
+import { CreateDoctorAppoinmentSlotDto } from './dto/create-doctor-appointment.dto';
+import { UpdateDoctorAppoinmentSlotDto } from './dto/update-doctor-appointment.dto';
 
 @Injectable()
 export class AppointmentSlotService {
   constructor(
     @InjectRepository(AppointmentSlot)
-    private licenseRepo: Repository<AppointmentSlot>,
+    private appointment_slot_repo: Repository<AppointmentSlot>,
   ) {}
 
-  async create(dto: CreateDoctorLicenseDto): Promise<AppointmentSlot> {
-    const license = this.licenseRepo.create(dto);
-    return this.licenseRepo.save(license);
+  async create(dto: CreateDoctorAppoinmentSlotDto): Promise<AppointmentSlot> {
+    const slot = this.appointment_slot_repo.create(dto);
+    return this.appointment_slot_repo.save(slot);
   }
 
   async findAll(): Promise<AppointmentSlot[]> {
-    return this.licenseRepo.find({ relations: ['doctor'] });
+    return this.appointment_slot_repo.find({ relations: ['doctor'] });
   }
 
   async findByDoctor(doctor_id: string): Promise<AppointmentSlot[]> {
-    return this.licenseRepo.find({ where: { doctor_id } });
+    return this.appointment_slot_repo.find({ where: { doctor_id } });
   }
 
   async findOne(id: string): Promise<AppointmentSlot> {
-    const license = await this.licenseRepo.findOne({ where: { id }, relations: ['doctor'] });
-    if (!license) throw new NotFoundException(`DoctorLicense with id ${id} not found`);
-    return license;
+    const slot = await this.appointment_slot_repo .findOne({ where: { id }, relations: ['doctor'] });
+    if (!slot) throw new NotFoundException(`AppointmentSlot with id ${id} not found`);
+    return slot;
   }
 
-  async update(id: string, dto: UpdateDoctorLicenseDto): Promise<AppointmentSlot> {
+  async update(id: string, dto: UpdateDoctorAppoinmentSlotDto): Promise<AppointmentSlot> {
     await this.findOne(id);
-    await this.licenseRepo.update(id, dto);
+    await this.appointment_slot_repo.update(id, dto);
     return this.findOne(id);
   }
 
   async remove(id: string): Promise<void> {
     await this.findOne(id);
-    await this.licenseRepo.delete(id);
+    await this.appointment_slot_repo.delete(id);
   }
 }

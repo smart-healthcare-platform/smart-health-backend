@@ -2,8 +2,8 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DoctorBlockTime } from './doctor-block-time.entity';
-import { CreateDoctorScheduleDto } from './dto/create-doctor-schedule.dto';
-import { UpdateDoctorScheduleDto } from './dto/update-doctor-schedule.dto';
+import { CreateDoctorBlockTimeDto } from './dto/create-doctor-block-time.dto';
+import { UpdateDoctorBlockTimeDto } from './dto/update-doctor-block-time.dto';
 
 @Injectable()
 export class DoctorBlockTimeService {
@@ -12,7 +12,7 @@ export class DoctorBlockTimeService {
     private scheduleRepo: Repository<DoctorBlockTime>,
   ) {}
 
-  async create(dto: CreateDoctorScheduleDto): Promise<DoctorBlockTime> {
+  async create(dto: CreateDoctorBlockTimeDto): Promise<DoctorBlockTime> {
     const schedule = this.scheduleRepo.create(dto);
     return this.scheduleRepo.save(schedule);
   }
@@ -31,7 +31,7 @@ export class DoctorBlockTimeService {
     return schedule;
   }
 
-  async update(id: string, dto: UpdateDoctorScheduleDto): Promise<DoctorBlockTime> {
+  async update(id: string, dto: UpdateDoctorBlockTimeDto): Promise<DoctorBlockTime> {
     await this.findOne(id);
     await this.scheduleRepo.update(id, dto);
     return this.findOne(id);

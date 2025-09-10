@@ -16,14 +16,13 @@ export class DoctorAvailability {
   @Column({ type: 'char', length: 36 })
   doctor_id: string;
 
+  // Ngày trong tuần
   @Column({ type: 'enum', enum: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] })
   day_of_week: string;
 
-  @Column({ type: 'time' })
-  start_time: string; // ví dụ 09:00
-
-  @Column({ type: 'time' })
-  end_time: string; // ví dụ 17:00
+  // Ca làm việc
+  @Column({ type: 'enum', enum: ['morning', 'afternoon', 'full'] })
+  shift: 'morning' | 'afternoon' | 'full';
 
   @CreateDateColumn()
   created_at: Date;

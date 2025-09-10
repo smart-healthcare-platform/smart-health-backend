@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Put, Delete, Body, Param } from '@nestjs/common';
 import { DoctorAvailabilityService } from './doctor-availability.service';
-import { CreateDoctorDegreeDto } from './dto/create-doctor-degree.dto';
-import { UpdateDoctorDegreeDto } from './dto/update-doctor-degree.dto';
+import { CreateDoctorAvailabilityDto } from './dto/create-doctor-vailability.dto';
+import { UpdateDoctorAvailabilityDto } from './dto/update-doctor-vailability.dto';
 import { DoctorAvailability } from './doctor-availability.entity';
 
 @Controller('doctor-degrees')
@@ -9,7 +9,7 @@ export class DoctorAvailabilityController {
   constructor(private readonly degreeService: DoctorAvailabilityService) {}
 
   @Post()
-  async create(@Body() dto: CreateDoctorDegreeDto): Promise<DoctorAvailability> {
+  async create(@Body() dto: CreateDoctorAvailabilityDto): Promise<DoctorAvailability> {
     return this.degreeService.create(dto);
   }
 
@@ -24,7 +24,7 @@ export class DoctorAvailabilityController {
   }
 
   @Put(':id')
-  async update(@Param('id') id: string, @Body() dto: UpdateDoctorDegreeDto): Promise<DoctorAvailability> {
+  async update(@Param('id') id: string, @Body() dto: UpdateDoctorAvailabilityDto): Promise<DoctorAvailability> {
     return this.degreeService.update(id, dto);
   }
 
