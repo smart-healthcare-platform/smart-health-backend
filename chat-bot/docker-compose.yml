@@ -1,0 +1,95 @@
+# Docker Compose file for the Smart Health Chatbot
+# Version: 3.9
+
+# --- IMPORTANT ---
+# Before starting, you must pull the required Ollama model manually.
+# Run the following command in your terminal:
+# docker exec -it ollama ollama pull llama3.2:latest
+# -----------------
+
+version: "3.9"
+
+services:
+  # Ollama service to run the local LLM
+  ollama:
+    image: ollama/ollama
+    container_name: ollama
+    ports:
+      - "11435:11434" # Expose on host port 11435 to avoid conflicts
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - chatbot-net
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  # ChromaDB service for the vector store
+  chromadb:
+    image: ghcr.io/chroma-core/chroma:0.5.3
+    container_name: chromadb
+    ports:
+      - "8002:8000" # Expose on host port 8002 to avoid conflicts
+    volumes:
+      - chroma_data:/chroma/chroma # Persist ChromaDB data
+    networks:
+      - chatbot-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 5s
+      timeout: 10s
+      retries: 5
+
+  # Data ingestion service to populate ChromaDB
+  ingestor:
+    build: .
+    container_name: chatbot_ingestor
+    depends_on:
+      chromadb:
+        condition: service_healthy
+    networks:
+      - chatbot-net
+    environment:
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8000
+    # This command runs the ingestion script and then the container exits.
+    command: ["python", "-c", "from src.rag_pipeline import ingest_data; ingest_data()"]
+    restart: "no" # Ensure it only runs once
+
+  # Main application service
+  app:
+    build: .
+    container_name: chatbot_app
+    ports:
+      - "8003:8000" # Expose on host port 8003 to avoid conflicts
+    volumes:
+      - ./src:/app/src
+      - ./knowledge_base:/app/knowledge_base
+    networks:
+      - chatbot-net
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8000
+    depends_on:
+      ollama:
+        condition: service_started
+      chromadb:
+        condition: service_healthy
+      ingestor:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+volumes:
+  ollama_data:
+    driver: local
+  chroma_data:
+    driver: local
+
+networks:
+  chatbot-net:
+    driver: bridge
