@@ -4,7 +4,7 @@ import { CreateDoctorAppoinmentSlotDto } from './dto/create-doctor-appointment.d
 import { UpdateDoctorAppoinmentSlotDto } from './dto/update-doctor-appointment.dto';
 import { AppointmentSlot } from './appointment-slot.entity';
 
-@Controller('api/appointment-slots')
+@Controller('api/doctors/appointment-slots')
 export class AppointmentSlotController {
   constructor(private readonly appointment_slot: AppointmentSlotService) {}
 
@@ -18,7 +18,7 @@ export class AppointmentSlotController {
     return this.appointment_slot.findAll();
   }
 
-  @Get('doctor/:doctorId')
+  @Get('/:doctorId')
   async findByDoctor(@Param('doctorId') doctorId: string): Promise<AppointmentSlot[]> {
     return this.appointment_slot.findByDoctor(doctorId);
   }

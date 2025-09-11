@@ -265,7 +265,16 @@ export class DoctorSeed implements OnModuleInit {
       },
     ];
 
-    // Tạo từng bác sĩ với đầy đủ thông tin
+    const weekDaysMap: Record<string, number> = {
+      mon: 1,
+      tue: 2,
+      wed: 3,
+      thu: 4,
+      fri: 5,
+      sat: 6,
+      sun: 0,
+    };
+
     for (const [index, doctorData] of doctorsData.entries()) {
       const doctor = await this.doctorService.create({
         full_name: doctorData.full_name,
@@ -280,80 +289,126 @@ export class DoctorSeed implements OnModuleInit {
         active: true,
       });
 
-      // Tạo bằng cấp
+      // Bằng cấp
       await this.certRepo.save([
         this.certRepo.create({
           doctor_id: doctor.id,
           type: 'degree',
           title: doctorData.degree,
           field: doctorData.specialty,
-          graduation_year: new Date(`${2005 + Math.floor(Math.random() * 15)}-06-01`),
+          graduation_year: new Date(
+            `${2005 + Math.floor(Math.random() * 15)}-06-01`,
+          ),
           certificate_file: `/uploads/certs/degree_${doctor.id}.pdf`,
         }),
         this.certRepo.create({
           doctor_id: doctor.id,
           type: 'license',
           title: `Giấy phép hành nghề số ${10000 + index}`,
-          issued_date: new Date(`${2010 + Math.floor(Math.random() * 10)}-01-01`),
-          expiry_date: new Date(`${2030 + Math.floor(Math.random() * 5)}-01-01`),
+          issued_date: new Date(
+            `${2010 + Math.floor(Math.random() * 10)}-01-01`,
+          ),
+          expiry_date: new Date(
+            `${2030 + Math.floor(Math.random() * 5)}-01-01`,
+          ),
           certificate_file: `/uploads/certs/license_${doctor.id}.pdf`,
         }),
       ]);
 
-      // Tạo availability
+      // Availability & Slots
       const workDays = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
-      const selectedDays = workDays.sort(() => 0.5 - Math.random()).slice(0, 3 + Math.floor(Math.random() * 3));
+      const selectedDays = workDays
+        .sort(() => 0.5 - Math.random())
+        .slice(0, 3 + Math.floor(Math.random() * 3));
       for (const day of selectedDays) {
-        const shifts: Array<'morning' | 'afternoon' | 'full'> = ['morning','afternoon','full'];
+        const shifts: Array<'morning' | 'afternoon' | 'full'> = [
+          'morning',
+          'afternoon',
+          'full',
+        ];
         const shift = shifts[Math.floor(Math.random() * shifts.length)];
-        await this.availRepo.save(this.availRepo.create({
-          doctor_id: doctor.id,
-          day_of_week: day,
-          shift: shift,
-        }));
 
-        // Gen slot tự động dựa trên shift
-        let shiftStartHour = shift === 'morning' ? 8 : shift === 'afternoon' ? 13 : 8;
-        let shiftEndHour = shift === 'morning' ? 12 : shift === 'afternoon' ? 17 : 17;
-
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        tomorrow.setHours(shiftStartHour, 0, 0, 0);
-
-        while (tomorrow.getHours() < shiftEndHour) {
-          const slotStart = new Date(tomorrow);
-          const slotEnd = new Date(slotStart.getTime() + 50 * 60000); // 50 phút khám
-          if (slotEnd.getHours() >= shiftEndHour) break; // không vượt quá shift
-
-          await this.slotRepo.save(this.slotRepo.create({
+        await this.availRepo.save(
+          this.availRepo.create({
             doctor_id: doctor.id,
-            start_time: slotStart,
-            end_time: slotEnd,
-            status: 'available',
-          }));
+            day_of_week: day,
+            shift: shift,
+          }),
+        );
 
-          // Tiếp theo sau 10 phút nghỉ
-          tomorrow.setTime(slotStart.getTime() + 60 * 60000);
+        // Gen slot dựa trên shift
+        let shiftStartHour =
+          shift === 'morning' ? 8 : shift === 'afternoon' ? 13 : 8;
+        let shiftEndHour =
+          shift === 'morning' ? 12 : shift === 'afternoon' ? 17 : 17;
+
+        // Tìm ngày tiếp theo đúng day_of_week
+        const today = new Date();
+        const targetDayNumber = weekDaysMap[day];
+        const slotDate = new Date(today);
+        slotDate.setDate(
+          today.getDate() + ((targetDayNumber + 7 - today.getDay()) % 7),
+        );
+        slotDate.setHours(shiftStartHour, 0, 0, 0);
+
+        let slotTime = new Date(slotDate);
+
+        while (slotTime.getHours() < shiftEndHour) {
+          const slotStart = new Date(slotTime);
+          const slotEnd = new Date(slotStart.getTime() + 50 * 60000); // 50 phút khám
+          if (slotEnd.getHours() > shiftEndHour) break;
+
+          await this.slotRepo.save(
+            this.slotRepo.create({
+              doctor_id: doctor.id,
+              start_time: slotStart,
+              end_time: slotEnd,
+              status: 'available',
+            }),
+          );
+
+          // next slot: 50 phút + 10 phút nghỉ
+          slotTime.setTime(slotStart.getTime() + 60 * 60000);
         }
       }
 
-      // Thời gian nghỉ trưa cố định
-      await this.blockRepo.save(this.blockRepo.create({
-        doctor_id: doctor.id,
-        start_time: new Date('2025-09-12T12:00:00'),
-        end_time: new Date('2025-09-12T13:00:00'),
-        reason: 'Nghỉ trưa',
-      }));
+      // Block time cố định (nghỉ trưa)
+      await this.blockRepo.save(
+        this.blockRepo.create({
+          doctor_id: doctor.id,
+          start_time: new Date('2025-09-12T12:00:00'),
+          end_time: new Date('2025-09-12T13:00:00'),
+          reason: 'Nghỉ trưa',
+        }),
+      );
 
-      // Tạo đánh giá
+      // Đánh giá
       const ratings = [
-        { rating: 5, comment: 'Bác sĩ rất tận tâm và chuyên môn cao', patient_id: `P${String(index * 3 + 1).padStart(3, '0')}` },
-        { rating: 4, comment: 'Khám bệnh kỹ lưỡng, giải thích rõ ràng', patient_id: `P${String(index * 3 + 2).padStart(3, '0')}` },
-        { rating: 5, comment: 'Rất hài lòng với dịch vụ khám chữa bệnh', patient_id: `P${String(index * 3 + 3).padStart(3, '0')}` },
+        {
+          rating: 5,
+          comment: 'Bác sĩ rất tận tâm và chuyên môn cao',
+          patient_id: `P${String(index * 3 + 1).padStart(3, '0')}`,
+        },
+        {
+          rating: 4,
+          comment: 'Khám bệnh kỹ lưỡng, giải thích rõ ràng',
+          patient_id: `P${String(index * 3 + 2).padStart(3, '0')}`,
+        },
+        {
+          rating: 5,
+          comment: 'Rất hài lòng với dịch vụ khám chữa bệnh',
+          patient_id: `P${String(index * 3 + 3).padStart(3, '0')}`,
+        },
       ];
-      await this.ratingRepo.save(ratings.map(r => this.ratingRepo.create({...r, doctor_id: doctor.id})));
+      await this.ratingRepo.save(
+        ratings.map((r) =>
+          this.ratingRepo.create({ ...r, doctor_id: doctor.id }),
+        ),
+      );
 
-      console.log(`✅ Đã tạo bác sĩ: ${mapDegreeToPrefix(doctorData.degree)} ${doctorData.full_name} - ${doctorData.specialty}`);
+      console.log(
+        `✅ Tạo bác sĩ: ${mapDegreeToPrefix(doctorData.degree)} ${doctorData.full_name} - ${doctorData.specialty}`,
+      );
     }
 
     console.log('✅ Hoàn thành tạo 20 bác sĩ với đầy đủ thông tin!');
