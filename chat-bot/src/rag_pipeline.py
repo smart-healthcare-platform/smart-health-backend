@@ -1,4 +1,5 @@
 import os
+import chromadb
 from langchain_community.document_loaders import PyPDFLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.embeddings import SentenceTransformerEmbeddings
@@ -6,7 +7,9 @@ from langchain_chroma import Chroma
 
 # --- Configuration ---
 KNOWLEDGE_BASE_PATH = "knowledge_base"
-CHROMA_DB_PATH = "chroma_db"
+CHROMA_HOST = os.getenv("CHROMA_HOST", "localhost")
+CHROMA_PORT = int(os.getenv("CHROMA_PORT", 8000))
+COLLECTION_NAME = "healthsmart_rag"
 EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2" # Example model, can be changed
 CHUNK_SIZE = 1000
 CHUNK_OVERLAP = 100
@@ -40,20 +43,21 @@ def create_embeddings(model_name: str = EMBEDDING_MODEL_NAME):
     """
     Creates an embedding function using SentenceTransformer.
     """
-    return SentenceTransformerEmbeddings(model_name=model_name)
+    return SentenceTransformerEmbeddings(model_name=model_name, model_kwargs={'device': 'cpu'})
 
-def store_embeddings(documents, embedding_function, persist_directory: str = CHROMA_DB_PATH):
+def store_embeddings(documents, embedding_function):
     """
     Stores document chunks and their embeddings in a ChromaDB vector store.
     """
-    # Create the Chroma vector store and persist it to disk
+    client = chromadb.HttpClient(host=CHROMA_HOST, port=CHROMA_PORT)
+    
+    # Create the Chroma vector store
     db = Chroma.from_documents(
         documents=documents,
         embedding=embedding_function,
-        persist_directory=persist_directory
+        client=client,
+        collection_name=COLLECTION_NAME
     )
-    # Persist the database to disk
-    db.persist()
     return db
 
 def ingest_data():
@@ -79,6 +83,32 @@ def ingest_data():
     db = store_embeddings(chunks, embedding_function)
     print("Data ingestion completed successfully!")
     return db
+
+def get_retriever(model_name: str = EMBEDDING_MODEL_NAME, k: int = 3):
+    """
+    Creates a retriever for querying the vector database.
+    """
+    embedding_function = create_embeddings(model_name)
+    client = chromadb.HttpClient(host=CHROMA_HOST, port=CHROMA_PORT)
+    
+    db = Chroma(
+        client=client,
+        collection_name=COLLECTION_NAME,
+        embedding_function=embedding_function,
+    )
+    
+    return db.as_retriever(search_kwargs={"k": k})
+
+def query_rag(query: str, k: int = 3):
+    """
+    Queries the RAG pipeline for a given query.
+    Returns the content of the most relevant documents.
+    """
+    print(f"Querying RAG for: '{query}'")
+    retriever = get_retriever(k=k)
+    docs = retriever.invoke(query)
+    print(f"Found {len(docs)} relevant documents.")
+    return [doc.page_content for doc in docs]
 
 if __name__ == "__main__":
     ingest_data()
