@@ -33,16 +33,16 @@ Medicine Service là một microservice hoạt động trong một hệ sinh th�
 
 #### **Chức năng ngoài phạm vi (Out-of-Scope):**
 
-*   Quản lý quy trình đăng ký khám bệnh và chẩn đoán lâm sàng.
-*   Tích hợp trực tiếp với hệ thống quản lý của các nhà thuốc bên ngoài.
-*   Quản lý tồn kho thuốc.
-*   Xử lý quy trình thanh toán chi phí khám chữa bệnh.
+*   Quản lý quy trình đăng ký khám bệnh và chẩn đoán lâm sàng (Appointment Service, Patient Service).
+*   Tích hợp trực tiếp với hệ thống quản lý của các nhà thuốc bên ngoài (Optional).
+*   Quản lý tồn kho thuốc (Optional).
+*   Xử lý quy trình thanh toán chi phí khám chữa bệnh (Billing Service).
 
 ### **1.4. Đối tượng sử dụng (Actors)**
 
 *   **Bác sĩ (Doctor):** Người dùng chính, trực tiếp tạo và quản lý đơn thuốc thông qua giao diện người dùng (UI).
 *   **Quản trị viên Hệ thống (Administrator):** Truy cập vào các báo cáo, thống kê để theo dõi và đánh giá.
-*   **Hệ thống/Service khác (System):** Các service khác trong hệ sinh thái (Patient App, Notification Service) gọi đến API của Medicine Service để thực thi các nghiệp vụ liên quan.
+*   **Hệ thống/Service khác (System):** Các service khác trong hệ sinh thái (Patient Service, Appointment Service, Notification Service, Billing Serrvice) gọi đến API của Medicine Service để thực thi các nghiệp vụ liên quan.
 
 ## **2. Kiến trúc và Tích hợp**
 
