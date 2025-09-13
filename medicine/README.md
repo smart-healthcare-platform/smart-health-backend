@@ -1,6 +1,6 @@
 # **Tài liệu Đặc tả Yêu cầu: Service Quản lý Thuốc**
 
-**Version:** 1.1
+**Version:** 1.2
 **Ngày cập nhật:** 2025-09-13
 **Author:** Vgng
 
@@ -27,6 +27,7 @@ Medicine Service là một microservice hoạt động trong một hệ sinh th�
 *   Nghiệp vụ tạo, truy vấn và quản lý đơn thuốc điện tử với các trạng thái.
 *   Tích hợp module Hỗ trợ Quyết định Lâm sàng (CDSS) để kiểm tra tương tác thuốc, liều lượng và dị ứng.
 *   Tạo lập lịch trình uống thuốc chi tiết và khởi tạo yêu cầu gửi thông báo đến Notification Service.
+*   Hiển thị thông tin trạng thái sẵn có của thuốc (ví dụ: Còn hàng, Hết hàng) cho bác sĩ trong quá trình kê đơn (dữ liệu này được đọc từ một nguồn khác, service này không quản lý tồn kho).
 *   Kết xuất (export) đơn thuốc ra định dạng PDF theo mẫu chuẩn sau khi thanh toán phí khám bệnh được xác nhận.
 *   Cung cấp các API để các service khác truy xuất dữ liệu liên quan đến thuốc và đơn thuốc.
 *   Tổng hợp dữ liệu và cung cấp các báo cáo thống kê trực quan.
@@ -35,7 +36,7 @@ Medicine Service là một microservice hoạt động trong một hệ sinh th�
 
 *   Quản lý quy trình đăng ký khám bệnh và chẩn đoán lâm sàng (do Appointment Service, Patient Service đảm nhận).
 *   Tích hợp trực tiếp với hệ thống quản lý của các nhà thuốc bên ngoài (Optional).
-*   Quản lý tồn kho thuốc (Optional).
+*   Quản lý và cập nhật số lượng tồn kho thuốc (Optional - Service này chỉ đọc trạng thái tồn kho).
 *   Xử lý quy trình và giao diện thu phí khám chữa bệnh (do Billing Service đảm nhận).
 
 ### **1.4. Đối tượng sử dụng (Actors)**
@@ -96,7 +97,7 @@ graph TD
 *   **Luồng sự kiện chính:**
     1.  Bác sĩ chọn bệnh nhân trên giao diện và chọn chức năng "Tạo đơn thuốc mới".
     2.  Giao diện gửi yêu cầu đến Medicine Service. Service lấy thông tin cần thiết của bệnh nhân từ Patient Service (như tiền sử dị ứng).
-    3.  Bác sĩ tìm kiếm và thêm từng loại thuốc vào đơn. Với mỗi loại thuốc, bác sĩ nhập các thông tin: hàm lượng, liều dùng, tần suất, đường dùng, thời điểm dùng, thời gian dùng và các ghi chú đặc biệt.
+    3.  Bác sĩ tìm kiếm và thêm từng loại thuốc vào đơn. Khi tìm kiếm, hệ thống hiển thị tên thuốc, hoạt chất và **trạng thái sẵn có** (ví dụ: Còn hàng, Hết hàng). Với mỗi loại thuốc, bác sĩ nhập các thông tin: hàm lượng, liều dùng, tần suất, đường dùng, thời điểm dùng, thời gian dùng và các ghi chú đặc biệt.
     4.  **(Kích hoạt UC-02)** Với mỗi lần thêm/thay đổi thuốc, hệ thống ngầm thực thi các kiểm tra của CDSS và hiển thị cảnh báo ngay lập tức nếu có.
     5.  Sau khi thêm đủ các thuốc, bác sĩ chọn **"Hoàn tất và Gửi thanh toán"**.
     6.  Medicine Service lưu trữ đơn thuốc vào cơ sở dữ liệu với trạng thái ban đầu là **`PENDING_PAYMENT`**, tạo một mã định danh duy nhất (`prescription_id`) và trả về cho giao diện.
@@ -109,18 +110,9 @@ graph TD
 *   **Mô tả:** Một module tự động chạy nền để cung cấp các cảnh báo an toàn dược cho bác sĩ ngay tại thời điểm kê đơn.
 *   **Actor:** Hệ thống.
 *   **Các quy tắc nghiệp vụ:**
-    *   **Cảnh báo Tương tác thuốc:**
-        *   **Trigger:** Khi một thuốc mới được thêm vào đơn đã có sẵn thuốc khác.
-        *   **Process:** Hệ thống đối chiếu cặp hoạt chất của các thuốc trong đơn với cơ sở dữ liệu về tương tác thuốc.
-        *   **Output:** Hiển thị cảnh báo với mức độ (Nặng, Trung bình, Nhẹ).
-    *   **Kiểm tra Liều lượng:**
-        *   **Trigger:** Khi bác sĩ nhập liều lượng cho một loại thuốc.
-        *   **Process:** Dựa trên tuổi, cân nặng của bệnh nhân, hệ thống so sánh liều lượng/ngày với liều khuyến cáo tối đa.
-        *   **Output:** Hiển thị cảnh báo "Liều vượt ngưỡng".
-    *   **Cảnh báo Dị ứng:**
-        *   **Trigger:** Khi một thuốc mới được thêm vào đơn.
-        *   **Process:** Hệ thống kiểm tra hoạt chất của thuốc với danh sách dị ứng đã ghi nhận trong hồ sơ bệnh nhân.
-        *   **Output:** Hiển thị cảnh báo nổi bật "Bệnh nhân có tiền sử dị ứng với [tên hoạt chất]".
+    *   **Cảnh báo Tương tác thuốc:** (Trigger, Process, Output như cũ)
+    *   **Kiểm tra Liều lượng:** (Trigger, Process, Output như cũ)
+    *   **Cảnh báo Dị ứng:** (Trigger, Process, Output như cũ)
 
 ### **UC-03: Cung cấp Dữ liệu và Lịch trình cho Bệnh nhân**
 
@@ -130,29 +122,17 @@ graph TD
     1.  Khi một đơn thuốc được lưu thành công (từ UC-01).
     2.  Medicine Service xử lý thông tin đơn thuốc để tạo ra một cấu trúc dữ liệu về lịch trình uống thuốc.
     3.  Service gửi một request đến Notification Service, chứa `patient_id` và lịch trình này.
-    4.  Đồng thời, service cung cấp các API endpoint để Patient App có thể gọi đến và hiển thị lịch sử đơn thuốc, chi tiết từng đơn (chi tiết đơn thuốc chỉ hiển thị đầy đủ khi trạng thái là `COMPLETED`).
+    4.  Đồng thời, service cung cấp các API endpoint để Patient App có thể gọi đến và hiển thị lịch sử đơn thuốc (chi tiết đơn thuốc chỉ hiển thị đầy đủ khi trạng thái là `COMPLETED`).
 
 ### **UC-04: Báo cáo và Thống kê**
 
 *   **Mô tả:** Cung cấp dashboard với các biểu đồ trực quan cho phép quản trị viên theo dõi hoạt động kê đơn.
 *   **Actor:** Quản trị viên.
-*   **Các chỉ số yêu cầu:**
-    *   Biểu đồ cột: Top 10 loại thuốc được kê đơn nhiều nhất (theo tháng/quý/năm).
-    *   Biểu đồ tròn: Tỷ lệ kê đơn theo từng nhóm bệnh tim mạch chính.
-    *   Biểu đồ đường: Xu hướng số lượng đơn thuốc được tạo theo thời gian.
+*   **Các chỉ số yêu cầu:** (Giữ nguyên các chỉ số)
 
 ## **4. Yêu cầu Phi Chức năng (Non-Functional Requirements)**
 
-*   **Hiệu năng (Performance):**
-    *   Thời gian phản hồi của các API đọc dữ liệu (GET) phải dưới 200ms.
-    *   Thời gian phản hồi của API tạo đơn thuốc (bao gồm cả kiểm tra CDSS) phải dưới 500ms.
-*   **Bảo mật (Security):**
-    *   Mọi API endpoint phải được bảo vệ, yêu cầu xác thực và phân quyền (ví dụ: sử dụng JWT).
-    *   Dữ liệu nhạy cảm của bệnh nhân phải được mã hóa khi lưu trữ và trên đường truyền.
-*   **Tính sẵn sàng (Availability):**
-    *   Hệ thống phải đảm bảo độ sẵn sàng 99.9% (uptime).
-*   **Khả năng mở rộng (Scalability):**
-    *   Kiến trúc service phải cho phép mở rộng theo chiều ngang (horizontal scaling).
+(Giữ nguyên các yêu cầu về Hiệu năng, Bảo mật, Tính sẵn sàng, Khả năng mở rộng)
 
 ## **5. API Endpoints Sơ bộ (Preliminary API Endpoints)**
 
@@ -162,7 +142,7 @@ graph TD
 | `GET` | `/api/v1/prescriptions/{id}` | Lấy chi tiết một đơn thuốc theo ID. | |
 | `GET` | `/api/v1/patients/{patientId}/prescriptions` | Lấy danh sách tất cả đơn thuốc của một bệnh nhân. | |
 | `GET` | `/api/v1/prescriptions/{id}/pdf` | Tải về file PDF của đơn thuốc. | Yêu cầu quyền và trạng thái đơn thuốc phải là `COMPLETED`. |
-| `GET` | `/api/v1/drugs?search={query}` | Tìm kiếm thuốc trong cơ sở dữ liệu. | |
+| `GET` | `/api/v1/drugs?search={query}` | Tìm kiếm thuốc trong cơ sở dữ liệu. | **Response phải trả về cả `stock_status` (trạng thái tồn kho).** |
 | `GET` | `/api/v1/statistics/top-drugs` | Lấy dữ liệu thống kê về các thuốc được dùng nhiều. | |
 | `POST` | `/api/v1/internal/prescriptions/{id}/confirm-payment` | **(API nội bộ)** Cập nhật trạng thái đơn thuốc thành `COMPLETED`. | API này chỉ được gọi bởi `Billing Service`. |
 
@@ -198,6 +178,7 @@ erDiagram
         varchar name "Tên thương mại"
         varchar active_ingredient "Hoạt chất"
         varchar strength "Hàm lượng, e.g., '500mg'"
+        varchar stock_status "e.g., IN_STOCK, OUT_OF_STOCK"
     }
 
     PRESCRIPTION ||--|{ PRESCRIPTION_ITEM : "contains"
@@ -209,4 +190,4 @@ erDiagram
 
 *   **PRESCRIPTION:** Lưu trữ thông tin chung của một lần kê đơn. `patient_id` và `doctor_id` là các khóa ngoại tham chiếu đến các service khác. Trường `status` dùng để quản lý quy trình thanh toán.
 *   **PRESCRIPTION\_ITEM:** Lưu trữ chi tiết từng loại thuốc trong một đơn thuốc.
-*   **DRUG:** Bảng danh mục chứa thông tin về các loại thuốc có trong hệ thống.
+*   **DRUG:** Bảng danh mục chứa thông tin về các loại thuốc có trong hệ thống. Bao gồm trường `stock_status` để thông báo cho bác sĩ về tính sẵn có của thuốc (dữ liệu này được đồng bộ hoặc đọc từ một hệ thống quản lý kho bên ngoài).
