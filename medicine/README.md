@@ -82,6 +82,7 @@ graph TD
     linkStyle 5 stroke:#00aaff,stroke-width:2px,fill:none;
 ```
 
+
 ### **2.2. Các Service phụ thuộc và Tương tác**
 
 *   **Patient Service:** Medicine Service yêu cầu truy cập thông tin bệnh nhân (ID, tuổi, cân nặng, tiền sử dị ứng) để phục vụ cho CDSS và tạo đơn thuốc.
