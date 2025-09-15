@@ -11,7 +11,7 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=development
-      - PORT=3000
+      - PORT=8080
       - JWT_SECRET=c21hcnRIZWFsdGhTZWNyZXRLZXlGb3JKV1RUb2tlbkdlbmVyYXRpb25BbmRWYWxpZGF0aW9uMjAyNA==
       - AUTH_SERVICE_URL=http://host.docker.internal:8081
       - PATIENT_SERVICE_URL=http://host.docker.internal:8082
@@ -20,7 +20,7 @@ services:
       - NOTIFICATION_SERVICE_URL=http://host.docker.internal:8085
       - REDIS_HOST=redis
       - REDIS_PORT=6379
-      - CORS_ORIGIN=http://localhost:3001,http://localhost:3002
+      - CORS_ORIGIN=http://localhost:3000,http://localhost:3001,http://localhost:3002
       - LOG_LEVEL=info
     depends_on:
       - redis
@@ -77,3 +77,26 @@ networks:
 volumes:
   redis_data:
     driver: local 
+
+version: "3.8"
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
