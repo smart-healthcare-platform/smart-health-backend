@@ -1,35 +1,37 @@
-import { Controller, Get, Post, Put, Delete, Body, Param } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseInterceptors } from '@nestjs/common';
 import { AppointmentSlotService } from './appointment-slot.service';
-import { CreateDoctorLicenseDto } from './dto/create-doctor-certificates.dto';
-import { UpdateDoctorLicenseDto } from './dto/update-doctor-certificates.dto';
+import { CreateDoctorAppoinmentSlotDto } from './dto/create-doctor-appointment.dto';
+import { UpdateDoctorAppoinmentSlotDto } from './dto/update-doctor-appointment.dto';
 import { AppointmentSlot } from './appointment-slot.entity';
+import { ResponseInterceptor } from 'src/common/interceptors/response.interceptor';
 
-@Controller('appointment-slots')
+@Controller('api/doctors/appointment-slots')
+@UseInterceptors(ResponseInterceptor) 
 export class AppointmentSlotController {
-  constructor(private readonly licenseService: AppointmentSlotService) {}
+  constructor(private readonly appointment_slot: AppointmentSlotService) {}
 
   @Post()
-  async create(@Body() dto: CreateDoctorLicenseDto): Promise<AppointmentSlot> {
-    return this.licenseService.create(dto);
+  async create(@Body() dto: CreateDoctorAppoinmentSlotDto): Promise<AppointmentSlot> {
+    return this.appointment_slot.create(dto);
   }
 
   @Get()
   async findAll(): Promise<AppointmentSlot[]> {
-    return this.licenseService.findAll();
+    return this.appointment_slot.findAll();
   }
 
-  @Get('doctor/:doctorId')
+  @Get('/:doctorId')
   async findByDoctor(@Param('doctorId') doctorId: string): Promise<AppointmentSlot[]> {
-    return this.licenseService.findByDoctor(doctorId);
+    return this.appointment_slot.findByDoctor(doctorId);
   }
 
   @Put(':id')
-  async update(@Param('id') id: string, @Body() dto: UpdateDoctorLicenseDto): Promise<AppointmentSlot> {
-    return this.licenseService.update(id, dto);
+  async update(@Param('id') id: string, @Body() dto: UpdateDoctorAppoinmentSlotDto): Promise<AppointmentSlot> {
+    return this.appointment_slot.update(id, dto);
   }
 
   @Delete(':id')
   async remove(@Param('id') id: string): Promise<void> {
-    return this.licenseService.remove(id);
+    return this.appointment_slot.remove(id);
   }
 }

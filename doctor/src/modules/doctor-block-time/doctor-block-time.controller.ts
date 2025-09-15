@@ -1,14 +1,14 @@
 import { Controller, Get, Post, Body, Param } from '@nestjs/common';
 import { DoctorBlockTimeService } from './doctor-block-time.service';
 import { DoctorBlockTime } from './doctor-block-time.entity';
-import { CreateDoctorScheduleDto } from './dto/create-doctor-schedule.dto';
+import { CreateDoctorBlockTimeDto } from './dto/create-doctor-block-time.dto';
 
 @Controller('doctor-block-time')
 export class DoctorBlockTimeController {
   constructor(private readonly scheduleService: DoctorBlockTimeService) {}
 
   @Post()
-  async create(@Body() dto: CreateDoctorScheduleDto): Promise<DoctorBlockTime> {
+  async create(@Body() dto: CreateDoctorBlockTimeDto): Promise<DoctorBlockTime> {
     return this.scheduleService.create(dto);
   }
 
