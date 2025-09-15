@@ -19,26 +19,41 @@ public class UserService implements UserDetailsService {
 
     private final UserRepository userRepository;
 
+    /**
+     * Sửa lại để load user bằng email thay vì username
+     */
     @Override
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        return userRepository.findByUsernameAndIsActive(username, true)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
+    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+        User user = userRepository.findByEmail(email)
+                .filter(User::getIsActive)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found or inactive: " + email));
+
+        // Convert User entity sang Spring Security UserDetails
+        return org.springframework.security.core.userdetails.User.builder()
+                .username(user.getEmail()) // đặt email làm username
+                .password(user.getPassword()) // password đã mã hóa
+                .roles(user.getRole().name())
+                .build();
     }
 
     public User save(User user) {
         return userRepository.save(user);
     }
 
-    public Optional<User> findByUsername(String username) {
-        return userRepository.findByUsername(username);
+    public Optional<User> findByEmail(String email) {
+        return userRepository.findByEmail(email);
+    }
+
+    public Optional<User> findByUserName(String userName) {
+        return userRepository.findByUsername(userName);
     }
 
     public Optional<User> findById(UUID id) {
         return userRepository.findById(id);
     }
 
-    public boolean existsByUsername(String username) {
-        return userRepository.existsByUsername(username);
+    public boolean existsByEmail(String email) {
+        return userRepository.existsByEmail(email);
     }
 
     public List<User> findByRole(Role role) {
@@ -66,4 +81,4 @@ public class UserService implements UserDetailsService {
     public List<User> findAll() {
         return userRepository.findAll();
     }
-} 
+}

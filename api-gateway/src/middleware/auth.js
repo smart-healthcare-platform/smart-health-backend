@@ -86,6 +86,7 @@ const optionalAuth = (req, res, next) => {
  */
 const requireRole = (allowedRoles) => {
   return (req, res, next) => {
+    console.log("DEBUG req.user:", req.user);
     if (!req.user) {
       return next(new ApiError(401, 'Authentication required'));
     }
