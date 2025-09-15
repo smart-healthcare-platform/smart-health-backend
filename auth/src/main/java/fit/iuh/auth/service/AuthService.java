@@ -17,6 +17,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -29,15 +31,14 @@ public class AuthService {
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
     private final RefreshTokenRepository refreshTokenRepository;
-    public AuthResponse register(RegisterRequest request,HttpServletResponse response) {
+
+    public AuthResponse register(RegisterRequest request, HttpServletResponse response) {
         log.info("Attempting to register user: {}", request.getUsername());
-        
-        // Check if user already exists
+
         if (userService.existsByEmail(request.getUsername())) {
             throw new RuntimeException("Username đã tồn tại: " + request.getUsername());
         }
 
-        // Create new user
         User user = new User();
         user.setUsername(request.getUsername());
         user.setEmail(request.getEmail());
@@ -45,22 +46,22 @@ public class AuthService {
         user.setRole(request.getRole());
         user.setIsActive(true);
 
-        // Save user
         User savedUser = userService.save(user);
         log.info("User registered successfully: {}", savedUser.getUsername());
 
-        // Generate tokens
-        String jwtToken = jwtService.generateToken(savedUser);
+        // Tạo payload chứa role & authorities
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("role", savedUser.getRole());
+        claims.put("authorities", savedUser.getAuthorities());
+
+        String jwtToken = jwtService.generateToken(claims, savedUser);
         String refreshToken = jwtService.generateRefreshToken(savedUser);
 
         saveRefreshToken(savedUser, refreshToken, LocalDateTime.now().plusDays(7));
-
-        // Set cookie
         setRefreshTokenCookie(response, refreshToken);
 
         return AuthResponse.builder()
                 .token(jwtToken)
-//                .refreshToken(refreshToken) đảm bảo bảo mật nên không gửi kèm
                 .user(AuthResponse.UserInfo.builder()
                         .id(savedUser.getId())
                         .username(savedUser.getUsername())
@@ -70,18 +71,13 @@ public class AuthService {
                 .build();
     }
 
-    public AuthResponse login(LoginRequest request,HttpServletResponse response) {
+    public AuthResponse login(LoginRequest request, HttpServletResponse response) {
         log.info("Attempting to login user: {}", request.getEmail());
-        
-        // Authenticate user
+
         authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.getEmail(),
-                        request.getPassword()
-                )
+                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
         );
 
-        // Get user
         User user = userService.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -91,22 +87,19 @@ public class AuthService {
 
         log.info("User logged in successfully: {}", user.getUsername());
 
-        // Generate tokens
-        String jwtToken = jwtService.generateToken(user);
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("role", user.getRole());
+        claims.put("authorities", user.getAuthorities());
+
+        String jwtToken = jwtService.generateToken(claims, user);
         String refreshToken = jwtService.generateRefreshToken(user);
 
-        // Xoá refreshToken cũ (nếu có) để tránh rác
         refreshTokenRepository.deleteByUserId(user.getId());
-
-        // Lưu refreshToken mới
         saveRefreshToken(user, refreshToken, LocalDateTime.now().plusDays(7));
-
-        // Set cookie
         setRefreshTokenCookie(response, refreshToken);
 
         return AuthResponse.builder()
                 .token(jwtToken)
-//                .refreshToken(refreshToken)
                 .user(AuthResponse.UserInfo.builder()
                         .id(user.getId())
                         .username(user.getUsername())
@@ -118,7 +111,7 @@ public class AuthService {
 
     public AuthResponse refreshToken(String refreshToken, HttpServletResponse response) {
         log.info("Attempting to refresh token");
-        
+
         String username = jwtService.extractUsername(refreshToken);
         User user = userService.findByUserName(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -127,19 +120,19 @@ public class AuthService {
             throw new RuntimeException("Invalid refresh token");
         }
 
-        String newJwtToken = jwtService.generateToken(user);
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("role", user.getRole());
+        claims.put("authorities", user.getAuthorities());
+
+        String newJwtToken = jwtService.generateToken(claims, user);
         String newRefreshToken = jwtService.generateRefreshToken(user);
 
-        log.info("Token refreshed successfully for user: {}", user.getUsername());
-        // update refreshToken DB
         refreshTokenRepository.deleteByUserId(user.getId());
         saveRefreshToken(user, newRefreshToken, LocalDateTime.now().plusDays(7));
-
-        // update cookie
         setRefreshTokenCookie(response, newRefreshToken);
+
         return AuthResponse.builder()
                 .token(newJwtToken)
-//                .refreshToken(newRefreshToken)
                 .user(AuthResponse.UserInfo.builder()
                         .id(user.getId())
                         .username(user.getUsername())
@@ -148,6 +141,7 @@ public class AuthService {
                         .build())
                 .build();
     }
+
     private void saveRefreshToken(User user, String token, LocalDateTime expiryDate) {
         RefreshToken refreshToken = new RefreshToken();
         refreshToken.setUser(user);
@@ -155,6 +149,7 @@ public class AuthService {
         refreshToken.setExpiryDate(expiryDate);
         refreshTokenRepository.save(refreshToken);
     }
+
     private void setRefreshTokenCookie(HttpServletResponse response, String refreshToken) {
         Cookie cookie = new Cookie("refreshToken", refreshToken);
         cookie.setHttpOnly(true);
@@ -163,13 +158,11 @@ public class AuthService {
         cookie.setMaxAge(7 * 24 * 60 * 60); // 7 ngày
         response.addCookie(cookie);
     }
+
     public void logout(HttpServletResponse response, String refreshToken) {
         log.info("Logging out user with refreshToken: {}", refreshToken);
-
-        // Xoá refreshToken trong DB
         refreshTokenRepository.deleteByToken(refreshToken);
 
-        // Xoá cookie
         Cookie cookie = new Cookie("refreshToken", null);
         cookie.setHttpOnly(true);
         cookie.setSecure(true);
@@ -177,4 +170,4 @@ public class AuthService {
         cookie.setMaxAge(0);
         response.addCookie(cookie);
     }
-} 
+}

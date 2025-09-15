@@ -1,11 +1,13 @@
-import { Controller, Get, Post, Put, Delete, Body, Param } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseInterceptors } from '@nestjs/common';
 import { DoctorService } from './doctor.service';
 import { CreateDoctorDto } from './dto/create-doctor.dto';
 import { UpdateDoctorDto } from './dto/update-doctor.dto';
 import { Doctor } from './doctor.entity';
 import { DoctorListDto } from './dto/list-doctor.dto';
+import { ResponseInterceptor } from 'src/common/interceptors/response.interceptor';
 
 @Controller('api/doctors')
+// @UseInterceptors(ResponseInterceptor) 
 export class DoctorController {
   constructor(private readonly doctorService: DoctorService) { }
 

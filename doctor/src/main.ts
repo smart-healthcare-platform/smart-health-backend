@@ -1,10 +1,12 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-  app.useGlobalInterceptors(new ResponseInterceptor());
-  await app.listen(process.env.PORT ?? 8083);
+  
+  // No microservice needed - using raw Kafka consumer
+  await app.listen(8083);
+  console.log('Doctor service running on port 8083');
 }
+
 bootstrap();

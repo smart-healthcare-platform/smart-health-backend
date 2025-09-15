@@ -102,7 +102,7 @@ const createServiceProxy = (serviceName) => {
       }
 
       const newPath = `${service.basePath}${cleanPath}`;
-
+      console.log(`[DEBUG] Proxy target: ${service.url}${newPath}`);
       logger.serviceLog(serviceName, "Proxy request", {
         originalPath: path,
         cleanPath,

@@ -1,38 +1,41 @@
-import { Controller, Get, Post, Body, Param, Patch, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Patch, Delete, UseInterceptors } from '@nestjs/common';
 import { AppointmentsService } from './appointments.service';
 import { Appointment } from './appointment.entity';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
+import { ResponseInterceptor } from 'src/common/interceptors/response.interceptor';
 
-@Controller('appointments')
+@Controller('api/appointments')
+@UseInterceptors(ResponseInterceptor) 
 export class AppointmentsController {
   constructor(private readonly appointmentsService: AppointmentsService) {}
 
   @Post()
-  create(@Body() dto: CreateAppointmentDto): Promise<Appointment> {
-    return this.appointmentsService.create(dto);
+  async create(@Body() dto: CreateAppointmentDto) {
+    // Trả về dữ liệu gốc, interceptor sẽ wrap
+    return await this.appointmentsService.create(dto);
   }
 
   @Get()
-  findAll(): Promise<Appointment[]> {
-    return this.appointmentsService.findAll();
+  async findAll(): Promise<Appointment[]> {
+    return await this.appointmentsService.findAll();
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string): Promise<Appointment> {  
-    return this.appointmentsService.findOne(id);
+  async findOne(@Param('id') id: string): Promise<Appointment> {
+    return await this.appointmentsService.findOne(id);
   }
 
   @Patch(':id')
-  update(
-    @Param('id') id: string,   
+  async update(
+    @Param('id') id: string,
     @Body() dto: UpdateAppointmentDto,
   ): Promise<Appointment> {
-    return this.appointmentsService.update(id, dto);
+    return await this.appointmentsService.update(id, dto);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string): Promise<void> {  
-    return this.appointmentsService.remove(id);
+  async remove(@Param('id') id: string): Promise<void> {
+    return await this.appointmentsService.remove(id);
   }
 }

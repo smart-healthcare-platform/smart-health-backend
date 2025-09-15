@@ -10,7 +10,7 @@ export class AppointmentSlotService {
   constructor(
     @InjectRepository(AppointmentSlot)
     private licenseRepo: Repository<AppointmentSlot>,
-  ) {}
+  ) { }
 
   async create(dto: CreateDoctorLicenseDto): Promise<AppointmentSlot> {
     const license = this.licenseRepo.create(dto);
@@ -41,4 +41,56 @@ export class AppointmentSlotService {
     await this.findOne(id);
     await this.licenseRepo.delete(id);
   }
+  async isSlotAvailable(doctorId: string, slotId: string): Promise<boolean> {
+    const slot = await this.licenseRepo.findOne({
+      where: { id: slotId, doctor_id: doctorId },
+    });
+
+    if (!slot) {
+      throw new NotFoundException(
+        `Slot ${slotId} của doctor ${doctorId} không tồn tại`,
+      );
+    }
+
+    return slot.status === 'available';
+  }
+
+  async bookSlot(doctorId: string, slotId: string, patientId?: string): Promise<AppointmentSlot> {
+    const slot = await this.licenseRepo.findOne({
+      where: { id: slotId, doctor_id: doctorId },
+    });
+
+    if (!slot) {
+      throw new NotFoundException(
+        `Slot ${slotId} của doctor ${doctorId} không tồn tại`,
+      );
+    }
+
+    if (slot.status !== 'available') {
+      throw new Error(`Slot ${slotId} không khả dụng, trạng thái: ${slot.status}`);
+    }
+
+    slot.status = 'booked';
+    if (patientId) {
+      slot.patient_id = patientId;
+    }
+
+    return this.licenseRepo.save(slot);
+  }
+
+  async cancelSlot(doctorId: string, slotId: string): Promise<AppointmentSlot> {
+    const slot = await this.licenseRepo.findOne({
+      where: { id: slotId, doctor_id: doctorId },
+    });
+
+    if (!slot) {
+      throw new NotFoundException(
+        `Slot ${slotId} của doctor ${doctorId} không tồn tại`,
+      );
+    }
+
+    slot.status = 'cancelled';
+    return this.licenseRepo.save(slot);
+  }
+
 }

@@ -109,7 +109,7 @@ router.use('/appointments', requireAnyRole, (req, res, next) => {
 
 // Configure appointment service proxy
 try {
-  const appointmentProxy = getServiceProxy('appointment');
+  const appointmentProxy = getServiceProxy('appointments');
   router.use('/appointments', appointmentProxy);
 } catch (error) {
   logger.error('Failed to configure appointment service proxy', { error: error.message });

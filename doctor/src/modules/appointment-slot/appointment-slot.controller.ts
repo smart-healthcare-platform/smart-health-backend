@@ -4,7 +4,7 @@ import { CreateDoctorLicenseDto } from './dto/create-doctor-certificates.dto';
 import { UpdateDoctorLicenseDto } from './dto/update-doctor-certificates.dto';
 import { AppointmentSlot } from './appointment-slot.entity';
 
-@Controller('doctor-licenses')
+@Controller('appointment-slots')
 export class AppointmentSlotController {
   constructor(private readonly licenseService: AppointmentSlotService) {}
 

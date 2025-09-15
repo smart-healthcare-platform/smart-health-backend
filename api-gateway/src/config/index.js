@@ -86,7 +86,7 @@ module.exports = {
       basePath: '/api/doctors',
       timeout: envVars.SERVICE_TIMEOUT,
     },
-    appointment: {
+    appointments: {
       url: envVars.APPOINTMENT_SERVICE_URL,
       basePath: '/api/appointments',
       timeout: envVars.SERVICE_TIMEOUT,
