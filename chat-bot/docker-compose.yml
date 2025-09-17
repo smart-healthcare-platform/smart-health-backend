@@ -7,8 +7,6 @@
 # docker exec -it ollama ollama pull llama3.2:latest
 # -----------------
 
-version: "3.9"
-
 services:
   # Ollama service to run the local LLM
   ollama:
@@ -20,29 +18,18 @@ services:
       - ollama_data:/root/.ollama
     networks:
       - chatbot-net
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
 
   # ChromaDB service for the vector store
   chromadb:
-    image: ghcr.io/chroma-core/chroma:0.5.3
+    image: chromadb/chroma:latest
     container_name: chromadb
     ports:
       - "8002:8000" # Expose on host port 8002 to avoid conflicts
     volumes:
-      - chroma_data:/chroma/chroma # Persist ChromaDB data
+      - chroma_data:/data # Persist ChromaDB data
     networks:
       - chatbot-net
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
-      interval: 5s
-      timeout: 10s
-      retries: 5
+    command: ["run", "--host", "0.0.0.0", "--port", "8000", "--path", "/data"]
 
   # Data ingestion service to populate ChromaDB
   ingestor:
@@ -50,14 +37,19 @@ services:
     container_name: chatbot_ingestor
     depends_on:
       chromadb:
-        condition: service_healthy
+        condition: service_started
     networks:
       - chatbot-net
     environment:
       - CHROMA_HOST=chromadb
       - CHROMA_PORT=8000
     # This command runs the ingestion script and then the container exits.
-    command: ["python", "-c", "from src.rag_pipeline import ingest_data; ingest_data()"]
+    command:
+      [
+        "python",
+        "-c",
+        "from src.rag_pipeline import ingest_data; ingest_data()",
+      ]
     restart: "no" # Ensure it only runs once
 
   # Main application service
@@ -79,7 +71,7 @@ services:
       ollama:
         condition: service_started
       chromadb:
-        condition: service_healthy
+        condition: service_started
       ingestor:
         condition: service_completed_successfully
     restart: unless-stopped
