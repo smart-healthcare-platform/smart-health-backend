@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   mongodb:
@@ -6,7 +6,7 @@ services:
     container_name: prediction-mongodb
     restart: unless-stopped
     ports:
-      - "27017:27017"
+      - "27018:27017"
     volumes:
       - mongodb_data:/data/db
     environment:
@@ -17,10 +17,10 @@ services:
     build: .
     container_name: prediction-service
     ports:
-      - "8000:8000"
+      - "8001:8001"
     environment:
       - HOST=0.0.0.0
-      - PORT=8000
+      - PORT=8001
       - DEBUG=False
       - MODEL_PATH=./models/heat_disease_prediction.h5
       - MONGODB_URL=mongodb://mongodb:27017
@@ -28,6 +28,7 @@ services:
       - MONGODB_COLLECTION=prediction_logs
     volumes:
       - ./models:/app/models
+      - ./standard_scaler.pkl:/app/standard_scaler.pkl
     restart: unless-stopped
     depends_on:
       - mongodb

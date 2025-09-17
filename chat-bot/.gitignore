@@ -1,0 +1,33 @@
+# KiloCode - Do not remove
+.kilocode
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*~
+*#
+.Python
+/pip-log.txt
+/pip-delete-this-directory.txt
+
+# Virtual Environments
+.venv
+venv
+env
+
+# Docker
+# These are managed as volumes in docker-compose.yml
+ollama_data/
+chroma_data/
+
+# Local data directories
+chroma_db/
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
