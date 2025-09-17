@@ -19,7 +19,7 @@
     - `spring-boot-starter-validation`: Xác thực dữ liệu đầu vào.
     - `mysql`: Driver cho MySQL.
     - `flywaydb` hoặc `liquibase`: Quản lý version của schema CSDL.
-    - `lombok`
+    - `lombok`: Giúp code ngắn gọn, dễ đọc, giảm boilerplate code.
 
 3.  **Tạo JPA Entities:**
 
