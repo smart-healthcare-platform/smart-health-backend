@@ -9,14 +9,21 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
-import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Data
+@Getter
+@Setter
+@ToString(exclude = "items") // Avoid circular dependency in toString
+@EqualsAndHashCode(of = "id") // Base equality on ID only
 public class Prescription {
 
     @Id
@@ -38,5 +45,16 @@ public class Prescription {
     private LocalDateTime createdAt;
 
     @OneToMany(mappedBy = "prescription", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<PrescriptionItem> items;
+    private List<PrescriptionItem> items = new ArrayList<>();
+
+    // Helper methods to keep the bidirectional relationship in sync
+    public void addItem(PrescriptionItem item) {
+        items.add(item);
+        item.setPrescription(this);
+    }
+
+    public void removeItem(PrescriptionItem item) {
+        items.remove(item);
+        item.setPrescription(null);
+    }
 }
