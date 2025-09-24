@@ -1,5 +1,7 @@
 package com.smarthealth.medicine.service.impl;
 
+import com.smarthealth.medicine.client.PatientClient;
+import com.smarthealth.medicine.client.dto.PatientDto;
 import com.smarthealth.medicine.domain.enums.PrescriptionStatus;
 import com.smarthealth.medicine.domain.model.Drug;
 import com.smarthealth.medicine.domain.model.Prescription;
@@ -14,8 +16,6 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.RestTemplate;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -25,15 +25,18 @@ public class PrescriptionServiceImpl implements PrescriptionService {
 
     private final PrescriptionRepository prescriptionRepository;
     private final DrugRepository drugRepository;
-    private final RestTemplate restTemplate;
-    // TODO: Inject patient service URL from properties
+    private final PatientClient patientClient;
 
     @Override
     @Transactional
     public PrescriptionResponse createPrescription(CreatePrescriptionRequest request) {
-        // TODO: Call Patient Service to validate patientId
-        // restTemplate.getForObject(patientServiceUrl + "/" + request.getPatientId(), String.class);
+        // Step 1: Validate patient by calling Patient Service through the client interface
+        PatientDto patient = patientClient.getPatientById(request.getPatientId())
+                .orElseThrow(() -> new EntityNotFoundException("Patient not found with id: " + request.getPatientId()));
 
+        // TODO: (Future - Day 5) Use patient.allergies() for CDSS checks
+
+        // Step 2: Create and save the prescription
         Prescription prescription = new Prescription();
         prescription.setPatientId(request.getPatientId());
         prescription.setDoctorId(request.getDoctorId());
@@ -41,26 +44,25 @@ public class PrescriptionServiceImpl implements PrescriptionService {
         prescription.setNotes(request.getNotes());
         prescription.setStatus(PrescriptionStatus.PENDING_PAYMENT);
 
-        List<PrescriptionItem> items = new ArrayList<>();
         for (PrescriptionItemDto itemDto : request.getItems()) {
             Drug drug = drugRepository.findById(itemDto.getDrugId())
                     .orElseThrow(() -> new EntityNotFoundException("Drug not found with id: " + itemDto.getDrugId()));
 
             PrescriptionItem item = new PrescriptionItem();
-            item.setPrescription(prescription);
             item.setDrug(drug);
             item.setDosage(itemDto.getDosage());
             item.setFrequency(itemDto.getFrequency());
             item.setRoute(itemDto.getRoute());
             item.setTiming(itemDto.getTiming());
             item.setDurationDays(itemDto.getDurationDays());
-            items.add(item);
+
+            // Use the helper method to sync both sides of the relationship
+            prescription.addItem(item);
         }
-        prescription.setItems(items);
 
         Prescription savedPrescription = prescriptionRepository.save(prescription);
 
-        // TODO: Send event to Notification Service
+        // TODO: (Future - Day 6) Send event to Notification Service
 
         return new PrescriptionResponse(savedPrescription.getId(), savedPrescription.getStatus());
     }
