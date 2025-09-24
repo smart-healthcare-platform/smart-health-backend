@@ -1,11 +1,14 @@
 package com.smarthealth.medicine.controller;
 
+import com.smarthealth.medicine.config.SecurityConfig;
+import com.smarthealth.medicine.domain.enums.StockStatus;
 import com.smarthealth.medicine.domain.model.Drug;
 import com.smarthealth.medicine.service.DrugService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -18,6 +21,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 
 @WebMvcTest(DrugController.class)
+@Import(SecurityConfig.class)  // Import the security configuration
 public class DrugControllerTest {
 
     @Autowired
@@ -30,6 +34,7 @@ public class DrugControllerTest {
     void whenSearchDrugs_withValidQuery_shouldReturnOk() throws Exception {
         Drug drug = new Drug();
         drug.setName("Aspirin");
+        drug.setStockStatus(StockStatus.IN_STOCK);  // Set the required field
         when(drugService.searchDrugs(anyString())).thenReturn(Collections.singletonList(drug));
 
         mockMvc.perform(get("/api/v1/drugs").param("search", "aspirin"))
@@ -41,6 +46,7 @@ public class DrugControllerTest {
     void whenSearchDrugs_withNoQuery_shouldReturnOk() throws Exception {
         Drug drug = new Drug();
         drug.setName("Aspirin");
+        drug.setStockStatus(StockStatus.IN_STOCK);  // Set the required field
         when(drugService.searchDrugs(null)).thenReturn(Collections.singletonList(drug));
 
         mockMvc.perform(get("/api/v1/drugs"))
