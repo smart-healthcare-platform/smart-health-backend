@@ -94,106 +94,23 @@ app.use('/api', conversationRoutes);
 //   res.status(200).json({ message: `Conversations for user ${req.userId}` });
 // });
 
+// Import các hàm xử lý socket
+import { handleConnection, handleSendMessage, handleDisconnect } from './sockets/messageHandler';
+
 // Kết nối Socket.IO
 io.on('connection', async (socket: AuthenticatedSocket) => {
-  console.log(`User connected: ${socket.id} (User ID: ${socket.userId})`);
-  
-  // Join room dựa trên user ID
-  if (socket.userId) {
-    socket.join(socket.userId);
-    console.log(`User ${socket.userId} joined room ${socket.userId}`);
-
-    // Tham gia vào các phòng chat dựa trên conversationId mà người dùng là thành viên
-    const participantConversations = await ConversationParticipant.findAll({
-      where: { userId: socket.userId },
-      attributes: ['conversationId'],
-    });
-
-    participantConversations.forEach((participant) => {
-      socket.join(participant.conversationId);
-      console.log(`User ${socket.userId} joined conversation room: ${participant.conversationId}`);
-    });
-  }
+  // Xử lý kết nối
+  await handleConnection(socket, io);
   
   // Xử lý sự kiện gửi tin nhắn
-  socket.on('sendMessage', async ({ conversationId, recipientId, content, contentType = 'text' }) => {
-    try {
-      if (!socket.userId) {
-        socket.emit('messageError', { message: 'Authentication required to send messages.' });
-        return;
-      }
-
-      // 1. Xác thực người gửi có quyền gửi cho người nhận (đây là một placeholder đơn giản)
-      // Trong thực tế, bạn sẽ kiểm tra xem senderId có phải là một participant của conversationId không.
-      const isParticipant = await ConversationParticipant.findOne({
-        where: { conversationId, userId: socket.userId }
-      });
-
-      if (!isParticipant) {
-        socket.emit('messageError', { message: 'You are not a participant of this conversation.' });
-        return;
-      }
-
-      // 2. Lưu tin nhắn vào DB
-      const newMessage = await Message.create({
-        conversationId,
-        senderId: socket.userId,
-        content,
-        contentType,
-        isRead: false,
-      });
-
-      const messageData = {
-        id: newMessage.id,
-        conversationId: newMessage.conversationId,
-        senderId: newMessage.senderId,
-        content: newMessage.content,
-        contentType: newMessage.contentType,
-        isRead: newMessage.isRead,
-        createdAt: newMessage.createdAt,
-      };
-
-      // 3. Phát tin nhắn đến tất cả những người tham gia cuộc trò chuyện
-      const participants = await ConversationParticipant.findAll({
-        where: { conversationId }
-      });
-
-      participants.forEach(participant => {
-        io.to(participant.userId).emit('receiveMessage', messageData);
-      });
-      
-      console.log(`Message sent in conversation ${conversationId} from ${socket.userId} to ${recipientId}`);
-      
-      // Gửi phản hồi cho người gửi
-      socket.emit('messageSent', { success: true, message: messageData });
-      
-      // 4. Nếu người nhận không trực tuyến, gọi Notification Service
-      // Kiểm tra xem người nhận có đang online không bằng cách xem họ có trong bất kỳ phòng nào không
-      const recipientSockets = await io.in(recipientId).fetchSockets();
-      if (recipientSockets.length === 0) {
-        console.log(`User ${recipientId} is offline. Sending notification...`);
-        try {
-          await axios.post(`${process.env.NOTIFICATION_SERVICE_URL}/send`, {
-            userId: recipientId,
-            title: 'Tin nhắn mới',
-            body: `Bạn có tin nhắn mới từ ${socket.userId}: ${content}`,
-            data: { conversationId: conversationId, senderId: socket.userId }
-          });
-        } catch (notificationError) {
-          console.error('Error sending notification:', notificationError);
-        }
-      }
-
-    } catch (error) {
-      console.error('Error sending message:', error);
-      socket.emit('messageError', { error: error instanceof Error ? error.message : 'An unknown error occurred' });
-    }
+  socket.on('sendMessage', async (data) => {
+    await handleSendMessage(socket, io, data);
   });
   
-  // Xử lý sự kiện khi người dùng ngắt kết nối
+ // Xử lý sự kiện khi người dùng ngắt kết nối
   socket.on('disconnect', () => {
-    console.log(`User disconnected: ${socket.id} (User ID: ${socket.userId})`);
-  });
+    handleDisconnect(socket);
+ });
 });
 
 // Hàm để gửi tin nhắn đến người nhận
