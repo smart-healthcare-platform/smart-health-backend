@@ -156,7 +156,7 @@ erDiagram
     PRESCRIPTION {
         bigint id PK
         bigint patient_id "FK to Patient Service"
-        bigint doctor_id "FK to User Service"
+        bigint doctor_id "FK to Auth Service (User ID)"
         varchar diagnosis
         varchar status "e.g., PENDING_PAYMENT, COMPLETED"
         text notes
@@ -189,6 +189,6 @@ erDiagram
 
 ### **6.2. Mô tả Bảng**
 
-*   **PRESCRIPTION:** Lưu trữ thông tin chung của một lần kê đơn. `patient_id` và `doctor_id` là các khóa ngoại tham chiếu đến các service khác. Trường `status` dùng để quản lý quy trình thanh toán.
+*   **PRESCRIPTION:** Lưu trữ thông tin chung của một lần kê đơn. `patient_id` tham chiếu đến **Patient Service**, và `doctor_id` tham chiếu đến **ID người dùng** trong **Auth Service**. Trường `status` dùng để quản lý quy trình thanh toán.
 *   **PRESCRIPTION\_ITEM:** Lưu trữ chi tiết từng loại thuốc trong một đơn thuốc.
 *   **DRUG:** Bảng danh mục chứa thông tin về các loại thuốc có trong hệ thống. Bao gồm trường `stock_status` để thông báo cho bác sĩ về tính sẵn có của thuốc (dữ liệu này được đồng bộ hoặc đọc từ một hệ thống quản lý kho bên ngoài).
