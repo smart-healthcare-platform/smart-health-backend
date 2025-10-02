@@ -9,7 +9,6 @@ import { DoctorRating } from '../doctor-rating/doctor-rating.entity';
 import { DoctorAvailability } from '../doctor-availability/doctor-availability.entity';
 import { AppointmentSlot } from '../appointment-slot/appointment-slot.entity';
 import { DoctorSeed } from './doctor.seed';
-import { KafkaModule } from 'src/kafka/kafka.module';
 import { AppointmentSlotModule } from '../appointment-slot/appointment-slot.module';
 
 @Module({
@@ -25,7 +24,7 @@ import { AppointmentSlotModule } from '../appointment-slot/appointment-slot.modu
     AppointmentSlotModule
   ],
   controllers: [DoctorController],
-  providers: [DoctorService, DoctorSeed],
+  providers: [DoctorService, DoctorSeed,],
   exports: [DoctorService],
 })
 export class DoctorModule {}

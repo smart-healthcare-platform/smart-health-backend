@@ -35,7 +35,7 @@ export class DoctorSeed implements OnModuleInit {
     private ratingRepo: Repository<DoctorRating>,
     @InjectRepository(AppointmentSlot)
     private slotRepo: Repository<AppointmentSlot>,
-  ) {}
+  ) { }
 
   async onModuleInit() {
     const doctors = await this.doctorService.findAllBasic();
@@ -287,6 +287,7 @@ export class DoctorSeed implements OnModuleInit {
         experience_years: doctorData.experience_years,
         bio: doctorData.bio,
         active: true,
+        userId:'d54ad561-a9fb-473a-ba4f-086e2c369093'
       });
 
       // Bằng cấp
@@ -336,39 +337,41 @@ export class DoctorSeed implements OnModuleInit {
           }),
         );
 
-        // Gen slot dựa trên shift
-        let shiftStartHour =
+        // Gen slot cho toàn bộ tháng 10/2025
+        const shiftStartHour =
           shift === 'morning' ? 8 : shift === 'afternoon' ? 13 : 8;
-        let shiftEndHour =
+        const shiftEndHour =
           shift === 'morning' ? 12 : shift === 'afternoon' ? 17 : 17;
 
-        // Tìm ngày tiếp theo đúng day_of_week
-        const today = new Date();
-        const targetDayNumber = weekDaysMap[day];
-        const slotDate = new Date(today);
-        slotDate.setDate(
-          today.getDate() + ((targetDayNumber + 7 - today.getDay()) % 7),
-        );
-        slotDate.setHours(shiftStartHour, 0, 0, 0);
+        const startOfMonth = new Date('2025-10-01T00:00:00');
+        const endOfMonth = new Date('2025-10-31T23:59:59');
 
-        let slotTime = new Date(slotDate);
+        for (
+          let d = new Date(startOfMonth);
+          d <= endOfMonth;
+          d.setDate(d.getDate() + 1)
+        ) {
+          if (d.getDay() !== weekDaysMap[day]) continue;
 
-        while (slotTime.getHours() < shiftEndHour) {
-          const slotStart = new Date(slotTime);
-          const slotEnd = new Date(slotStart.getTime() + 50 * 60000); // 50 phút khám
-          if (slotEnd.getHours() > shiftEndHour) break;
+          let slotTime = new Date(d);
+          slotTime.setHours(shiftStartHour, 0, 0, 0);
 
-          await this.slotRepo.save(
-            this.slotRepo.create({
-              doctor_id: doctor.id,
-              start_time: slotStart,
-              end_time: slotEnd,
-              status: 'available',
-            }),
-          );
+          while (slotTime.getHours() < shiftEndHour) {
+            const slotStart = new Date(slotTime);
+            const slotEnd = new Date(slotStart.getTime() + 50 * 60000); // 50 phút
+            if (slotEnd.getHours() > shiftEndHour) break;
 
-          // next slot: 50 phút + 10 phút nghỉ
-          slotTime.setTime(slotStart.getTime() + 60 * 60000);
+            await this.slotRepo.save(
+              this.slotRepo.create({
+                doctor_id: doctor.id,
+                start_time: slotStart,
+                end_time: slotEnd,
+                status: 'available',
+              }),
+            );
+
+            slotTime.setTime(slotStart.getTime() + 60 * 60000); // +1 tiếng
+          }
         }
       }
 

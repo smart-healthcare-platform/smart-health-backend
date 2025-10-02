@@ -1,22 +1,62 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { MailerModule } from '@nestjs-modules/mailer';
+import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
+import { join } from 'path';
 import { AppointmentsModule } from './module/appointment/appointments.module';
+import { CalendarModule } from './module/calendar/calendar.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    TypeOrmModule.forRoot({
-      type: 'mysql',
-      host: process.env.DB_HOST,
-      port: parseInt(process.env.DB_PORT!, 10),
-      username: process.env.DB_USERNAME,
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME,
-      autoLoadEntities: true,
-      synchronize: true, 
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        type: 'mysql',
+        host: config.get<string>('DB_HOST'),
+        port: config.get<number>('DB_PORT'),
+        username: config.get<string>('DB_USERNAME'),
+        password: config.get<string>('DB_PASSWORD'),
+        database: config.get<string>('DB_NAME'),
+        autoLoadEntities: true,
+        synchronize: true,
+      }),
     }),
+
+    // SMTP Mailer
+    MailerModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => {
+        const isProd = process.env.NODE_ENV === 'production';
+        return {
+          transport: {
+            host: config.get<string>('SMTP_HOST'),
+            port: config.get<number>('SMTP_PORT'),
+            secure: false,
+            auth: {
+              user: config.get<string>('SMTP_USER'),
+              pass: config.get<string>('SMTP_PASS'),
+            },
+          },
+          defaults: {
+            from: config.get<string>('SMTP_FROM'),
+          },
+          template: {
+            dir: isProd
+              ? join(process.cwd(), 'dist', 'templates')
+              : join(process.cwd(), 'src', 'templates'),
+            adapter: new HandlebarsAdapter(),
+            options: { strict: true },
+          },
+        };
+      },
+    }),
+
     AppointmentsModule,
+    CalendarModule
   ],
 })
 export class AppModule {}

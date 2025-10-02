@@ -49,7 +49,7 @@ router.use('/patients', (req, res, next) => {
 
 // Configure patient service proxy
 try {
-  const patientProxy = getServiceProxy('patient');
+  const patientProxy = getServiceProxy('patients');
   router.use('/patients', patientProxy);
 } catch (error) {
   logger.error('Failed to configure patient service proxy', { error: error.message });
