@@ -287,6 +287,7 @@ export class DoctorSeed implements OnModuleInit {
         experience_years: doctorData.experience_years,
         bio: doctorData.bio,
         active: true,
+        userId:'d54ad561-a9fb-473a-ba4f-086e2c369093'
       });
 
       // Bằng cấp

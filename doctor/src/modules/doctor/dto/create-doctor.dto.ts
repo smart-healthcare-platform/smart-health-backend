@@ -2,6 +2,8 @@ import { IsString, IsEmail, IsEnum, IsOptional, IsDateString, IsInt, Min, Max, I
 
 export class CreateDoctorDto {
   @IsString()
+  userId: string;
+  @IsString()
   full_name: string;
 
   @IsEmail()
@@ -12,7 +14,7 @@ export class CreateDoctorDto {
   phone?: string;
 
   @IsOptional()
-  @IsEnum(['male','female','other'])
+  @IsEnum(['male', 'female', 'other'])
   gender?: string;
 
   @IsOptional()
@@ -38,4 +40,6 @@ export class CreateDoctorDto {
   @IsOptional()
   @IsBoolean()
   active?: boolean;
+
+
 }

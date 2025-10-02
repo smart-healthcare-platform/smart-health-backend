@@ -31,8 +31,10 @@ export class Appointment {
 
     @Column({ nullable: true })
     notes: string;
-    @Column()
-    startAt: Date;
+
+    @Column({ type: 'datetime', nullable: true })
+    startAt: Date | null;
+
     @CreateDateColumn()
     createdAt: Date;
 

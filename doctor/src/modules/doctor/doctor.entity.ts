@@ -21,7 +21,8 @@ export class Doctor {
 
   @Column({ length: 20, nullable: true })
   phone: string;
-
+  @Column({ length: 36, nullable: true })
+  userId: string;
   @Column({ type: 'enum', enum: ['male', 'female', 'other'], nullable: true })
   gender: string;
 
