@@ -40,7 +40,13 @@ export class AppointmentsService {
     return this.appointmentRepo.save(appointment);
   }
 
-  async confirmAppointment(appointmentId: string, doctorId: string, slotId: string, patientId: string, patientName: string) {
+  async confirmAppointment(
+    appointmentId: string,
+    doctorId: string,
+    slotId: string,
+    patientId: string,
+    patientName: string
+  ) {
     const appointment = await this.appointmentRepo.findOne({ where: { id: appointmentId } });
     if (!appointment) throw new NotFoundException(`Appointment ${appointmentId} not found`);
 
@@ -48,38 +54,35 @@ export class AppointmentsService {
     appointment.doctorId = doctorId;
     appointment.slotId = slotId;
     appointment.patientId = patientId;
-    appointment.patientName = patientName
+    appointment.patientName = patientName;
+
     const saved = await this.appointmentRepo.save(appointment);
 
-    // --- 1. Gọi webhook n8n ---
     const payload = {
-      patientName: 'Nguyễn Văn A', // TODO: lấy từ Patient entity
-      patientEmail: 'anh.ltl2511@gmail.com', // TODO: lấy từ Patient entity
-      doctorName: saved.doctorName, // TODO: lấy từ Doctor entity
-      doctorEmail: 'huuvinh.lampart@gmail.com', // TODO: lấy từ Doctor entity
+      patientName: saved.doctorName, // TODO: lấy từ Patient entity
+      patientEmail: 'anh.ltl2511@gmail.com',
+      doctorName: saved.doctorName,
+      doctorEmail: 'huuvinh.lampart@gmail.com',
       appointmentTime: saved.startAt?.toISOString() ?? new Date().toISOString(),
-      conversation: 'Bệnh nhân có triệu chứng đau ngực kéo dài.', // TODO: có thể thêm vào khi có field
+      conversation: 'Bệnh nhân có triệu chứng đau ngực kéo dài.',
     };
 
-    try {
-      await firstValueFrom(
-        this.http.post('http://localhost:5678/webhook-test/patient-appointment', payload),
-      );
-      console.log('✅ Webhook gửi thành công:', payload);
-    } catch (err) {
-      console.error('❌ Lỗi khi gọi webhook:', err.message);
-    }
+    this.http
+      .post('http://localhost:5678/webhook-test/patient-appointment', payload)
+      .subscribe({
+        next: () => console.log('Webhook gửi thành công'),
+        error: (err) => console.error(' Lỗi khi gọi webhook:', err.message),
+      });
 
-    // --- 2. Gửi email xác nhận (tạm thời cmt lại, chỉ dùng n8n) ---
-    try {
-      await this.notificationService.notifyAppointmentConfirmation(payload);
-      console.log('Email gửi thành công');
-    } catch (err) {
-      console.error('Lỗi khi gửi email:', err.message);
-    }
+    // 🔹 Gửi email bất đồng bộ
+    this.notificationService
+      .notifyAppointmentConfirmation(payload)
+      .then(() => console.log('Email gửi thành công'))
+      .catch((err) => console.error(' Lỗi khi gửi email:', err.message));
 
     return saved;
   }
+
 
   async failAppointment(appointmentId: string) {
     const appointment = await this.appointmentRepo.findOne({ where: { id: appointmentId } });
