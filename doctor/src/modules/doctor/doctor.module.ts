@@ -24,7 +24,7 @@ import { AppointmentSlotModule } from '../appointment-slot/appointment-slot.modu
     AppointmentSlotModule
   ],
   controllers: [DoctorController],
-  providers: [DoctorService, DoctorSeed],
+  providers: [DoctorService, DoctorSeed,],
   exports: [DoctorService],
 })
 export class DoctorModule {}

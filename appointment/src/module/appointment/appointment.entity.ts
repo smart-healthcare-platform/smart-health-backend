@@ -12,23 +12,27 @@ export class Appointment {
     id: string;
 
     @Column()
-    doctorId: string; // tham chiếu doctor-service
-
+    doctorId: string;
     @Column()
-    patientId: string; // tham chiếu patient-service
-
-    @Column()
-    slotId: string; // tham chiếu doctor-service.appointment_slots
-
-    @Column({ default: 'pending' })
-    status: string; // pending, confirmed, cancelled, completed
+    doctorName: string;
 
     @Column({ nullable: true })
-    reason: string;
+    patientId: string;
+    @Column({ nullable: true })
+    patientName: string;
+    @Column()
+    slotId: string;
+
+    @Column({ default: 'pending' })
+    status: string;
+
+    @Column({ nullable: true })
+    type: string;
 
     @Column({ nullable: true })
     notes: string;
-
+    @Column()
+    startAt: Date;
     @CreateDateColumn()
     createdAt: Date;
 

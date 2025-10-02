@@ -6,18 +6,21 @@ import { Appointment } from './appointment.entity';
 import { AppointmentProducerService } from './appointment-producer.service';
 import { ProductionAppointmentConsumer } from './production-appointment-consumer.service';
 import { ClientsModule, Transport } from '@nestjs/microservices';
+import { NotificationService } from '../notification/notification.service';
+import { HttpModule } from '@nestjs/axios'; // ✅ Thêm vào
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Appointment]),
+    HttpModule, // ✅ Thêm vào để dùng HttpService
     ClientsModule.register([
       {
         name: 'KAFKA_SERVICE',
         transport: Transport.KAFKA,
         options: {
-          client: { 
-            clientId: 'appointment-service-producer', 
-            brokers: ['localhost:9092'] 
+          client: {
+            clientId: 'appointment-service-producer',
+            brokers: ['localhost:9092'],
           },
           producerOnlyMode: true,
         },
@@ -25,11 +28,12 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
     ]),
   ],
   providers: [
-    AppointmentsService, 
-    AppointmentProducerService, 
-    ProductionAppointmentConsumer, 
+    AppointmentsService,
+    AppointmentProducerService,
+    ProductionAppointmentConsumer,
+    NotificationService,
   ],
   controllers: [AppointmentsController],
   exports: [AppointmentsService],
 })
-export class AppointmentsModule { }
+export class AppointmentsModule {}

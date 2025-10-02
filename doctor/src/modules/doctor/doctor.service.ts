@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Doctor } from './doctor.entity';
 import { CreateDoctorDto } from './dto/create-doctor.dto';
 import { UpdateDoctorDto } from './dto/update-doctor.dto';
@@ -17,7 +17,9 @@ export class DoctorService {
     const doctor = this.doctorRepo.create(dto);
     return this.doctorRepo.save(doctor);
   }
-
+  async findByIds(ids: string[]): Promise<Doctor[]> {
+    return this.doctorRepo.find({ where: { id: In(ids) } });
+  }
   private buildDisplayDoctor(d: Doctor) {
     const mapDegreeToPrefix = (title: string): string => {
       if (!title) return '';

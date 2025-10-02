@@ -2,10 +2,14 @@ package fit.iuh.auth.service;
 
 import fit.iuh.auth.dto.request.LoginRequest;
 import fit.iuh.auth.dto.request.RegisterRequest;
+import fit.iuh.auth.dto.request.UserCreatedEvent;
 import fit.iuh.auth.dto.response.AuthResponse;
 import fit.iuh.auth.entity.RefreshToken;
 import fit.iuh.auth.entity.User;
+import fit.iuh.auth.enums.Role;
+import fit.iuh.auth.kafka.UserProducer;
 import fit.iuh.auth.repository.RefreshTokenRepository;
+import fit.iuh.auth.repository.UserRepository;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.transaction.Transactional;
@@ -26,16 +30,16 @@ import java.util.Map;
 @Transactional
 public class AuthService {
 
-    private final UserService userService;
+    private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
     private final RefreshTokenRepository refreshTokenRepository;
-
+    private final UserProducer userProducer;
     public AuthResponse register(RegisterRequest request, HttpServletResponse response) {
         log.info("Attempting to register user: {}", request.getUsername());
 
-        if (userService.existsByEmail(request.getUsername())) {
+        if (userRepository.existsByEmail(request.getUsername())) {
             throw new RuntimeException("Username đã tồn tại: " + request.getUsername());
         }
 
@@ -46,9 +50,19 @@ public class AuthService {
         user.setRole(request.getRole());
         user.setIsActive(true);
 
-        User savedUser = userService.save(user);
-        log.info("User registered successfully: {}", savedUser.getUsername());
 
+        User savedUser = userRepository.save(user);
+        log.info("User registered successfully: {}", savedUser.getUsername());
+        if (savedUser.getRole() == Role.PATIENT) {
+            UserCreatedEvent event = new UserCreatedEvent(
+                    savedUser.getId().toString(),
+                    request.getFullName(),
+                    request.getDateOfBirth(),
+                    request.getGender(),
+                    request.getAddress()
+            );
+            userProducer.sendUserCreated(event);
+        }
         // Tạo payload chứa role & authorities
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", savedUser.getRole());
@@ -78,7 +92,7 @@ public class AuthService {
                 new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
         );
 
-        User user = userService.findByEmail(request.getEmail())
+        User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         if (!user.getIsActive()) {
@@ -113,7 +127,7 @@ public class AuthService {
         log.info("Attempting to refresh token");
 
         String username = jwtService.extractUsername(refreshToken);
-        User user = userService.findByUserName(username)
+        User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         if (!jwtService.isTokenValid(refreshToken, user)) {

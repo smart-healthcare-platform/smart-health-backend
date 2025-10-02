@@ -6,4 +6,6 @@ export class UpdateAppointmentDto extends PartialType(CreateAppointmentDto) {
   @IsOptional()
   @IsString()
   status?: string; // pending, confirmed, cancelled, completed
+  @IsString()
+  userId: string;
 }
