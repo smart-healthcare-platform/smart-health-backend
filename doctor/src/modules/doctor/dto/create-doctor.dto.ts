@@ -2,16 +2,10 @@ import { IsString, IsEmail, IsEnum, IsOptional, IsDateString, IsInt, Min, Max, I
 
 export class CreateDoctorDto {
   @IsString()
-  userId: string;
+  user_id: string;
+
   @IsString()
   full_name: string;
-
-  @IsEmail()
-  email: string;
-
-  @IsOptional()
-  @IsString()
-  phone?: string;
 
   @IsOptional()
   @IsEnum(['male', 'female', 'other'])

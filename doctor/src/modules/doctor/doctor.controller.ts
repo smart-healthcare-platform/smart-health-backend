@@ -18,9 +18,9 @@ import { DoctorListDto } from './dto/list-doctor.dto';
 import { ResponseInterceptor } from 'src/common/interceptors/response.interceptor';
 
 @Controller('api/doctors')
-@UseInterceptors(ResponseInterceptor) 
+@UseInterceptors(ResponseInterceptor)
 export class DoctorController {
-  constructor(private readonly doctorService: DoctorService) {}
+  constructor(private readonly doctorService: DoctorService) { }
 
   @Post()
   async create(@Body() dto: CreateDoctorDto): Promise<Doctor> {
@@ -39,6 +39,11 @@ export class DoctorController {
   @Get(':id')
   async findOne(@Param('id') id: string): Promise<Doctor> {
     return this.doctorService.findOne(id);
+  }
+
+  @Get('by-user/:userId')
+  async getByUserId(@Param('userId') userId: string): Promise<Doctor> {
+    return this.doctorService.findByUserId(userId);
   }
 
   @Put(':id')
