@@ -278,8 +278,6 @@ export class DoctorSeed implements OnModuleInit {
     for (const [index, doctorData] of doctorsData.entries()) {
       const doctor = await this.doctorService.create({
         full_name: doctorData.full_name,
-        email: doctorData.email,
-        phone: doctorData.phone,
         gender: doctorData.gender,
         date_of_birth: `${1970 + Math.floor(Math.random() * 30)}-${String(Math.floor(Math.random() * 12) + 1).padStart(2, '0')}-${String(Math.floor(Math.random() * 28) + 1).padStart(2, '0')}`,
         avatar: doctorData.avatar,
@@ -287,7 +285,7 @@ export class DoctorSeed implements OnModuleInit {
         experience_years: doctorData.experience_years,
         bio: doctorData.bio,
         active: true,
-        userId:'d54ad561-a9fb-473a-ba4f-086e2c369093'
+        user_id:'d54ad561-a9fb-473a-ba4f-086e2c369093'
       });
 
       // Bằng cấp

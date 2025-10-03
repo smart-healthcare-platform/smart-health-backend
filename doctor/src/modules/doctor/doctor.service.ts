@@ -11,7 +11,7 @@ export class DoctorService {
   constructor(
     @InjectRepository(Doctor)
     private doctorRepo: Repository<Doctor>,
-  ) {}
+  ) { }
 
   async create(dto: CreateDoctorDto): Promise<Doctor> {
     const doctor = this.doctorRepo.create(dto);
@@ -56,6 +56,16 @@ export class DoctorService {
       degree: mainDegree,
       display_name,
     };
+  }
+
+  async findByUserId(userId: string): Promise<Doctor> {
+    const doctor = await this.doctorRepo.findOne({
+      where: { user_id: userId },
+    });
+    if (!doctor) {
+      throw new NotFoundException(`Doctor with user_id=${userId} not found`);
+    }
+    return doctor;
   }
 
   async findAllBasic(

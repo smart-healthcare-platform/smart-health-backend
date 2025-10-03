@@ -16,13 +16,9 @@ export class Doctor {
   @Column({ length: 100 })
   full_name: string;
 
-  @Column({ length: 100, unique: true })
-  email: string;
-
-  @Column({ length: 20, nullable: true })
-  phone: string;
   @Column({ length: 36, nullable: true })
-  userId: string;
+  user_id: string;
+
   @Column({ type: 'enum', enum: ['male', 'female', 'other'], nullable: true })
   gender: string;
 
