@@ -51,6 +51,79 @@ export const getConversations = async (req: AuthenticatedRequest, res: Response)
   }
 };
 
+export const createConversation = async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.userId; // Người gửi yêu cầu
+    const { recipientId, recipientRole } = req.body; // Người nhận và vai trò của họ
+
+    if (!userId || !recipientId || !recipientRole) {
+      return res.status(400).json({ message: 'Missing userId, recipientId, or recipientRole.' });
+    }
+    if (recipientRole !== 'doctor' && recipientRole !== 'patient') {
+      return res.status(400).json({ message: 'Invalid recipientRole. Must be "doctor" or "patient".' });
+    }
+
+    if (userId === recipientId) {
+      return res.status(400).json({ message: 'Cannot create a conversation with yourself.' });
+    }
+
+    // Kiểm tra xem cuộc trò chuyện giữa hai người này đã tồn tại chưa
+    // Bước 1: Tìm tất cả các cuộc trò chuyện mà người gửi tham gia
+    const senderConversations = await Conversation.findAll({
+      include: [
+        {
+          model: ConversationParticipant,
+          as: 'participants',
+          where: { userId: userId },
+          attributes: [],
+          required: true,
+        }
+      ],
+      attributes: ['id'],
+    });
+
+    // Bước 2: Lấy danh sách ID của các cuộc trò chuyện đó
+    const senderConversationIds = senderConversations.map(conv => conv.id);
+
+    // Bước 3: Trong số đó, tìm cuộc trò chuyện nào cũng có người nhận
+    if (senderConversationIds.length > 0) {
+      const existingConversation = await Conversation.findOne({
+        include: [
+          {
+            model: ConversationParticipant,
+            as: 'participants',
+            where: { userId: recipientId },
+            attributes: [],
+            required: true,
+          }
+        ],
+        where: { id: { [Op.in]: senderConversationIds } }, // Giới hạn tìm kiếm trong các cuộc trò chuyện của người gửi
+        attributes: ['id'],
+      });
+
+      if (existingConversation) {
+        // Nếu cuộc trò chuyện đã tồn tại, trả về ID của nó
+        return res.status(200).json({ conversationId: existingConversation.id, message: 'Conversation already exists.' });
+      }
+    }
+
+    // Nếu chưa tồn tại, tạo mới
+    const newConversation = await Conversation.create({});
+
+    // Thêm người gửi và người nhận vào cuộc trò chuyện
+    await ConversationParticipant.bulkCreate([
+      { conversationId: newConversation.id, userId, role: req.userRole! }, // Giả sử role đã được xác thực và có sẵn
+      { conversationId: newConversation.id, userId: recipientId, role: recipientRole }
+    ]);
+
+    res.status(201).json({ conversationId: newConversation.id, message: 'Conversation created successfully.' });
+  } catch (error) {
+    console.error('Error creating conversation:', error);
+    res.status(500).json({ message: 'Internal server error.' });
+  }
+};
+
+
 export const getMessages = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.userId;
