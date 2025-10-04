@@ -23,11 +23,13 @@ export const handleSendMessage = async (
 ) => {
   try {
     if (!socket.userId) {
+      console.error('[handleSendMessage] Authentication error: socket.userId is missing.');
       socket.emit('messageError', { message: 'Authentication required to send messages.' });
       return;
     }
 
     const { conversationId, recipientId, content, contentType = 'text' } = data;
+    console.log(`[handleSendMessage] Attempting to send message from ${socket.userId} to ${recipientId} in conversation ${conversationId}`);
 
     // 1. Xác thực người gửi có quyền gửi cho người nhận
     const isParticipant = await ConversationParticipant.findOne({
@@ -35,9 +37,11 @@ export const handleSendMessage = async (
     });
 
     if (!isParticipant) {
+      console.warn(`[handleSendMessage] User ${socket.userId} is not a participant of conversation ${conversationId}.`);
       socket.emit('messageError', { message: 'You are not a participant of this conversation.' });
       return;
     }
+    console.log(`[handleSendMessage] User ${socket.userId} is a participant of conversation ${conversationId}.`);
 
     // 2. Lưu tin nhắn vào DB
     const newMessage = await Message.create({
@@ -47,6 +51,7 @@ export const handleSendMessage = async (
       contentType,
       isRead: false,
     });
+    console.log(`[handleSendMessage] Message saved to DB: ${newMessage.id}`);
 
     const messageData = {
       id: newMessage.id,
@@ -70,9 +75,9 @@ export const handleSendMessage = async (
     // Gửi phản hồi cho người gửi
     socket.emit('messageSent', { success: true, message: messageData });
 
-    // 4. Nếu người nhận không trực tuyến, gọi Notification Service
+    // 4. Nếu người nhận không trực tuyến, gọi Notification Service (Tạm thời tắt)
     const recipientSockets = await io.in(recipientId).fetchSockets();
-    if (recipientSockets.length === 0) {
+    if (process.env.NOTIFICATION_SERVICE_ENABLED === 'true' && recipientSockets.length === 0) {
       console.log(`User ${recipientId} is offline. Sending notification...`);
       try {
         await axios.post(`${process.env.NOTIFICATION_SERVICE_URL}/send`, {
@@ -86,9 +91,9 @@ export const handleSendMessage = async (
       }
     }
   } catch (error) {
-    console.error('Error sending message:', error);
+    console.error('[handleSendMessage] General error:', error);
     socket.emit('messageError', { error: error instanceof Error ? error.message : 'An unknown error occurred' });
- }
+  }
 };
 
 /**
@@ -108,9 +113,17 @@ export const handleConnection = async (socket: AuthenticatedSocket, io: Server) 
       attributes: ['conversationId'],
     });
 
-    participantConversations.forEach((participant) => {
+    participantConversations.forEach(async (participant) => { // Thêm async ở đây
       socket.join(participant.conversationId);
-      console.log(`User ${socket.userId} joined conversation room: ${participant.conversationId}`);
+      console.log(`Socket.IO: User ${socket.userId} joined conversation room: ${participant.conversationId}`); // Thêm log
+
+      // Lấy tin nhắn gần đây cho các cuộc trò chuyện và gửi cho người dùng vừa kết nối
+      const recentMessages = await Message.findAll({
+        where: { conversationId: participant.conversationId },
+        order: [['createdAt', 'ASC']], // Lấy tin nhắn theo thứ tự thời gian tăng dần
+        limit: 50, // Giới hạn số lượng tin nhắn gần đây để gửi
+      });
+      socket.emit('recentMessages', { conversationId: participant.conversationId, messages: recentMessages });
     });
   }
 };
