@@ -63,6 +63,9 @@ app.use(cors({
   origin: process.env.CLIENT_URL || 'http://localhost:3000', // Cho phép từ frontend
   credentials: true
 }));
+
+// Log CORS configuration
+console.log(`[Chat Service] CORS configured with origin: ${process.env.CLIENT_URL || 'http://localhost:3000'}`);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -70,6 +73,10 @@ app.use(express.urlencoded({ extended: true }));
 import { socketAuthMiddleware } from './middleware/auth';
 
 const io = new Server(server, {
+  path: '/socket.io/', // Đảm bảo Socket.IO lắng nghe trên đường dẫn này
+  allowEIO3: true, // Thêm tùy chọn này để hỗ trợ client cũ hơn
+  transports: ['websocket'], // Chỉ cho phép transport websocket
+  perMessageDeflate: false, // Tắt permessage-deflate
   cors: {
     origin: process.env.CLIENT_URL || 'http://localhost:3000',
     methods: ['GET', 'POST'],
@@ -99,6 +106,11 @@ import { handleConnection, handleSendMessage, handleDisconnect } from './sockets
 
 // Kết nối Socket.IO
 io.on('connection', async (socket: AuthenticatedSocket) => {
+  console.log(`[Socket.IO] Client connected: ${socket.id}`);
+  console.log(`[Socket.IO] Handshake headers:`, socket.handshake.headers);
+  console.log(`[Socket.IO] Handshake url:`, socket.handshake.url);
+  console.log(`[Socket.IO] Handshake query:`, socket.handshake.query); // Thêm log query
+
   // Xử lý kết nối
   await handleConnection(socket, io);
   
@@ -109,8 +121,18 @@ io.on('connection', async (socket: AuthenticatedSocket) => {
   
  // Xử lý sự kiện khi người dùng ngắt kết nối
   socket.on('disconnect', () => {
+    console.log(`[Socket.IO] Client disconnected: ${socket.id}`);
     handleDisconnect(socket);
  });
+
+  // Xử lý lỗi Socket.IO
+  socket.on('error', (err) => {
+    console.error(`[Socket.IO] Socket error for ${socket.id}:`, err);
+  });
+});
+
+io.on('error', (err) => {
+  console.error('[Socket.IO] Server error:', err);
 });
 
 // Hàm để gửi tin nhắn đến người nhận
@@ -143,7 +165,8 @@ const PORT = process.env.PORT || 3001;
 
 if (env !== 'test') { // Chỉ lắng nghe cổng khi không phải môi trường test
   server.listen(PORT, async () => {
-    console.log(`Chat Service is running on port ${PORT}`);
+    console.log(`Chat Service is running on port ${PORT} in ${env} environment.`);
+    console.log(`NODE_ENV: ${process.env.NODE_ENV}, PORT: ${process.env.PORT}`);
     
     // Khởi tạo models trước khi kiểm tra kết nối và đồng bộ hóa
     initializeModels(sequelize);
@@ -155,6 +178,15 @@ if (env !== 'test') { // Chỉ lắng nghe cổng khi không phải môi trườ
     if (env === 'development') {
       await syncDatabase();
     }
+  });
+
+  io.engine.on('connection_error', (err) => {
+    console.error('[Socket.IO Engine] Connection error:', {
+      req: err.req,      // the request object
+      code: err.code,    // the error code, for example "TRANSPORT_ERROR"
+      message: err.message,  // the error message, for example "Session ID unknown"
+      context: err.context,  // some additional error context
+    });
   });
 }
 
