@@ -86,6 +86,7 @@ const createServiceProxy = (serviceName) => {
   return createProxyMiddleware({
     target: service.url,
     changeOrigin: true,
+    ws: true, // Bật hỗ trợ WebSocket
 
     pathRewrite: (path, req) => {
       let cleanPath = path;
@@ -93,6 +94,13 @@ const createServiceProxy = (serviceName) => {
       if (serviceName === "auth") {
         // /v1/auth/login -> /login
         cleanPath = path.replace(/^\/v1\/auth/, "");
+      } else if (serviceName === "chat") {
+        // /v1/chat/health -> /health
+        // /v1/chat/conversations -> /api/conversations
+        if (path.endsWith('/health')) {
+          return '/health';
+        }
+        cleanPath = path.replace(new RegExp(`^/v1/chat`), "");
       } else if (path.startsWith(`/v1/public/${serviceName}`)) {
         // /v1/public/doctors or /v1/public/doctors/:id -> /doctors or /doctors/:id
         return `${service.basePath}${path.replace(`/v1/public/${serviceName}`, '')}`;

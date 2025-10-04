@@ -87,6 +87,19 @@ const server = app.listen(config.port, () => {
 });
 
 initializeErrorHandlers(app, server);
+// WebSocket proxy for Chat Service
+const { getServiceProxy } = require("./services/serviceProxy");
+const chatProxy = getServiceProxy("chat");
+
+server.on('upgrade', (req, socket, head) => {
+  logger.info('WebSocket upgrade request received', { url: req.url });
+  // Chỉ proxy các kết nối đến /socket.io/
+  if (req.url.startsWith('/socket.io/')) {
+    chatProxy.upgrade(req, socket, head);
+  } else {
+    socket.destroy();
+  }
+});
 
 process.on("SIGTERM", () => {
   logger.info("SIGTERM received, starting graceful shutdown");
