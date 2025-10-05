@@ -54,12 +54,17 @@ export const getConversations = async (req: AuthenticatedRequest, res: Response)
 export const createConversation = async (req: AuthenticatedRequest, res: Response) => {
   try {
     const userId = req.userId; // Người gửi yêu cầu
-    const { recipientId, recipientRole } = req.body; // Người nhận và vai trò của họ
+    const { recipientId } = req.body;
+    const recipientRole = (req.body.recipientRole as string).toLowerCase(); // Chuyển đổi sang chữ thường
+
+    console.log(`[Chat Controller] createConversation called with: userId=${userId}, recipientId=${recipientId}, recipientRole=${recipientRole}`);
 
     if (!userId || !recipientId || !recipientRole) {
+      console.error(`[Chat Controller] createConversation: Missing credentials. userId=${userId}, recipientId=${recipientId}, recipientRole=${recipientRole}`);
       return res.status(400).json({ message: 'Missing userId, recipientId, or recipientRole.' });
     }
     if (recipientRole !== 'doctor' && recipientRole !== 'patient') {
+      console.error(`[Chat Controller] createConversation: Invalid recipientRole. Received: ${req.body.recipientRole}`);
       return res.status(400).json({ message: 'Invalid recipientRole. Must be "doctor" or "patient".' });
     }
 
