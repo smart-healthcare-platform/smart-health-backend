@@ -27,7 +27,7 @@ const authenticateJWT = (req, res, next) => {
     
     // Add user info to request object
     req.user = {
-      id: decoded.sub,
+      id: decoded.id,
       username: decoded.username || decoded.sub,
       role: decoded.role,
       authorities: decoded.authorities || [],
