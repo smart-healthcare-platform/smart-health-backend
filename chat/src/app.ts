@@ -73,7 +73,7 @@ app.use(express.urlencoded({ extended: true }));
 import { socketAuthMiddleware } from './middleware/auth';
 
 const io = new Server(server, {
-  path: '/socket.io/', // Đảm bảo Socket.IO lắng nghe trên đường dẫn này
+  path: '/socket.io/', // Chat Service lắng nghe trên đường dẫn mặc định
   allowEIO3: true, // Thêm tùy chọn này để hỗ trợ client cũ hơn
   transports: ['websocket'], // Chỉ cho phép transport websocket
   perMessageDeflate: false, // Tắt permessage-deflate
@@ -109,7 +109,8 @@ io.on('connection', async (socket: AuthenticatedSocket) => {
   console.log(`[Socket.IO] Client connected: ${socket.id}`);
   console.log(`[Socket.IO] Handshake headers:`, socket.handshake.headers);
   console.log(`[Socket.IO] Handshake url:`, socket.handshake.url);
-  console.log(`[Socket.IO] Handshake query:`, socket.handshake.query); // Thêm log query
+  console.log(`[Socket.IO] Handshake query:`, socket.handshake.query);
+  console.log(`[Socket.IO] Socket authenticated user ID: ${socket.userId}`); // Log user ID sau xác thực
 
   // Xử lý kết nối
   await handleConnection(socket, io);

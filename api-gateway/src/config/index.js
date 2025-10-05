@@ -101,7 +101,7 @@ module.exports = {
       url: envVars.CHAT_SERVICE_URL,
       basePath: '/api',
       timeout: envVars.SERVICE_TIMEOUT,
-      websocket: true,
+      websocket: false, // Set to false to prevent http-proxy-middleware from handling WebSocket upgrades
     }
   },
   
