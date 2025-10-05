@@ -137,6 +137,9 @@ const createServiceProxy = (serviceName) => {
           "X-User-Authorities",
           JSON.stringify(req.user.authorities)
         );
+        console.log(`[PROXY DEBUG] Forwarding X-User-ID: ${req.user.id}, X-User-Role: ${req.user.role}`);
+      } else {
+        console.log(`[PROXY DEBUG] req.user is NOT set for ${req.method} ${req.originalUrl}`);
       }
 
       // Handle POST body manually
