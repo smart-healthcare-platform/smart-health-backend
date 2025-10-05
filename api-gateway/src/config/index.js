@@ -23,8 +23,8 @@ const envSchema = Joi.object()
     PATIENT_SERVICE_URL: Joi.string().default('http://localhost:8082'),
     DOCTOR_SERVICE_URL: Joi.string().default('http://localhost:8083'),
     APPOINTMENT_SERVICE_URL: Joi.string().default('http://localhost:8084'),
-    CHAT_SERVICE_URL: Joi.string().default('http://localhost:8085'),
     NOTIFICATION_SERVICE_URL: Joi.string().default('http://localhost:8086'),
+    CHAT_SERVICE_URL: Joi.string().default('http://localhost:8085'),
     
     // Rate Limiting
     RATE_LIMIT_WINDOW_MS: Joi.number().default(15 * 60 * 1000), // 15 minutes
@@ -101,7 +101,8 @@ module.exports = {
       url: envVars.CHAT_SERVICE_URL,
       basePath: '/api',
       timeout: envVars.SERVICE_TIMEOUT,
-    },
+      websocket: true,
+    }
   },
   
   rateLimit: {

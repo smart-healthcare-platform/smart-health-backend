@@ -26,24 +26,6 @@ try {
     });
   });
 }
-
-// --- PUBLIC: Health check for Chat Service
-try {
-  const chatProxy = getServiceProxy('chat');
-  router.use('/chat/health', chatProxy);
-} catch (error) {
-    logger.error('Failed to configure public chat service proxy', { error: error.message });
-    router.use('/chat/health', (req, res) => {
-        res.status(503).json({
-            success: false,
-            message: 'Chat service (public) is temporarily unavailable',
-            code: 503,
-            service: 'chat',
-            timestamp: new Date().toISOString(),
-        });
-    });
-}
-
 /**
  * Apply authentication and rate limiting to all service routes
  */
@@ -172,6 +154,7 @@ try {
     });
   });
 }
+
 /**
  * Chat Service Routes
  * All authenticated users can access chat
@@ -202,7 +185,6 @@ try {
     });
   });
 }
-
 
 /**
  * Admin Service Routes (future)

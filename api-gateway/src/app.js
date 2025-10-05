@@ -13,8 +13,21 @@ const {
 } = require("./middleware/errorHandler");
 const { standardLimiter, speedLimiter } = require("./middleware/rateLimiter");
 const routes = require("./routes");
+const httpProxy = require('http-proxy');
 
 const app = express();
+
+const wsProxy = httpProxy.createProxyServer({
+  target: config.services.chat.url,
+  ws: true,
+});
+
+wsProxy.on('error', (err, req, socket) => {
+  logger.error('WebSocket proxy server error:', { error: err.message, code: err.code });
+  if (socket && !socket.destroyed) {
+    socket.end();
+  }
+});
 
 app.set("trust proxy", 1);
 
@@ -86,20 +99,18 @@ const server = app.listen(config.port, () => {
   });
 });
 
-initializeErrorHandlers(app, server);
-// WebSocket proxy for Chat Service
-const { getServiceProxy } = require("./services/serviceProxy");
-const chatProxy = getServiceProxy("chat");
-
 server.on('upgrade', (req, socket, head) => {
-  logger.info('WebSocket upgrade request received', { url: req.url });
-  // Chỉ proxy các kết nối đến /socket.io/
-  if (req.url.startsWith('/socket.io/')) {
-    chatProxy.upgrade(req, socket, head);
+  logger.info(`Received upgrade request for: ${req.url}`);
+  if (req.url.startsWith('/socket.io')) {
+    logger.info('Proxying WebSocket request to chat service...');
+    wsProxy.ws(req, socket, head);
   } else {
+    logger.warn(`Destroying WebSocket connection for unhandled path: ${req.url}`);
     socket.destroy();
   }
 });
+
+initializeErrorHandlers(app, server);
 
 process.on("SIGTERM", () => {
   logger.info("SIGTERM received, starting graceful shutdown");

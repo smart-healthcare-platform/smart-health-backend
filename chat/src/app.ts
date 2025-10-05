@@ -161,7 +161,7 @@ export const syncDatabase = async (force: boolean = false) => {
 };
 
 // Khởi động server
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 8085;
 
 if (env !== 'test') { // Chỉ lắng nghe cổng khi không phải môi trường test
   server.listen(PORT, async () => {
