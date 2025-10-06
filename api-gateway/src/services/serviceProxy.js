@@ -86,6 +86,7 @@ const createServiceProxy = (serviceName) => {
   return createProxyMiddleware({
     target: service.url,
     changeOrigin: true,
+    ws: service.websocket || false,
 
     pathRewrite: (path, req) => {
       let cleanPath = path;
@@ -136,6 +137,9 @@ const createServiceProxy = (serviceName) => {
           "X-User-Authorities",
           JSON.stringify(req.user.authorities)
         );
+        console.log(`[PROXY DEBUG] Forwarding X-User-ID: ${req.user.id}, X-User-Role: ${req.user.role}`);
+      } else {
+        console.log(`[PROXY DEBUG] req.user is NOT set for ${req.method} ${req.originalUrl}`);
       }
 
       // Handle POST body manually
@@ -172,9 +176,24 @@ const createServiceProxy = (serviceName) => {
     // Error handler
     onError: (err, req, res) => {
       logger.error(`Proxy error for service ${serviceName}:`, err);
-
-      // Mark service as unhealthy
       serviceRegistry.markServiceUnhealthy(serviceName, err);
+
+      // For WebSocket errors, the 'res' object is a socket, not an HTTP response.
+      // We can't send a JSON response, so we just log and end the connection.
+      if (res.writeHead === undefined) {
+        logger.error(`WebSocket proxy error for ${serviceName}. Destroying socket.`, {
+          error: err.message,
+          code: err.code,
+        });
+        if (res.destroy) {
+          res.destroy();
+        }
+        return;
+      }
+
+      if (res.headersSent) {
+        return;
+      }
 
       let error;
 

@@ -3,6 +3,7 @@ import { ConversationParticipant } from '../models/conversation-participant';
 import { Message } from '../models/message';
 import { Server } from 'socket.io';
 import axios from 'axios';
+import { fetchUserInfo } from '../utils/userInfoFetcher';
 
 type ContentType = 'text' | 'image' | 'file';
 
@@ -23,11 +24,13 @@ export const handleSendMessage = async (
 ) => {
   try {
     if (!socket.userId) {
+      console.error('[handleSendMessage] Authentication error: socket.userId is missing.');
       socket.emit('messageError', { message: 'Authentication required to send messages.' });
       return;
     }
 
     const { conversationId, recipientId, content, contentType = 'text' } = data;
+    console.log(`[handleSendMessage] Attempting to send message from ${socket.userId} to ${recipientId} in conversation ${conversationId}`);
 
     // 1. Xác thực người gửi có quyền gửi cho người nhận
     const isParticipant = await ConversationParticipant.findOne({
@@ -35,9 +38,11 @@ export const handleSendMessage = async (
     });
 
     if (!isParticipant) {
+      console.warn(`[handleSendMessage] User ${socket.userId} is not a participant of conversation ${conversationId}.`);
       socket.emit('messageError', { message: 'You are not a participant of this conversation.' });
       return;
     }
+    console.log(`[handleSendMessage] User ${socket.userId} is a participant of conversation ${conversationId}.`);
 
     // 2. Lưu tin nhắn vào DB
     const newMessage = await Message.create({
@@ -47,6 +52,7 @@ export const handleSendMessage = async (
       contentType,
       isRead: false,
     });
+    console.log(`[handleSendMessage] Message saved to DB: ${newMessage.id}`);
 
     const messageData = {
       id: newMessage.id,
@@ -70,9 +76,9 @@ export const handleSendMessage = async (
     // Gửi phản hồi cho người gửi
     socket.emit('messageSent', { success: true, message: messageData });
 
-    // 4. Nếu người nhận không trực tuyến, gọi Notification Service
+    // 4. Nếu người nhận không trực tuyến, gọi Notification Service (Tạm thời tắt)
     const recipientSockets = await io.in(recipientId).fetchSockets();
-    if (recipientSockets.length === 0) {
+    if (process.env.NOTIFICATION_SERVICE_ENABLED === 'true' && recipientSockets.length === 0) {
       console.log(`User ${recipientId} is offline. Sending notification...`);
       try {
         await axios.post(`${process.env.NOTIFICATION_SERVICE_URL}/send`, {
@@ -86,9 +92,9 @@ export const handleSendMessage = async (
       }
     }
   } catch (error) {
-    console.error('Error sending message:', error);
+    console.error('[handleSendMessage] General error:', error);
     socket.emit('messageError', { error: error instanceof Error ? error.message : 'An unknown error occurred' });
- }
+  }
 };
 
 /**
@@ -105,13 +111,36 @@ export const handleConnection = async (socket: AuthenticatedSocket, io: Server) 
     // Tham gia vào các phòng chat dựa trên conversationId mà người dùng là thành viên
     const participantConversations = await ConversationParticipant.findAll({
       where: { userId: socket.userId },
-      attributes: ['conversationId'],
+      attributes: ['conversationId', 'userId', 'role', 'fullName'], // Lấy thêm thông tin để kiểm tra
     });
 
-    participantConversations.forEach((participant) => {
+    for (const participant of participantConversations) { // Sử dụng for...of để đảm bảo async/await hoạt động đúng
       socket.join(participant.conversationId);
-      console.log(`User ${socket.userId} joined conversation room: ${participant.conversationId}`);
-    });
+      console.log(`Socket.IO: User ${socket.userId} joined conversation room: ${participant.conversationId}`); // Thêm log
+
+      // Kiểm tra nếu fullName bị thiếu, cập nhật nó
+      if (!participant.fullName) {
+        const userType = participant.role; // role có thể là 'DOCTOR', 'PATIENT', 'doctor', 'patient'
+        const fullName = await fetchUserInfo(participant.userId, userType); // fetchUserInfo xử lý cả chữ hoa/thường
+        if (fullName) {
+          await ConversationParticipant.update(
+            { fullName: fullName },
+            { where: { id: participant.id } } // Cập nhật theo ID của participant
+          );
+          console.log(`Updated fullName for participant ${participant.userId} in conversation ${participant.conversationId}`);
+        } else {
+          console.warn(`Could not fetch fullName for participant ${participant.userId} in conversation ${participant.conversationId}`);
+        }
+      }
+
+      // Lấy tin nhắn gần đây cho các cuộc trò chuyện và gửi cho người dùng vừa kết nối
+      const recentMessages = await Message.findAll({
+        where: { conversationId: participant.conversationId },
+        order: [['createdAt', 'ASC']], // Lấy tin nhắn theo thứ tự thời gian tăng dần
+        limit: 50, // Giới hạn số lượng tin nhắn gần đây để gửi
+      });
+      socket.emit('recentMessages', { conversationId: participant.conversationId, messages: recentMessages });
+    }
   }
 };
 
