@@ -3,6 +3,7 @@ import { ConversationParticipant } from '../models/conversation-participant';
 import { Message } from '../models/message';
 import { Server } from 'socket.io';
 import axios from 'axios';
+import { fetchUserInfo } from '../utils/userInfoFetcher';
 
 type ContentType = 'text' | 'image' | 'file';
 
@@ -110,12 +111,27 @@ export const handleConnection = async (socket: AuthenticatedSocket, io: Server) 
     // Tham gia vào các phòng chat dựa trên conversationId mà người dùng là thành viên
     const participantConversations = await ConversationParticipant.findAll({
       where: { userId: socket.userId },
-      attributes: ['conversationId'],
+      attributes: ['conversationId', 'userId', 'role', 'fullName'], // Lấy thêm thông tin để kiểm tra
     });
 
-    participantConversations.forEach(async (participant) => { // Thêm async ở đây
+    for (const participant of participantConversations) { // Sử dụng for...of để đảm bảo async/await hoạt động đúng
       socket.join(participant.conversationId);
       console.log(`Socket.IO: User ${socket.userId} joined conversation room: ${participant.conversationId}`); // Thêm log
+
+      // Kiểm tra nếu fullName bị thiếu, cập nhật nó
+      if (!participant.fullName) {
+        const userType = participant.role; // role có thể là 'DOCTOR', 'PATIENT', 'doctor', 'patient'
+        const fullName = await fetchUserInfo(participant.userId, userType); // fetchUserInfo xử lý cả chữ hoa/thường
+        if (fullName) {
+          await ConversationParticipant.update(
+            { fullName: fullName },
+            { where: { id: participant.id } } // Cập nhật theo ID của participant
+          );
+          console.log(`Updated fullName for participant ${participant.userId} in conversation ${participant.conversationId}`);
+        } else {
+          console.warn(`Could not fetch fullName for participant ${participant.userId} in conversation ${participant.conversationId}`);
+        }
+      }
 
       // Lấy tin nhắn gần đây cho các cuộc trò chuyện và gửi cho người dùng vừa kết nối
       const recentMessages = await Message.findAll({
@@ -124,7 +140,7 @@ export const handleConnection = async (socket: AuthenticatedSocket, io: Server) 
         limit: 50, // Giới hạn số lượng tin nhắn gần đây để gửi
       });
       socket.emit('recentMessages', { conversationId: participant.conversationId, messages: recentMessages });
-    });
+    }
   }
 };
 

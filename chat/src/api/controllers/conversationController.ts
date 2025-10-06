@@ -3,6 +3,7 @@ import { Conversation } from '../../models/conversation';
 import { ConversationParticipant } from '../../models/conversation-participant';
 import { Message } from '../../models/message';
 import { Op } from 'sequelize';
+import { fetchUserInfo, fetchUserIdByEntityId } from '../../utils/userInfoFetcher';
 
 interface AuthenticatedRequest extends Request {
   userId?: string;
@@ -16,13 +17,29 @@ export const getConversations = async (req: AuthenticatedRequest, res: Response)
       return res.status(401).json({ message: 'User not authenticated.' });
     }
 
+    // Vô hiệu hóa cache cho endpoint này
+    res.set('Cache-Control', 'no-store');
+
+    // Bước 1: Lấy các conversationId mà người dùng là thành viên
+    const userConversationIds = await ConversationParticipant.findAll({
+      where: { userId: userId },
+      attributes: ['conversationId'],
+      raw: true, // Trả về mảng các object đơn giản thay vì instance của model
+    }).then(participants => participants.map(p => p.conversationId));
+
+    if (userConversationIds.length === 0) {
+      // Nếu người dùng không có cuộc trò chuyện nào, trả về mảng rỗng
+      return res.status(200).json([]);
+    }
+
+    // Bước 2: Lấy thông tin cuộc trò chuyện và tất cả participants
     const conversations = await Conversation.findAll({
+      where: { id: { [Op.in]: userConversationIds } }, // Chỉ lấy các cuộc trò chuyện mà người dùng là thành viên
       include: [
         {
           model: ConversationParticipant,
           as: 'participants',
-          where: { userId: userId },
-          attributes: [] // Không lấy các thuộc tính của ConversationParticipant
+          attributes: ['id', 'userId', 'role', 'fullName'] // Lấy tất cả participants, không giới hạn bởi userId
         }
       ],
       attributes: ['id', 'createdAt', 'updatedAt'],
@@ -35,7 +52,7 @@ export const getConversations = async (req: AuthenticatedRequest, res: Response)
         const lastMessage = await Message.findOne({
           where: { conversationId: conversation.id },
           order: [['createdAt', 'DESC']],
-          attributes: ['content', 'createdAt'],
+          attributes: ['content', 'createdAt', 'senderId'], // Thêm senderId nếu cần
         });
         return {
           ...conversation.toJSON(),
@@ -51,9 +68,10 @@ export const getConversations = async (req: AuthenticatedRequest, res: Response)
   }
 };
 
+
 export const createConversation = async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const userId = req.userId; // Người gửi yêu cầu
+    const userId = req.userId; // Người gửi yêu cầu (user_id của người gửi)
     const { recipientId } = req.body;
     const recipientRole = (req.body.recipientRole as string).toLowerCase(); // Chuyển đổi sang chữ thường
 
@@ -79,7 +97,7 @@ export const createConversation = async (req: AuthenticatedRequest, res: Respons
         {
           model: ConversationParticipant,
           as: 'participants',
-          where: { userId: userId },
+          where: { userId: userId }, // userId là user_id của người gửi
           attributes: [],
           required: true,
         }
@@ -91,13 +109,28 @@ export const createConversation = async (req: AuthenticatedRequest, res: Respons
     const senderConversationIds = senderConversations.map(conv => conv.id);
 
     // Bước 3: Trong số đó, tìm cuộc trò chuyện nào cũng có người nhận
+    // Để tìm người nhận, ta cần biết user_id thực sự của họ, không phải entity ID nếu recipientId là entity ID
+    let recipientUserId = recipientId;
+    if (recipientId !== userId) { // Nếu recipientId khác userId của người gửi, có thể nó là entity ID
+      // Cố gắng lấy user_id của người nhận nếu recipientId là entity ID
+      const fetchedRecipientUserId = await fetchUserIdByEntityId(recipientId, recipientRole);
+      if (fetchedRecipientUserId) {
+        console.log(`[Chat Controller] Fetched user_id ${fetchedRecipientUserId} for entity ID ${recipientId} (role: ${recipientRole})`);
+        recipientUserId = fetchedRecipientUserId;
+      } else {
+        console.log(`[Chat Controller] Could not fetch user_id for entity ID ${recipientId}, assuming it's user_id.`);
+        // Nếu không tìm thấy, giả định recipientId là user_id
+        recipientUserId = recipientId;
+      }
+    }
+
     if (senderConversationIds.length > 0) {
       const existingConversation = await Conversation.findOne({
         include: [
           {
             model: ConversationParticipant,
             as: 'participants',
-            where: { userId: recipientId },
+            where: { userId: recipientUserId }, // Dùng user_id đã xác định
             attributes: [],
             required: true,
           }
@@ -115,10 +148,16 @@ export const createConversation = async (req: AuthenticatedRequest, res: Respons
     // Nếu chưa tồn tại, tạo mới
     const newConversation = await Conversation.create({});
 
-    // Thêm người gửi và người nhận vào cuộc trò chuyện
+    // Lấy full_name cho cả hai người tham gia
+    // req.userRole có thể là DOCTOR hoặc PATIENT (chữ hoa), recipientRole là lowercase (doctor, patient)
+    const senderFullName = await fetchUserInfo(userId, req.userRole!);
+    const recipientFullName = await fetchUserInfo(recipientId, recipientRole); // Vẫn dùng recipientId (entity ID) để lấy tên
+
+    // Thêm người gửi và người nhận vào cuộc trò chuyện, bao gồm cả full_name
+    // Dùng userId (user_id của người gửi) và recipientUserId (user_id của người nhận) cho trường userId
     await ConversationParticipant.bulkCreate([
-      { conversationId: newConversation.id, userId, role: req.userRole! }, // Giả sử role đã được xác thực và có sẵn
-      { conversationId: newConversation.id, userId: recipientId, role: recipientRole }
+      { conversationId: newConversation.id, userId, role: req.userRole!, fullName: senderFullName || 'Unknown' }, // userId của người gửi
+      { conversationId: newConversation.id, userId: recipientUserId, role: recipientRole, fullName: recipientFullName || 'Unknown' } // userId của người nhận
     ]);
 
     res.status(201).json({ conversationId: newConversation.id, message: 'Conversation created successfully.' });
