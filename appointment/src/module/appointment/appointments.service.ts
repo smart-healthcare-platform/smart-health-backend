@@ -64,7 +64,7 @@ export class AppointmentsService {
       doctorName: saved.doctorName,
       doctorEmail: 'huuvinh.lampart@gmail.com',
       appointmentTime: saved.startAt?.toISOString() ?? new Date().toISOString(),
-      conversation: 'Bệnh nhân có triệu chứng đau ngực kéo dài.',
+      conversation: 'Mệt',
     };
 
     // this.http
