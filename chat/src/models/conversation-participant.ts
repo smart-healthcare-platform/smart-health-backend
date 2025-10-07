@@ -6,17 +6,19 @@ interface ConversationParticipantAttributes {
   conversationId: string;
   userId: string;
   role: 'doctor' | 'patient';
+  fullName?: string; // Thêm trường này
   createdAt?: Date;
   updatedAt?: Date;
 }
 
-interface ConversationParticipantCreationAttributes extends Optional<ConversationParticipantAttributes, 'id' | 'createdAt' | 'updatedAt'> {}
+interface ConversationParticipantCreationAttributes extends Optional<ConversationParticipantAttributes, 'id' | 'fullName' | 'createdAt' | 'updatedAt'> {}
 
 class ConversationParticipant extends Model<ConversationParticipantAttributes, ConversationParticipantCreationAttributes> implements ConversationParticipantAttributes {
   public id!: string;
   public conversationId!: string;
   public userId!: string;
   public role!: 'doctor' | 'patient';
+  public fullName?: string; // Thêm thuộc tính này
   public createdAt?: Date;
   public updatedAt?: Date;
 
@@ -46,6 +48,11 @@ class ConversationParticipant extends Model<ConversationParticipantAttributes, C
         role: {
           type: DataTypes.ENUM('doctor', 'patient'),
           allowNull: false,
+        },
+        fullName: { // Thêm trường này vào định nghĩa schema
+          type: DataTypes.STRING(255), // Phải khớp với độ dài trong migration
+          allowNull: true,
+          defaultValue: null,
         },
         createdAt: {
           type: DataTypes.DATE,

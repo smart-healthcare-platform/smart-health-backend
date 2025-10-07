@@ -156,6 +156,37 @@ try {
 }
 
 /**
+ * Chat Service Routes
+ * All authenticated users can access chat
+ */
+router.use('/chat', requireAnyRole, (req, res, next) => {
+  logger.info('Chat service access', {
+    userId: req.user.id,
+    role: req.user.role,
+    path: req.path,
+    method: req.method,
+  });
+  next();
+});
+
+// Configure chat service proxy
+try {
+  const chatProxy = getServiceProxy('chat');
+  router.use('/chat', chatProxy);
+} catch (error) {
+  logger.error('Failed to configure chat service proxy', { error: error.message });
+  router.use('/chat', (req, res) => {
+    res.status(503).json({
+      success: false,
+      message: 'Chat service is temporarily unavailable',
+      code: 503,
+      service: 'chat',
+      timestamp: new Date().toISOString(),
+    });
+  });
+}
+
+/**
  * Admin Service Routes (future)
  * Only admins can access admin-specific endpoints
  */
