@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Patch, Delete, UseInterceptors, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Patch, Delete, UseInterceptors, Query, NotFoundException } from '@nestjs/common';
 import { AppointmentsService } from './appointments.service';
 import { Appointment } from './appointment.entity';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
@@ -22,21 +22,21 @@ export class AppointmentsController {
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string): Promise<Appointment> {
-    return await this.appointmentsService.findOne(id);
+  async getAppointmentDetail(@Param('id') id: string) {
+    return this.appointmentsService.getAppointmentDetail(id);
   }
   @Get('doctor/:doctorId')
-async getAppointmentsByDoctor(
-  @Param('doctorId') doctorId: string,
-  @Query('start') start: string,
-  @Query('end') end: string,
-) {
-  return await this.appointmentsService.getAppointmentsByDoctor(
-    doctorId,
-    start,
-    end,
-  );
-}
+  async getAppointmentsByDoctor(
+    @Param('doctorId') doctorId: string,
+    @Query('start') start: string,
+    @Query('end') end: string,
+  ) {
+    return await this.appointmentsService.getAppointmentsByDoctor(
+      doctorId,
+      start,
+      end,
+    );
+  }
   @Get('patient/:patientId')
   async getAppointmentsByPatient(
     @Param('patientId') patientId: string,

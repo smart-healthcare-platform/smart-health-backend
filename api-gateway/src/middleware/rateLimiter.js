@@ -108,20 +108,24 @@ const authLimiter = rateLimit({
   store: createRedisStore(),
   standardHeaders: true,
   legacyHeaders: false,
-  skipSuccessfulRequests: true, // Don't count successful requests
+  skipSuccessfulRequests: true,
+  skip: (req) =>
+    rateLimitSkipper(req) ||
+    req.path.includes("/refresh-token")
 });
 
 /**
  * Very strict rate limiter for registration endpoint
  */
 const registerLimiter = rateLimit({
-  windowMs: 60 * 60 * 1000, // 1 hour
-  max: 3, // 3 registrations per hour per IP
+  windowMs: config.env === "production" ? 60 * 60 * 1000 : 5 * 60 * 1000, // 1h prod, 5p dev
+  max: config.env === "production" ? 5 : 20, // 5 lần prod, 20 lần dev
   handler: rateLimitHandler,
   keyGenerator: (req) => req.ip,
   store: createRedisStore(),
   standardHeaders: true,
   legacyHeaders: false,
+  skip: rateLimitSkipper,
 });
 
 /**

@@ -1,4 +1,3 @@
-// doctor-consumer.service.ts
 import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import { Kafka, Consumer } from 'kafkajs';
 import { AppointmentSlotService } from 'src/modules/appointment-slot/appointment-slot.service';
@@ -15,7 +14,7 @@ export class DoctorConsumer implements OnModuleInit, OnModuleDestroy {
     private readonly slotService: AppointmentSlotService,
     private readonly producerService: DoctorProducerService,
     private readonly doctorService: DoctorService,
-  ) { }
+  ) {}
 
   async onModuleInit() {
     this.kafka = new Kafka({
@@ -24,11 +23,10 @@ export class DoctorConsumer implements OnModuleInit, OnModuleDestroy {
     });
 
     this.consumer = this.kafka.consumer({ groupId: 'doctor-service-group' });
-
     await this.consumer.connect();
 
-    // Sub các topic cần xử lý
-    await this.consumer.subscribe({ topic: 'appointment.booked' });
+    // Đăng ký các topic
+    await this.consumer.subscribe({ topic: 'appointment.patient.resolved' });
     await this.consumer.subscribe({ topic: 'doctor.batch.get' });
 
     await this.consumer.run({
@@ -38,7 +36,7 @@ export class DoctorConsumer implements OnModuleInit, OnModuleDestroy {
 
         try {
           switch (topic) {
-            case 'appointment.booked':
+            case 'appointment.patient.resolved':
               await this.processBookingRequest(rawValue);
               break;
             case 'doctor.batch.get':
@@ -59,16 +57,17 @@ export class DoctorConsumer implements OnModuleInit, OnModuleDestroy {
   // Booking flow
   private async processBookingRequest(rawValue: string) {
     const data = JSON.parse(rawValue);
-    const { doctorId, slotId, patientId, appointmentId,patientName } = data;
+    const { doctorId, slotId, patientId, appointmentId, patientName, correlationId } = data;
+
     this.logger.log(`Process booking: ${JSON.stringify(data)}`);
 
     const slotAvailable = await this.slotService.isSlotAvailable(doctorId, slotId);
 
     if (slotAvailable) {
       await this.slotService.bookSlot(doctorId, slotId, patientId);
-      await this.producerService.confirmSlot({ appointmentId, doctorId, slotId, patientId, patientName });
+      await this.producerService.confirmSlot({ appointmentId, doctorId, slotId, patientId, patientName, correlationId });
     } else {
-      await this.producerService.failSlot({ appointmentId, doctorId, slotId });
+      await this.producerService.failSlot({ appointmentId, doctorId, slotId, correlationId });
     }
   }
 

@@ -28,6 +28,8 @@ public class AuthResponse {
     public static class UserInfo {
         private UUID id;
         private String username;
+        private String phone;
+        private String email;
         private Role role;
         private LocalDateTime createdAt;
     }
