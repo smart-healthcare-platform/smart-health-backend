@@ -1,6 +1,7 @@
 import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import { Kafka, Consumer } from 'kafkajs';
 import { AppointmentsService } from './appointments.service';
+import { AppointmentProducerService } from './appointment-producer.service';
 
 @Injectable()
 export class ProductionAppointmentConsumer implements OnModuleInit, OnModuleDestroy {
@@ -8,7 +9,10 @@ export class ProductionAppointmentConsumer implements OnModuleInit, OnModuleDest
   private kafka: Kafka;
   private consumer: Consumer;
 
-  constructor(private readonly appointmentsService: AppointmentsService) { }
+  constructor(
+    private readonly appointmentsService: AppointmentsService,
+    private readonly producerService: AppointmentProducerService, // inject vào để gọi handleReply
+  ) { }
 
   async onModuleInit() {
     this.kafka = new Kafka({
@@ -19,8 +23,16 @@ export class ProductionAppointmentConsumer implements OnModuleInit, OnModuleDest
     this.consumer = this.kafka.consumer({ groupId: 'appointment-service-group' });
     await this.consumer.connect();
 
-    await this.consumer.subscribe({ topics: ['appointment.slot.confirmed', 'appointment.slot.failed', 'doctor.batch.get.reply'] });
 
+    await this.consumer.subscribe({
+      topics: [
+        'appointment.slot.confirmed',
+        'appointment.slot.failed',
+        'doctor.batch.get.reply',
+        'patient.userId.resolved',
+        'patient.detail.resolved',
+      ],
+    })
     await this.consumer.run({
       eachMessage: async ({ topic, message }) => {
         try {
@@ -31,12 +43,23 @@ export class ProductionAppointmentConsumer implements OnModuleInit, OnModuleDest
           switch (topic) {
             case 'appointment.slot.confirmed':
               await this.appointmentsService.confirmAppointment(
-                data.appointmentId, data.doctorId, data.slotId, data.patientId, data.patientName
+                data.appointmentId,
+                data.doctorId,
+                data.slotId,
+                data.patientId,
+                data.patientName,
               );
               break;
+
             case 'appointment.slot.failed':
               await this.appointmentsService.failAppointment(data.appointmentId);
               break;
+
+            case 'patient.detail.resolved':
+              this.logger.log(`Received patient detail: ${JSON.stringify(data)}`)
+              this.producerService.handleReply(data)
+              break
+
             default:
               this.logger.warn(`Unhandled topic: ${topic}`);
           }

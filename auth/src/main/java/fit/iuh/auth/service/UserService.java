@@ -30,8 +30,8 @@ public class UserService implements UserDetailsService {
 
         // Convert User entity sang Spring Security UserDetails
         return org.springframework.security.core.userdetails.User.builder()
-                .username(user.getEmail()) // đặt email làm username
-                .password(user.getPassword()) // password đã mã hóa
+                .username(user.getEmail())
+                .password(user.getPassword())
                 .roles(user.getRole().name())
                 .build();
     }

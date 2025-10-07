@@ -16,6 +16,7 @@ interface AppointmentBookedEvent {
   userId: string;
   doctorId: string;
   slotId: string;
+  correlationId: string;
 }
 
 @Injectable()
@@ -27,7 +28,7 @@ export class PatientConsumerService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly patientService: PatientService,
     private readonly producer: PatientProducerService,
-  ) {}
+  ) { }
 
   async onModuleInit() {
     this.logger.log('Starting Patient Kafka Consumer...');
@@ -41,10 +42,9 @@ export class PatientConsumerService implements OnModuleInit, OnModuleDestroy {
     await this.consumer.connect();
     this.logger.log('Kafka consumer connected');
 
-    // Subscribe topics
     await this.consumer.subscribe({ topic: 'appointment.book.requested', fromBeginning: false });
     await this.consumer.subscribe({ topic: 'user.created', fromBeginning: false });
-
+    await this.consumer.subscribe({ topic: 'patient.detail.requested', fromBeginning: false });
     await this.consumer.run({
       eachMessage: async ({ topic, partition, message }) => {
         try {
@@ -67,18 +67,54 @@ export class PatientConsumerService implements OnModuleInit, OnModuleDestroy {
 
               const patient = await this.patientService.findByUserId(appointmentEvent.userId);
 
-              await this.producer.resolevePatientId({
+              // gửi event mới cho Doctor
+              await this.producer.forwardToDoctor({
+                correlationId: appointmentEvent.correlationId,
+                appointmentId: appointmentEvent.appointmentId,
+                slotId: appointmentEvent.slotId,
+                doctorId: appointmentEvent.doctorId,
                 patientId: patient.id,
-                appointmentId:appointmentEvent.appointmentId,
-                slotId:appointmentEvent.slotId,
-                doctorId:appointmentEvent.doctorId,
-                patientName: patient.full_name
+                patientName: patient.full_name,
               });
 
-              this.logger.log(`Sent patient.userId.resolved for appointment ${appointmentEvent.appointmentId}`);
+              this.logger.log(`Forwarded to doctor for appointment ${appointmentEvent.appointmentId}`);
               break;
             }
+            case 'patient.detail.requested': {
+              const { patientId, correlationId } = data;
+              this.logger.log(`📥 Received [patient.detail.requested]: ${JSON.stringify(data)}`);
 
+              try {
+                const patient = await this.patientService.findOne(patientId);
+                if (!patient) {
+                  this.logger.warn(`⚠️ Patient ${patientId} not found`);
+                  await this.producer.replyPatientDetail({
+                    correlationId,
+                    patientId,
+                    found: false,
+                  });
+                  break;
+                }
+
+                await this.producer.replyPatientDetail({
+                  correlationId,
+                  patientId,
+                  found: true,
+                  patient: {
+                    id: patient.id,
+                    fullName: patient.full_name,
+                    gender: patient.gender,
+                    dateOfBirth: patient.date_of_birth,
+                    address: patient.address,
+                  },
+                });
+
+                this.logger.log(`✅ Sent [patient.detail.resolved] for patientId=${patientId}`);
+              } catch (err) {
+                this.logger.error(`❌ Error resolving patient.detail.requested: ${err.message}`);
+              }
+              break;
+            }
             default:
               this.logger.warn(`⚠️ Unhandled topic: ${topic}`);
           }

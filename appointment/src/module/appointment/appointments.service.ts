@@ -64,17 +64,17 @@ export class AppointmentsService {
       doctorName: saved.doctorName,
       doctorEmail: 'huuvinh.lampart@gmail.com',
       appointmentTime: saved.startAt?.toISOString() ?? new Date().toISOString(),
-      conversation: 'Bệnh nhân có triệu chứng đau ngực kéo dài.',
+      conversation: 'Mệt',
     };
 
-    this.http
-      .post('http://localhost:5678/webhook-test/patient-appointment', payload)
-      .subscribe({
-        next: () => console.log('Webhook gửi thành công'),
-        error: (err) => console.error(' Lỗi khi gọi webhook:', err.message),
-      });
+    // this.http
+    //   .post('http://localhost:5678/webhook-test/patient-appointment', payload)
+    //   .subscribe({
+    //     next: () => console.log('Webhook gửi thành công'),
+    //     error: (err) => console.error(' Lỗi khi gọi webhook:', err.message),
+    //   });
 
-    // 🔹 Gửi email bất đồng bộ
+
     this.notificationService
       .notifyAppointmentConfirmation(payload)
       .then(() => console.log('Email gửi thành công'))
@@ -196,5 +196,25 @@ export class AppointmentsService {
     const day = d.getDay();
     const diff = d.getDate() - day + (day === 0 ? -6 : 1);
     return new Date(d.setDate(diff));
+  }
+
+  async getAppointmentDetail(id: string) {
+    const appointment = await this.findOne(id);
+    if (!appointment) throw new NotFoundException(`Appointment ${id} not found`);
+
+    let patientInfo = null;
+    if (appointment.patientId) {
+      try {
+        const reply = await this.producer.requestPatientDetail(appointment.patientId);
+        patientInfo = reply?.patient ?? reply ?? null;
+      } catch (err) {
+        console.warn(`Không thể lấy thông tin patientId=${appointment.patientId}:`, err.message);
+      }
+    }
+
+    return {
+      ...appointment,
+      patient: patientInfo,
+    };
   }
 }

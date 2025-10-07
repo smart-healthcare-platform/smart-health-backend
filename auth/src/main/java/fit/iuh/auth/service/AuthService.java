@@ -15,6 +15,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.juli.logging.Log;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -45,6 +46,7 @@ public class AuthService {
 
         User user = new User();
         user.setUsername(request.getUsername());
+        user.setPhone(request.getPhone());
         user.setEmail(request.getEmail());
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         user.setRole(request.getRole());
@@ -116,10 +118,13 @@ public class AuthService {
 
         return AuthResponse.builder()
                 .token(jwtToken)
+                .refreshToken(refreshToken)
                 .user(AuthResponse.UserInfo.builder()
                         .id(user.getId())
                         .username(user.getUsername())
                         .role(user.getRole())
+                        .phone(user.getPhone())
+                        .email(user.getEmail())
                         .createdAt(user.getCreatedAt())
                         .build())
                 .build();
@@ -150,10 +155,13 @@ public class AuthService {
 
         return AuthResponse.builder()
                 .token(newJwtToken)
+                .refreshToken(refreshToken)
                 .user(AuthResponse.UserInfo.builder()
                         .id(user.getId())
                         .username(user.getUsername())
                         .role(user.getRole())
+                        .phone(user.getPhone())
+                        .email(user.getEmail())
                         .createdAt(user.getCreatedAt())
                         .build())
                 .build();
@@ -172,7 +180,8 @@ public class AuthService {
         cookie.setHttpOnly(true);
         cookie.setSecure(true);
         cookie.setPath("/");
-        cookie.setMaxAge(7 * 24 * 60 * 60); // 7 ngày
+        cookie.setMaxAge(7 * 24 * 60 * 60);
+        log.info("Ghi xuống cookie thành công");
         response.addCookie(cookie);
     }
 

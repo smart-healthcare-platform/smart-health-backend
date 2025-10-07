@@ -13,6 +13,13 @@ public class RegisterRequest {
     @Size(min = 3, max = 50, message = "Username phải có độ dài từ 3-50 ký tự")
     private String username;
 
+    @NotBlank(message = "Số điện thoại không được để trống")
+    @Pattern(
+            regexp = "^(0|\\+84)(3[2-9]|5[689]|7[06-9]|8[1-9]|9[0-9])[0-9]{7}$",
+            message = "Số điện thoại không hợp lệ"
+    )
+    private String phone;
+
     @NotBlank(message = "Email không được để trống")
     @Size(min = 3, max = 50, message = "Email phải có độ dài từ 3-50 ký tự")
     @Email(message = "Email không hợp lệ")
