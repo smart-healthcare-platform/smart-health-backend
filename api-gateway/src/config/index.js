@@ -23,8 +23,9 @@ const envSchema = Joi.object()
     PATIENT_SERVICE_URL: Joi.string().default('http://localhost:8082'),
     DOCTOR_SERVICE_URL: Joi.string().default('http://localhost:8083'),
     APPOINTMENT_SERVICE_URL: Joi.string().default('http://localhost:8084'),
-    NOTIFICATION_SERVICE_URL: Joi.string().default('http://localhost:8086'),
     CHAT_SERVICE_URL: Joi.string().default('http://localhost:8085'),
+    PREDICTION_SERVICE_URL: Joi.string().default('http://localhost:8086'),
+    NOTIFICATION_SERVICE_URL: Joi.string().default('http://localhost:8088'),
     
     // Rate Limiting
     RATE_LIMIT_WINDOW_MS: Joi.number().default(15 * 60 * 1000), // 15 minutes
@@ -75,6 +76,11 @@ module.exports = {
     auth: {
       url: envVars.AUTH_SERVICE_URL,
       basePath: '/api/auth',
+      timeout: envVars.SERVICE_TIMEOUT,
+    },
+    prediction: {
+      url: envVars.PREDICTION_SERVICE_URL,
+      basePath: '/api/prediction',
       timeout: envVars.SERVICE_TIMEOUT,
     },
     patients: {

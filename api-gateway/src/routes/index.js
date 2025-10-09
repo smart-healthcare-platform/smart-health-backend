@@ -38,6 +38,11 @@ router.use(
   authRoutes
 );
 
+// Prediction Service routes (public, no authentication required)
+const { getServiceProxy } = require("../services/serviceProxy");
+const predictionProxy = getServiceProxy("prediction");
+router.use(`${API_VERSION}/prediction`, predictionProxy);
+
 router.use(`${API_VERSION}`, serviceRoutes);
 
 /**
@@ -56,6 +61,7 @@ router.get("/", (req, res) => {
       doctors: `${API_VERSION}/doctors`,
       appointments: `${API_VERSION}/appointments`,
       notifications: `${API_VERSION}/notifications`,
+      prediction: `${API_VERSION}/prediction`,
     },
     documentation: "/api-docs",
   });
@@ -82,6 +88,7 @@ router.get("/api", (req, res) => {
         doctors: `${API_VERSION}/doctors`,
         appointments: `${API_VERSION}/appointments`,
         notifications: `${API_VERSION}/notifications`,
+        prediction: `${API_VERSION}/prediction`,
       },
     },
   });
