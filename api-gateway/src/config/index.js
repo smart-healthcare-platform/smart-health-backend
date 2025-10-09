@@ -80,7 +80,7 @@ module.exports = {
     },
     prediction: {
       url: envVars.PREDICTION_SERVICE_URL,
-      basePath: '/api/prediction',
+      basePath: '/api/v1',
       timeout: envVars.SERVICE_TIMEOUT,
     },
     patients: {
