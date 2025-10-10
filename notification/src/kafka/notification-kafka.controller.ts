@@ -12,4 +12,11 @@ export class NotificationKafkaController {
     // The actual handling is done by KafkaConsumerService.
     // Data is processed within KafkaConsumerService.
   }
+
+  @EventPattern('message.new')
+  async handleNewMessage(data: any) {
+    // This method is primarily for NestJS to recognize the event pattern.
+    // The actual handling is done by KafkaConsumerService.
+    // Data is processed within KafkaConsumerService.
+  }
 }

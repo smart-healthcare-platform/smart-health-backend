@@ -7,16 +7,18 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Kafka, Consumer, EachMessagePayload } from 'kafkajs';
 import { EmailService } from '../modules/email/email.service';
+import { FirebaseService } from '../modules/firebase/firebase.service';
 
 @Injectable()
 export class KafkaConsumerService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(KafkaConsumerService.name);
   private readonly kafka: Kafka;
-  private readonly consumer: Consumer;
+ private readonly consumer: Consumer;
 
   constructor(
     private readonly configService: ConfigService,
     private readonly emailService: EmailService,
+    private readonly firebaseService: FirebaseService,
   ) {
     this.kafka = new Kafka({
       clientId: 'notification-service-consumer',
@@ -46,6 +48,7 @@ export class KafkaConsumerService implements OnModuleInit, OnModuleDestroy {
     try {
       await this.consumer.connect();
       await this.consumer.subscribe({ topic: 'appointment.confirmed' });
+      await this.consumer.subscribe({ topic: 'message.new' });
 
       await this.consumer.run({
         eachMessage: async (payload: EachMessagePayload) => {
@@ -64,20 +67,42 @@ export class KafkaConsumerService implements OnModuleInit, OnModuleDestroy {
               case 'appointment.confirmed':
                 await this.handleAppointmentConfirmed(rawValue);
                 break;
+              case 'message.new':
+                await this.handleNewMessage(rawValue);
+                break;
               default:
                 this.logger.warn(`No handler for topic: ${topic}`);
             }
           } catch (err: any) {
             this.logger.error(
-              `Error processing message from topic ${topic}: ${err.message}`,
-              err.stack,
+              `Error processing message from topic ${topic}: ${(err as any).message}`,
+              (err as any).stack,
             );
           }
         },
       });
     } catch (err: any) {
-      this.logger.error('Failed to connect or subscribe to Kafka', err.stack);
+      this.logger.error('Failed to connect or subscribe to Kafka', (err as any).stack);
     }
+  }
+
+  private async handleNewMessage(rawValue: string) {
+    this.logger.debug(`Processing message.new event: ${rawValue}`);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const eventData: any = JSON.parse(rawValue);
+
+    const { recipientDeviceToken, senderName, messageContent } = eventData;
+
+    if (!recipientDeviceToken) {
+      this.logger.error('Missing recipientDeviceToken in message.new event');
+      return;
+    }
+
+    await this.firebaseService.sendPushNotification(
+      recipientDeviceToken,
+      `New message from ${senderName}`,
+      messageContent,
+    );
   }
 
   private async handleAppointmentConfirmed(rawValue: string) {
