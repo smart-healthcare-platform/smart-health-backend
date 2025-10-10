@@ -1,11 +1,12 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { EmailModule } from '../modules/email/email.module';
+import { FirebaseModule } from '../modules/firebase/firebase.module';
 import { KafkaConsumerService } from './kafka-consumer.service';
 import { NotificationKafkaController } from './notification-kafka.controller';
 
 @Module({
-  imports: [ConfigModule, EmailModule],
+  imports: [ConfigModule, EmailModule, FirebaseModule],
   controllers: [NotificationKafkaController],
   providers: [KafkaConsumerService],
 })

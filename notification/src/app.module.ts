@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config';
 import { NotificationModule } from './modules/notification.module';
 import { KafkaModule } from './kafka/kafka.module';
 import { EmailModule } from './modules/email/email.module';
+import { FirebaseModule } from './modules/firebase/firebase.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { EmailModule } from './modules/email/email.module';
     NotificationModule,
     KafkaModule,
     EmailModule,
+    FirebaseModule,
   ],
   controllers: [],
   providers: [],
