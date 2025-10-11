@@ -1,0 +1,208 @@
+package fit.iuh.billing.services.impl;
+
+import fit.iuh.billing.client.MedicineServiceClient;
+import fit.iuh.billing.entity.Payment;
+import fit.iuh.billing.enums.PaymentStatus;
+import fit.iuh.billing.repository.PaymentRepository;
+import fit.iuh.billing.services.PaymentGatewayService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.web.util.UriComponentsBuilder;
+
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.*;
+
+@Slf4j
+@Service("vnPayPaymentGatewayService") // Đặt tên bean rõ ràng
+public class VNPayPaymentGatewayService implements PaymentGatewayService {
+
+    @Value("${vnpay.version}")
+    private String vnp_Version;
+    @Value("${vnpay.command}")
+    private String vnp_Command;
+    @Value("${vnpay.tmn-code}")
+    private String vnp_TmnCode;
+    @Value("${vnpay.amount-factor}")
+    private int vnp_AmountFactor;
+    @Value("${vnpay.curr-code}")
+    private String vnp_CurrCode;
+    @Value("${vnpay.bank-code}")
+    private String vnp_BankCode;
+    @Value("${vnpay.locale}")
+    private String vnp_Locale;
+    @Value("${vnpay.return-url}")
+    private String vnp_ReturnUrl;
+    @Value("${vnpay.secret-key}")
+    private String vnp_HashSecret;
+    @Value("${vnpay.pay-url}")
+    private String vnp_PayUrl;
+
+    private final PaymentRepository paymentRepository;
+    private final MedicineServiceClient medicineServiceClient;
+
+    public VNPayPaymentGatewayService(PaymentRepository paymentRepository, MedicineServiceClient medicineServiceClient) {
+        this.paymentRepository = paymentRepository;
+        this.medicineServiceClient = medicineServiceClient;
+    }
+
+    @Override
+    public String createPaymentUrl(Payment payment) {
+        try {
+            Map<String, String> vnp_Params = new HashMap<>();
+            vnp_Params.put("vnp_Version", vnp_Version);
+            vnp_Params.put("vnp_Command", vnp_Command);
+            vnp_Params.put("vnp_TmnCode", vnp_TmnCode);
+            vnp_Params.put("vnp_Amount", String.valueOf(payment.getAmount().longValue() * vnp_AmountFactor));
+            vnp_Params.put("vnp_CurrCode", vnp_CurrCode);
+            vnp_Params.put("vnp_BankCode", vnp_BankCode); // Có thể để trống để người dùng tự chọn
+            vnp_Params.put("vnp_TxnRef", payment.getPaymentCode()); // Mã giao dịch của hệ thống
+            vnp_Params.put("vnp_OrderInfo", "Thanh toan don thuoc " + payment.getPrescriptionId());
+            vnp_Params.put("vnp_OrderType", "billpayment");
+            vnp_Params.put("vnp_Locale", vnp_Locale);
+            vnp_Params.put("vnp_ReturnUrl", vnp_ReturnUrl);
+            vnp_Params.put("vnp_IpAddr", "127.0.0.1"); // Lấy IP của người dùng thực tế
+            vnp_Params.put("vnp_CreateDate", LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")));
+
+            // Build URL
+            UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(vnp_PayUrl);
+
+            // Sort params by key
+            List<String> fieldNames = new ArrayList<>(vnp_Params.keySet());
+            Collections.sort(fieldNames);
+            StringBuilder hashData = new StringBuilder();
+            StringBuilder query = new StringBuilder();
+            Iterator<String> itr = fieldNames.iterator();
+            while (itr.hasNext()) {
+                String fieldName = itr.next();
+                String fieldValue = vnp_Params.get(fieldName);
+                if ((fieldValue != null) && (fieldValue.length() > 0)) {
+                    // Build hash data
+                    hashData.append(fieldName);
+                    hashData.append("=");
+                    hashData.append(URLEncoder.encode(fieldValue, StandardCharsets.US_ASCII.toString()));
+                    // Build query url
+                    query.append(URLEncoder.encode(fieldName, StandardCharsets.US_ASCII.toString()));
+                    query.append("=");
+                    query.append(URLEncoder.encode(fieldValue, StandardCharsets.US_ASCII.toString()));
+                    if (itr.hasNext()) {
+                        query.append("&");
+                        hashData.append("&");
+                    }
+                }
+            }
+            String queryUrl = query.toString();
+            String vnp_SecureHash = hmacSHA512(vnp_HashSecret, hashData.toString());
+            queryUrl += "&vnp_SecureHash=" + vnp_SecureHash;
+
+            return vnp_PayUrl + "?" + queryUrl;
+
+        } catch (UnsupportedEncodingException e) {
+            log.error("Error creating VNPay payment URL: {}", e.getMessage());
+            throw new RuntimeException("Error creating VNPay payment URL", e);
+        }
+    }
+
+    @Override
+    public void processIpn(Map<String, String> ipnData) {
+        try {
+            String vnp_ResponseCode = ipnData.get("vnp_ResponseCode");
+            String vnp_TransactionStatus = ipnData.get("vnp_TransactionStatus");
+            String vnp_TxnRef = ipnData.get("vnp_TxnRef"); // Payment Code của hệ thống
+            String vnp_Amount = ipnData.get("vnp_Amount");
+            String vnp_SecureHash = ipnData.get("vnp_SecureHash");
+
+            log.info("Processing VNPAY IPN for payment code: {}", vnp_TxnRef);
+
+            // Verify signature
+            Map<String, String> vnp_Params = new HashMap<>(ipnData);
+            vnp_Params.remove("vnp_SecureHash"); // Remove hash ra khỏi data để kiểm tra
+
+            String generatedHash = hmacSHA512(vnp_HashSecret, getHashData(vnp_Params));
+
+            if (!Objects.equals(generatedHash, vnp_SecureHash)) {
+                log.error("Invalid VNPAY IPN signature for payment code: {}", vnp_TxnRef);
+                throw new RuntimeException("Invalid VNPAY IPN signature.");
+            }
+
+            boolean isSuccessful = "00".equals(vnp_ResponseCode) && "00".equals(vnp_TransactionStatus); // VNPay success codes
+
+            Optional<Payment> optionalPayment = paymentRepository.findByPaymentCode(vnp_TxnRef);
+            if (optionalPayment.isEmpty()) {
+                log.error("Payment not found with code: {}", vnp_TxnRef);
+                throw new RuntimeException("Payment not found with code: " + vnp_TxnRef);
+            }
+
+            Payment payment = optionalPayment.get();
+
+            // Kiểm tra trùng lặp IPN
+            if (payment.getStatus() == PaymentStatus.COMPLETED) {
+                log.warn("VNPAY IPN already processed for payment code: {}", vnp_TxnRef);
+                return; // Đã xử lý rồi, bỏ qua
+            }
+
+            payment.setTransactionId(ipnData.get("vnp_TransactionNo")); // ID giao dịch của VNPay
+            payment.setUpdatedAt(LocalDateTime.now());
+
+            if (isSuccessful) {
+                payment.setStatus(PaymentStatus.COMPLETED);
+                log.info("Payment {} COMPLETED via VNPAY IPN. Notifying Medicine Service...", vnp_TxnRef);
+                medicineServiceClient.confirmPrescriptionPayment(payment.getPrescriptionId());
+            } else {
+                payment.setStatus(PaymentStatus.FAILED);
+                log.warn("Payment {} FAILED via VNPAY IPN. Response code: {} / Transaction status: {}",
+                        vnp_TxnRef, vnp_ResponseCode, vnp_TransactionStatus);
+            }
+
+            paymentRepository.save(payment);
+            log.info("Payment {} updated to status: {}", vnp_TxnRef, payment.getStatus());
+
+        } catch (Exception e) {
+            log.error("Error processing VNPAY IPN", e);
+            throw new RuntimeException("Error processing VNPAY IPN: " + e.getMessage());
+        }
+    }
+
+    private String hmacSHA512(String key, String data) {
+        try {
+            Mac hmacSHA512 = Mac.getInstance("HmacSHA512");
+            SecretKeySpec secretKey = new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "HmacSHA512");
+            hmacSHA512.init(secretKey);
+            byte[] hash = hmacSHA512.doFinal(data.getBytes(StandardCharsets.UTF_8));
+            Formatter formatter = new Formatter();
+            for (byte b : hash) {
+                formatter.format("%02x", b);
+            }
+            return formatter.toString();
+        } catch (Exception e) {
+            log.error("Error generating HmacSHA512 signature: {}", e.getMessage());
+            throw new RuntimeException("Error generating HmacSHA512 signature", e);
+        }
+    }
+
+    private String getHashData(Map<String, String> fields) throws UnsupportedEncodingException {
+        List<String> fieldNames = new ArrayList<>(fields.keySet());
+        Collections.sort(fieldNames);
+        StringBuilder hashData = new StringBuilder();
+        Iterator<String> itr = fieldNames.iterator();
+        while (itr.hasNext()) {
+            String fieldName = itr.next();
+            String fieldValue = fields.get(fieldName);
+            if ((fieldValue != null) && (fieldValue.length() > 0)) {
+                hashData.append(fieldName);
+                hashData.append("=");
+                hashData.append(URLEncoder.encode(fieldValue, StandardCharsets.US_ASCII.toString()));
+                if (itr.hasNext()) {
+                    hashData.append("&");
+                }
+            }
+        }
+        return hashData.toString();
+    }
+}
