@@ -1,0 +1,1 @@
+ALTER TABLE prescription ADD COLUMN appointment_id BIGINT;

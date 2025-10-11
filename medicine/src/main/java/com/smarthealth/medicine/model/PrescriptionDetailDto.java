@@ -17,6 +17,7 @@ public class PrescriptionDetailDto {
     private Long id;
     private Long patientId;
     private Long doctorId;
+    private Long appointmentId;
     private String diagnosis;
     private String notes;
     private PrescriptionStatus status;

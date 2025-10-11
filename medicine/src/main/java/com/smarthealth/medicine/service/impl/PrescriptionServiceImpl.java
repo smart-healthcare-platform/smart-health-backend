@@ -43,6 +43,7 @@ public class PrescriptionServiceImpl implements PrescriptionService {
         Prescription prescription = new Prescription();
         prescription.setPatientId(request.getPatientId());
         prescription.setDoctorId(request.getDoctorId());
+        prescription.setAppointmentId(request.getAppointmentId());
         prescription.setDiagnosis(request.getDiagnosis());
         prescription.setNotes(request.getNotes());
         prescription.setStatus(PrescriptionStatus.PENDING_PAYMENT);
@@ -85,6 +86,7 @@ public class PrescriptionServiceImpl implements PrescriptionService {
                 .map(p -> PrescriptionSummaryDto.builder()
                         .id(p.getId())
                         .patientId(p.getPatientId())
+                        .appointmentId(p.getAppointmentId())
                         .diagnosis(p.getDiagnosis())
                         .status(p.getStatus())
                         .createdAt(p.getCreatedAt())
@@ -108,6 +110,7 @@ public class PrescriptionServiceImpl implements PrescriptionService {
                 .id(prescription.getId())
                 .patientId(prescription.getPatientId())
                 .doctorId(prescription.getDoctorId())
+                .appointmentId(prescription.getAppointmentId())
                 .diagnosis(prescription.getDiagnosis())
                 .notes(prescription.getNotes())
                 .status(prescription.getStatus())

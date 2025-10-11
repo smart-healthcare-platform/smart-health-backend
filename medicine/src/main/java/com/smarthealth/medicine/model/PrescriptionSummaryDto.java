@@ -15,6 +15,7 @@ import java.time.LocalDateTime;
 public class PrescriptionSummaryDto {
     private Long id;
     private Long patientId;
+    private Long appointmentId;
     private String diagnosis;
     private PrescriptionStatus status;
     private LocalDateTime createdAt;

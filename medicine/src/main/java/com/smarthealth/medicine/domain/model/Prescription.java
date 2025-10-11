@@ -34,6 +34,8 @@ public class Prescription {
 
     private Long doctorId;
 
+    private Long appointmentId;
+
     private String diagnosis;
 
     @Enumerated(EnumType.STRING)

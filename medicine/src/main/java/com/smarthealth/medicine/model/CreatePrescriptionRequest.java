@@ -16,6 +16,8 @@ public class CreatePrescriptionRequest {
     @NotNull
     private Long doctorId;
 
+    private Long appointmentId;
+
     private String diagnosis;
 
     private String notes;
