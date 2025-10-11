@@ -61,7 +61,13 @@ public class VNPayPaymentGatewayService implements PaymentGatewayService {
             vnp_Params.put("vnp_TmnCode", vnp_TmnCode);
             vnp_Params.put("vnp_Amount", String.valueOf(payment.getAmount().longValue() * vnp_AmountFactor));
             vnp_Params.put("vnp_CurrCode", vnp_CurrCode);
-            vnp_Params.put("vnp_BankCode", vnp_BankCode); // Có thể để trống để người dùng tự chọn
+            // Only include bank code if configured. Leaving it out lets VNPay show bank selection to user.
+            if (vnp_BankCode != null && !vnp_BankCode.isBlank()) {
+                vnp_Params.put("vnp_BankCode", vnp_BankCode);
+                log.debug("Including vnp_BankCode in VNPay params: {}", vnp_BankCode);
+            } else {
+                log.debug("vnp_BankCode is empty; VNPay will present bank selection to the user.");
+            }
             vnp_Params.put("vnp_TxnRef", payment.getPaymentCode()); // Mã giao dịch của hệ thống
             vnp_Params.put("vnp_OrderInfo", "Thanh toan don thuoc " + payment.getPrescriptionId());
             vnp_Params.put("vnp_OrderType", "billpayment");
@@ -69,6 +75,8 @@ public class VNPayPaymentGatewayService implements PaymentGatewayService {
             vnp_Params.put("vnp_ReturnUrl", vnp_ReturnUrl);
             vnp_Params.put("vnp_IpAddr", "127.0.0.1"); // Lấy IP của người dùng thực tế
             vnp_Params.put("vnp_CreateDate", LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")));
+            // Add expire date (VNPay 2.1.0 demo uses vnp_ExpireDate)
+            vnp_Params.put("vnp_ExpireDate", LocalDateTime.now().plusMinutes(15).format(DateTimeFormatter.ofPattern("yyyyMMddHHmmss")));
 
             // Build URL
             UriComponentsBuilder builder = UriComponentsBuilder.fromHttpUrl(vnp_PayUrl);
@@ -86,11 +94,11 @@ public class VNPayPaymentGatewayService implements PaymentGatewayService {
                     // Build hash data
                     hashData.append(fieldName);
                     hashData.append("=");
-                    hashData.append(URLEncoder.encode(fieldValue, StandardCharsets.US_ASCII.toString()));
+                    hashData.append(URLEncoder.encode(fieldValue, StandardCharsets.UTF_8.toString()));
                     // Build query url
-                    query.append(URLEncoder.encode(fieldName, StandardCharsets.US_ASCII.toString()));
+                    query.append(URLEncoder.encode(fieldName, StandardCharsets.UTF_8.toString()));
                     query.append("=");
-                    query.append(URLEncoder.encode(fieldValue, StandardCharsets.US_ASCII.toString()));
+                    query.append(URLEncoder.encode(fieldValue, StandardCharsets.UTF_8.toString()));
                     if (itr.hasNext()) {
                         query.append("&");
                         hashData.append("&");
@@ -98,10 +106,21 @@ public class VNPayPaymentGatewayService implements PaymentGatewayService {
                 }
             }
             String queryUrl = query.toString();
+
+            // DEBUG: log canonical string used for hash
+            log.debug("VNPay canonical hashData: {}", hashData.toString());
+
             String vnp_SecureHash = hmacSHA512(vnp_HashSecret, hashData.toString());
+
+            // DEBUG: log computed secure hash and full payment URL
+            log.debug("VNPay computed vnp_SecureHash: {}", vnp_SecureHash);
+
             queryUrl += "&vnp_SecureHash=" + vnp_SecureHash;
 
-            return vnp_PayUrl + "?" + queryUrl;
+            String paymentUrl = vnp_PayUrl + "?" + queryUrl;
+            log.debug("VNPay paymentUrl: {}", paymentUrl);
+
+            return paymentUrl;
 
         } catch (UnsupportedEncodingException e) {
             log.error("Error creating VNPay payment URL: {}", e.getMessage());
@@ -197,7 +216,7 @@ public class VNPayPaymentGatewayService implements PaymentGatewayService {
             if ((fieldValue != null) && (fieldValue.length() > 0)) {
                 hashData.append(fieldName);
                 hashData.append("=");
-                hashData.append(URLEncoder.encode(fieldValue, StandardCharsets.US_ASCII.toString()));
+                hashData.append(URLEncoder.encode(fieldValue, StandardCharsets.UTF_8.toString()));
                 if (itr.hasNext()) {
                     hashData.append("&");
                 }
