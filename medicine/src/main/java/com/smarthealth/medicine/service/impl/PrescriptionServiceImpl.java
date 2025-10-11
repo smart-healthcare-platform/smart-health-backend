@@ -73,7 +73,7 @@ public class PrescriptionServiceImpl implements PrescriptionService {
 
     @Override
     @Transactional(readOnly = true)
-    public PrescriptionDetailDto getPrescriptionById(Long id) {
+    public PrescriptionDetailDto getPrescriptionById(String id) {
         Prescription prescription = prescriptionRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Prescription not found with id: " + id));
         return toDetailDto(prescription);
@@ -121,7 +121,7 @@ public class PrescriptionServiceImpl implements PrescriptionService {
 
     @Override
     @Transactional
-    public void confirmPayment(Long prescriptionId) {
+    public void confirmPayment(String prescriptionId) {
         Prescription prescription = prescriptionRepository.findById(prescriptionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Prescription not found with id: " + prescriptionId));
         prescription.setStatus(PrescriptionStatus.COMPLETED);

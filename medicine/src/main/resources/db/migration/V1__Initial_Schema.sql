@@ -9,7 +9,7 @@ CREATE TABLE drug
 
 CREATE TABLE prescription
 (
-    id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+    id              VARCHAR(36) PRIMARY KEY,
     patient_id      VARCHAR(36),
     doctor_id       VARCHAR(36),
     appointment_id  VARCHAR(36),
@@ -22,7 +22,7 @@ CREATE TABLE prescription
 CREATE TABLE prescription_item
 (
     id                BIGINT AUTO_INCREMENT PRIMARY KEY,
-    prescription_id   BIGINT,
+    prescription_id   VARCHAR(36),
     drug_id           BIGINT,
     dosage            VARCHAR(255),
     frequency         VARCHAR(255),
