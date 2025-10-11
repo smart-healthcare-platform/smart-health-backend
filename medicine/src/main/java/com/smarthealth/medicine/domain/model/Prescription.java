@@ -30,11 +30,11 @@ public class Prescription {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    private Long patientId;
+    private String patientId;
 
-    private Long doctorId;
+    private String doctorId;
 
-    private Long appointmentId;
+    private String appointmentId;
 
     private String diagnosis;
 

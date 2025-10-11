@@ -37,7 +37,7 @@ public class PrescriptionController {
     }
 
     @GetMapping("/patients/{patientId}/prescriptions")
-    public ResponseEntity<List<PrescriptionSummaryDto>> getPrescriptionsByPatient(@PathVariable Long patientId) {
+    public ResponseEntity<List<PrescriptionSummaryDto>> getPrescriptionsByPatient(@PathVariable String patientId) {
         return ResponseEntity.ok(prescriptionService.getPrescriptionsByPatientId(patientId));
     }
 

@@ -13,7 +13,7 @@ public interface PrescriptionService {
 
     PrescriptionDetailDto getPrescriptionById(Long id);
 
-    List<PrescriptionSummaryDto> getPrescriptionsByPatientId(Long patientId);
+    List<PrescriptionSummaryDto> getPrescriptionsByPatientId(String patientId);
 
     void confirmPayment(Long prescriptionId);
 

@@ -81,7 +81,7 @@ public class PrescriptionServiceImpl implements PrescriptionService {
 
     @Override
     @Transactional(readOnly = true)
-    public List<PrescriptionSummaryDto> getPrescriptionsByPatientId(Long patientId) {
+    public List<PrescriptionSummaryDto> getPrescriptionsByPatientId(String patientId) {
         return prescriptionRepository.findByPatientId(patientId).stream()
                 .map(p -> PrescriptionSummaryDto.builder()
                         .id(p.getId())
