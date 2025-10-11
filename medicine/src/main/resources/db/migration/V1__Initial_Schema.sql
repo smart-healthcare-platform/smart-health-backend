@@ -9,10 +9,11 @@ CREATE TABLE drug
 
 CREATE TABLE prescription
 (
-    id          BIGINT AUTO_INCREMENT PRIMARY KEY,
-    patient_id  BIGINT,
-    doctor_id   BIGINT,
-    diagnosis   VARCHAR(255),
+    id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+    patient_id      VARCHAR(36),
+    doctor_id       VARCHAR(36),
+    appointment_id  VARCHAR(36),
+    diagnosis       VARCHAR(255),
     status      VARCHAR(50),
     notes       TEXT,
     created_at  DATETIME
