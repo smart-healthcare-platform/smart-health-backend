@@ -1,11 +1,13 @@
 package com.smarthealth.medicine.config;
 
+import com.smarthealth.medicine.filter.GatewayJwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
@@ -19,12 +21,14 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Permit all requests to any endpoint under /api/.
-                        // This is a temporary measure for development.
-                        .requestMatchers("/api/**").permitAll()
-                        // Any other request that doesn't match the above must be authenticated.
+                        .requestMatchers("/api/v1/drugs").permitAll() // Public access for drug search
+                        .requestMatchers("/api/v1/prescriptions").hasRole("DOCTOR") // Only DOCTOR can create prescriptions
+                        .requestMatchers("/api/v1/prescriptions/{id}").hasAnyRole("DOCTOR", "PATIENT", "ADMIN") // Doctor, Patient, Admin can view own prescription
+                        .requestMatchers("/api/v1/patients/{patientId}/prescriptions").hasAnyRole("DOCTOR", "PATIENT", "ADMIN") // Doctor, Patient, Admin can view patient prescriptions
+                        .requestMatchers("/api/v1/internal/**").hasRole("ADMIN") // Internal APIs for ADMIN only
                         .anyRequest().authenticated()
-                );
+                )
+                .addFilterBefore(new GatewayJwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 }
