@@ -62,6 +62,7 @@ router.get("/", (req, res) => {
       appointments: `${API_VERSION}/appointments`,
       notifications: `${API_VERSION}/notifications`,
       prediction: `${API_VERSION}/prediction`,
+      medicine: `${API_VERSION}/medicine`,
     },
     documentation: "/api-docs",
   });
@@ -89,6 +90,7 @@ router.get("/api", (req, res) => {
         appointments: `${API_VERSION}/appointments`,
         notifications: `${API_VERSION}/notifications`,
         prediction: `${API_VERSION}/prediction`,
+        medicine: `${API_VERSION}/medicine`,
       },
     },
   });
@@ -123,6 +125,10 @@ router.get(`${API_VERSION}`, (req, res) => {
       notifications: {
         description: "Notification service",
         endpoints: ["/notifications", "/notifications/send"],
+      },
+      medicine: {
+        description: "Medicine service",
+        endpoints: ["/medicine", "/medicine/:id"],
       },
     },
   });

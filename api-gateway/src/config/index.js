@@ -26,6 +26,7 @@ const envSchema = Joi.object()
     CHAT_SERVICE_URL: Joi.string().default('http://localhost:8085'),
     PREDICTION_SERVICE_URL: Joi.string().default('http://localhost:8086'),
     NOTIFICATION_SERVICE_URL: Joi.string().default('http://localhost:8088'),
+    MEDICINE_SERVICE_URL: Joi.string().default('http://localhost:8089'),
     
     // Rate Limiting
     RATE_LIMIT_WINDOW_MS: Joi.number().default(15 * 60 * 1000), // 15 minutes
@@ -101,6 +102,11 @@ module.exports = {
     notification: {
       url: envVars.NOTIFICATION_SERVICE_URL,
       basePath: '/api/notifications',
+      timeout: envVars.SERVICE_TIMEOUT,
+    },
+    medicine: {
+      url: envVars.MEDICINE_SERVICE_URL,
+      basePath: '/api/v1',
       timeout: envVars.SERVICE_TIMEOUT,
     },
     chat: {
