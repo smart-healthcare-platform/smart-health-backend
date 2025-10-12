@@ -14,9 +14,10 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 public class PrescriptionDetailDto {
-    private Long id;
-    private Long patientId;
-    private Long doctorId;
+    private String id;
+    private String patientId;
+    private String doctorId;
+    private String appointmentId;
     private String diagnosis;
     private String notes;
     private PrescriptionStatus status;

@@ -11,7 +11,7 @@ import java.util.List;
  * @param allergies A list of known allergies for the patient.
  */
 public record PatientDto(
-    Long id,
+    String id,
     String name,
     List<String> allergies
 ) {}

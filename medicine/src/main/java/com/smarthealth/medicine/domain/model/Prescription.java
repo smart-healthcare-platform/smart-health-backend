@@ -27,12 +27,14 @@ import java.util.List;
 public class Prescription {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private String id;
 
-    private Long patientId;
+    private String patientId;
 
-    private Long doctorId;
+    private String doctorId;
+
+    private String appointmentId;
 
     private String diagnosis;
 

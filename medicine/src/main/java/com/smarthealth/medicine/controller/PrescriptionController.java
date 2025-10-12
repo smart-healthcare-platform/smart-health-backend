@@ -32,17 +32,17 @@ public class PrescriptionController {
     }
 
     @GetMapping("/prescriptions/{id}")
-    public ResponseEntity<PrescriptionDetailDto> getPrescriptionById(@PathVariable Long id) {
+    public ResponseEntity<PrescriptionDetailDto> getPrescriptionById(@PathVariable String id) {
         return ResponseEntity.ok(prescriptionService.getPrescriptionById(id));
     }
 
     @GetMapping("/patients/{patientId}/prescriptions")
-    public ResponseEntity<List<PrescriptionSummaryDto>> getPrescriptionsByPatient(@PathVariable Long patientId) {
+    public ResponseEntity<List<PrescriptionSummaryDto>> getPrescriptionsByPatient(@PathVariable String patientId) {
         return ResponseEntity.ok(prescriptionService.getPrescriptionsByPatientId(patientId));
     }
 
     @PostMapping("/internal/prescriptions/{id}/confirm-payment")
-    public ResponseEntity<Void> confirmPayment(@PathVariable Long id) {
+    public ResponseEntity<Void> confirmPayment(@PathVariable String id) {
         prescriptionService.confirmPayment(id);
         return ResponseEntity.ok().build();
     }
