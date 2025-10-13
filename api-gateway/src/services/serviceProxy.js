@@ -97,13 +97,18 @@ const createServiceProxy = (serviceName) => {
       } else if (path.startsWith(`/v1/public/${serviceName}`)) {
         // /v1/public/doctors or /v1/public/doctors/:id -> /doctors or /doctors/:id
         return `${service.basePath}${path.replace(`/v1/public/${serviceName}`, '')}`;
-      } else {
+      } else if (serviceName === "medicine") {
+        // /v1/medicine/drugs -> /api/v1/drugs
+        cleanPath = path.replace(new RegExp(`^/v1/${serviceName}`), "");
+      }
+      else {
         // /v1/doctors/123 -> /123
         cleanPath = path.replace(new RegExp(`^/v1/${serviceName}`), "");
       }
+      logger.debug(`[PATH_REWRITE] serviceName: ${serviceName}, originalPath: ${path}, cleanPath (before basePath): ${cleanPath}`);
 
       const newPath = `${service.basePath}${cleanPath}`;
-      console.log(`[DEBUG] Proxy target: ${service.url}${newPath}`);
+      logger.debug(`[PATH_REWRITE] newPath (to target service): ${newPath}`);
       logger.serviceLog(serviceName, "Proxy request", {
         originalPath: path,
         cleanPath,
@@ -111,7 +116,7 @@ const createServiceProxy = (serviceName) => {
         method: req.method,
         target: service.url,
       });
-
+ 
       return newPath;
     },
 
