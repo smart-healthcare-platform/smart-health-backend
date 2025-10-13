@@ -36,7 +36,7 @@ public class RestPatientClient implements PatientClient {
      *         otherwise an empty Optional.
      */
     @Override
-    public Optional<PatientDto> getPatientById(Long patientId) {
+    public Optional<PatientDto> getPatientById(String patientId) {
         String url = patientServiceUrl + "/api/v1/patients/" + patientId;
         try {
             PatientDto patient = restTemplate.getForObject(url, PatientDto.class);

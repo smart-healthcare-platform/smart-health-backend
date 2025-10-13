@@ -11,10 +11,12 @@ import java.util.List;
 public class CreatePrescriptionRequest {
 
     @NotNull
-    private Long patientId;
+    private String patientId;
     
     @NotNull
-    private Long doctorId;
+    private String doctorId;
+
+    private String appointmentId;
 
     private String diagnosis;
 

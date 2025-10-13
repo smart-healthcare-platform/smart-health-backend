@@ -11,10 +11,10 @@ public interface PrescriptionService {
 
     PrescriptionResponse createPrescription(CreatePrescriptionRequest request);
 
-    PrescriptionDetailDto getPrescriptionById(Long id);
+    PrescriptionDetailDto getPrescriptionById(String id);
 
-    List<PrescriptionSummaryDto> getPrescriptionsByPatientId(Long patientId);
+    List<PrescriptionSummaryDto> getPrescriptionsByPatientId(String patientId);
 
-    void confirmPayment(Long prescriptionId);
+    void confirmPayment(String prescriptionId);
 
 }
