@@ -15,7 +15,7 @@ __pycache__/
 # Virtual Environments
 .venv
 venv
-env
+.env
 
 # Docker
 # These are managed as volumes in docker-compose.yml
