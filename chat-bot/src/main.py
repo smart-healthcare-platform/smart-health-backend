@@ -131,7 +131,7 @@ async def handle_chat(request: ChatRequest):
         response_data = {"response": EMERGENCY_RESPONSE, "source": "emergency_alert"}
         
     elif intent == Intent.RULE_BASED:
-        response = get_rule_based_response(request.message)
+        response = get_rule_based_response(request.message, conversation_history=conversation_history)
         if response:
             response_data = {"response": response, "source": "rules_engine"}
             

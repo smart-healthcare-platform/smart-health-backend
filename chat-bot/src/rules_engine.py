@@ -1,5 +1,15 @@
 from .utils import normalize_text
 
+MEMORY_QUESTION_KEYWORDS = [
+    "chúng ta đang nói về vấn đề gì",
+    "chủ đề hiện tại là gì",
+    "bạn vừa trả lời gì",
+    "tôi vừa hỏi gì",
+    "bạn có nhớ câu hỏi trước không",
+    "nội dung hội thoại trước",
+    "bạn có nhớ chúng ta nói gì không"
+]
+
 RULES = [
     # Các rule về bệnh tim mạch bổ sung
     {
@@ -125,14 +135,30 @@ RULES = [
 ]
 
 
-def get_rule_based_response(message: str) -> str | None:
+def get_rule_based_response(message: str, conversation_history=None) -> str | None:
     """
     Checks if the message matches any predefined rule (case-insensitive, multi-keyword, normalize text).
     Returns the corresponding response or None if no match is found.
+    Accepts optional conversation_history for memory features.
     """
     normalized_message = normalize_text(message)
     for rule in RULES:
         for keyword in rule["keywords"]:
             if normalize_text(keyword) in normalized_message:
                 return rule["response"]
+    
+    # Check if the message is asking about conversation history
+    for keyword in MEMORY_QUESTION_KEYWORDS:
+        if normalize_text(keyword) in normalized_message:
+            if conversation_history:
+                # Return the last few exchanges from conversation history
+                recent_history = conversation_history[-2:]  # Get last 2 exchanges
+                history_str = "\n".join([
+                    f"Bạn: {item['user']}\nTôi: {item['bot']}"
+                    for item in recent_history
+                ])
+                return f"Dưới đây là nội dung hội thoại gần đây:\n{history_str}"
+            else:
+                return "Chúng ta chưa có cuộc trò chuyện trước nào."
+    
     return None
