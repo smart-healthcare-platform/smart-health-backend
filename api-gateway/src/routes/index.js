@@ -43,6 +43,10 @@ const { getServiceProxy } = require("../services/serviceProxy");
 const predictionProxy = getServiceProxy("prediction");
 router.use(`${API_VERSION}/prediction`, predictionProxy);
 
+// Chatbot Service routes (public, no authentication required)
+const chatbotProxy = getServiceProxy("chatbot");
+router.use(`${API_VERSION}/chatbot`, chatbotProxy);
+
 router.use(`${API_VERSION}`, serviceRoutes);
 
 /**
@@ -62,6 +66,7 @@ router.get("/", (req, res) => {
       appointments: `${API_VERSION}/appointments`,
       notifications: `${API_VERSION}/notifications`,
       prediction: `${API_VERSION}/prediction`,
+      chatbot: `${API_VERSION}/chatbot`,
       medicine: `${API_VERSION}/medicine`,
     },
     documentation: "/api-docs",
@@ -90,6 +95,7 @@ router.get("/api", (req, res) => {
         appointments: `${API_VERSION}/appointments`,
         notifications: `${API_VERSION}/notifications`,
         prediction: `${API_VERSION}/prediction`,
+        chatbot: `${API_VERSION}/chatbot`,
         medicine: `${API_VERSION}/medicine`,
       },
     },
