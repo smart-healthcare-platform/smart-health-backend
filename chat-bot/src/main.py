@@ -155,3 +155,9 @@ async def handle_chat(request: ChatRequest):
 @app.get("/")
 def read_root():
     return {"message": "Welcome to the Smart Health Chatbot API v0.2.0"}
+
+
+if __name__ == "__main__":
+    import uvicorn
+    port = int(os.getenv("CHATBOT_PORT", 8087))
+    uvicorn.run(app, host="0.0.0.0", port=port) 
