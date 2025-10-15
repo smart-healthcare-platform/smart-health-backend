@@ -7,12 +7,12 @@ import { AppointmentProducerService } from './appointment-producer.service';
 import { ProductionAppointmentConsumer } from './production-appointment-consumer.service';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { NotificationService } from '../notification/notification.service';
-import { HttpModule } from '@nestjs/axios'; // ✅ Thêm vào
+import { HttpModule } from '@nestjs/axios'; 
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Appointment]),
-    HttpModule, // ✅ Thêm vào để dùng HttpService
+    HttpModule, 
     ClientsModule.register([
       {
         name: 'KAFKA_SERVICE',

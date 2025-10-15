@@ -4,8 +4,10 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handlebars.adapter';
 import { join } from 'path';
-import { AppointmentsModule } from './module/appointment/appointments.module';
-import { CalendarModule } from './module/calendar/calendar.module';
+import { AppointmentsModule } from './module/appointment/appointment.module';
+import { MedicalRecordsModule } from './module/medical_records/medical-records.module';
+import { VitalSignsModule } from './module/vital_signs/vital-signs.module';
+import { LabTestsModule } from './module/lab_tests/lab-tests.module';
 
 @Module({
   imports: [
@@ -56,7 +58,9 @@ import { CalendarModule } from './module/calendar/calendar.module';
     }),
 
     AppointmentsModule,
-    CalendarModule
+    MedicalRecordsModule,
+    VitalSignsModule,
+    LabTestsModule
   ],
 })
-export class AppModule {}
+export class AppModule { }

@@ -7,7 +7,6 @@ import { UpdateAppointmentDto } from './dto/update-appointment.dto';
 import { AppointmentProducerService } from './appointment-producer.service';
 import { NotificationService } from '../notification/notification.service';
 import { HttpService } from '@nestjs/axios';
-import { firstValueFrom } from 'rxjs';
 
 @Injectable()
 export class AppointmentsService {
