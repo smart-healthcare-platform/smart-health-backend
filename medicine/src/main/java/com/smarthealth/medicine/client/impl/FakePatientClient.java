@@ -26,9 +26,9 @@ public class FakePatientClient implements PatientClient {
      * @return An Optional containing a fake PatientDto if patientId is positive, otherwise an empty Optional.
      */
     @Override
-    public Optional<PatientDto> getPatientById(Long patientId) {
-        // For local development, we can assume any positive patient ID is valid.
-        if (patientId != null && patientId > 0) {
+    public Optional<PatientDto> getPatientById(String patientId) {
+        // For local development, we can assume any non-empty patient ID is valid.
+        if (patientId != null && !patientId.isBlank()) {
             // Return a mock patient with some known allergies for testing CDSS later.
             return Optional.of(new PatientDto(patientId, "Fake Patient Name", List.of("Aspirin")));
         }

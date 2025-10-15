@@ -8,6 +8,6 @@ import lombok.Data;
 @AllArgsConstructor
 public class PrescriptionResponse {
 
-    private Long prescriptionId;
+    private String prescriptionId;
     private PrescriptionStatus status;
 }

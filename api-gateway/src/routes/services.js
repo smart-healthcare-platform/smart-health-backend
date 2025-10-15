@@ -187,6 +187,37 @@ try {
 }
 
 /**
+ * Medicine Service Routes
+ * All authenticated users can access medicine
+ */
+router.use('/medicine', requireAnyRole, (req, res, next) => {
+  logger.info('Medicine service access', {
+    userId: req.user.id,
+    role: req.user.role,
+    path: req.path,
+    method: req.method,
+  });
+  next();
+});
+
+// Configure medicine service proxy
+try {
+  const medicineProxy = getServiceProxy('medicine');
+  router.use('/medicine', medicineProxy);
+} catch (error) {
+  logger.error('Failed to configure medicine service proxy', { error: error.message });
+  router.use('/medicine', (req, res) => {
+    res.status(503).json({
+      success: false,
+      message: 'Medicine service is temporarily unavailable',
+      code: 503,
+      service: 'medicine',
+      timestamp: new Date().toISOString(),
+    });
+  });
+}
+
+/**
  * Admin Service Routes (future)
  * Only admins can access admin-specific endpoints
  */

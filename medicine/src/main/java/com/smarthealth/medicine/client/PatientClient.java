@@ -17,5 +17,5 @@ public interface PatientClient {
      * @return An {@link Optional} containing the {@link PatientDto} if found,
      *         or an empty Optional if not found.
      */
-    Optional<PatientDto> getPatientById(Long patientId);
+    Optional<PatientDto> getPatientById(String patientId);
 }

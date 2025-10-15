@@ -25,7 +25,9 @@ const envSchema = Joi.object()
     APPOINTMENT_SERVICE_URL: Joi.string().default('http://localhost:8084'),
     CHAT_SERVICE_URL: Joi.string().default('http://localhost:8085'),
     PREDICTION_SERVICE_URL: Joi.string().default('http://localhost:8086'),
+    CHATBOT_SERVICE_URL: Joi.string().default('http://localhost:8087'),
     NOTIFICATION_SERVICE_URL: Joi.string().default('http://localhost:8088'),
+    MEDICINE_SERVICE_URL: Joi.string().default('http://localhost:8089'),
     
     // Rate Limiting
     RATE_LIMIT_WINDOW_MS: Joi.number().default(15 * 60 * 1000), // 15 minutes
@@ -49,6 +51,7 @@ const envSchema = Joi.object()
     // Health Check
     HEALTH_CHECK_INTERVAL: Joi.number().default(30000),
     SERVICE_TIMEOUT: Joi.number().default(5000),
+    REQUEST_TIMEOUT_MS: Joi.number().default(60000), // 60 seconds for requests
     
     // API Documentation
     API_DOCS_ENABLED: Joi.boolean().default(true),
@@ -103,11 +106,21 @@ module.exports = {
       basePath: '/api/notifications',
       timeout: envVars.SERVICE_TIMEOUT,
     },
+    medicine: {
+      url: envVars.MEDICINE_SERVICE_URL,
+      basePath: '/api/v1',
+      timeout: envVars.SERVICE_TIMEOUT,
+    },
     chat: {
       url: envVars.CHAT_SERVICE_URL,
       basePath: '/api',
       timeout: envVars.SERVICE_TIMEOUT,
       websocket: false, // Set to false to prevent http-proxy-middleware from handling WebSocket upgrades
+    },
+    chatbot: {
+      url: envVars.CHATBOT_SERVICE_URL,
+      basePath: '/',
+      timeout: envVars.SERVICE_TIMEOUT,
     }
   },
   
