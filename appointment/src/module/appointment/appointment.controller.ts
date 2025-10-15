@@ -21,10 +21,11 @@ export class AppointmentsController {
     return await this.appointmentsService.findAll();
   }
 
-  @Get(':id')
+  @Get('get-by-id/:id')
   async getAppointmentDetail(@Param('id') id: string) {
     return this.appointmentsService.getAppointmentDetail(id);
   }
+  
   @Get('doctor/:doctorId')
   async getAppointmentsByDoctor(
     @Param('doctorId') doctorId: string,
@@ -37,6 +38,7 @@ export class AppointmentsController {
       end,
     );
   }
+
   @Get('patient/:patientId')
   async getAppointmentsByPatient(
     @Param('patientId') patientId: string,
