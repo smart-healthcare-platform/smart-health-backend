@@ -28,7 +28,8 @@ public class BillingController {
 
     private final BillingService billingService;
 
-    @Operation(summary = "Create a new payment request", description = "Creates a payment request for a prescription and returns a payment URL.")
+    @Operation(summary = "Create a new payment request", 
+               description = "Creates a payment request and returns a payment URL. Supports multiple payment types: APPOINTMENT_FEE, LAB_TEST, PRESCRIPTION, OTHER.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Payment request created successfully",
                     content = @Content(schema = @Schema(implementation = PaymentResponse.class))),
@@ -36,9 +37,10 @@ public class BillingController {
     })
     @PostMapping
     public ResponseEntity<PaymentResponse> createPayment(
-            @Parameter(description = "Payment request details", required = true)
+            @Parameter(description = "Payment request details with paymentType and referenceId", required = true)
             @Valid @RequestBody CreatePaymentRequest request) {
-        log.info("Received request to create payment for prescriptionId: {}", request.getPrescriptionId());
+        log.info("Received request to create payment - Type: {}, ReferenceId: {}, Amount: {}", 
+                 request.getPaymentType(), request.getReferenceId(), request.getAmount());
         PaymentResponse response = billingService.createPayment(request);
         return ResponseEntity.ok(response);
     }
@@ -75,11 +77,30 @@ public class BillingController {
     @GetMapping("/return")
     public ResponseEntity<Map<String, String>> handleReturnFromGateway(@RequestParam Map<String, String> params) {
         log.info("Received return from payment gateway. Params: {}", params);
-        // Logic here is primarily for user experience, e.g., redirect to a success/failure page
-        // The actual payment status update should come from IPN
-        Map<String, String> response = new HashMap<>();
-        response.put("message", "Payment return received. Status will be updated via IPN.");
-        return ResponseEntity.ok(response);
+        
+        // FALLBACK: In test environment, MoMo sandbox may not send IPN
+        // So we process the return params similar to IPN as a fallback
+        try {
+            // Determine gateway from params
+            String gateway = "momo"; // Default to MoMo for now
+            if (params.containsKey("vnp_TxnRef")) {
+                gateway = "vnpay";
+            }
+            
+            log.info("Processing return as fallback IPN for gateway: {}", gateway);
+            billingService.processIpn(gateway, params);
+            
+            Map<String, String> response = new HashMap<>();
+            response.put("message", "Payment processed successfully");
+            response.put("status", "success");
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            log.error("Error processing return from gateway: {}", e.getMessage());
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("message", "Payment return received but processing failed");
+            errorResponse.put("error", e.getMessage());
+            return ResponseEntity.ok(errorResponse); // Still return 200 for UX
+        }
     }
 
     @Operation(summary = "Get payment by ID", description = "Retrieve payment details by payment ID")
