@@ -101,6 +101,19 @@ const createServiceProxy = (serviceName) => {
         // /v1/medicine/drugs -> /api/v1/drugs
         cleanPath = path.replace(new RegExp(`^/v1/${serviceName}`), "");
       }
+      // Xử lý riêng cho các webhook của billing để tránh lặp lại đường dẫn
+      else if (serviceName === 'billing' && (path.includes('/billings/return') || path.includes('/billings/ipn'))) {
+        // Đường dẫn nhận được là '/billing/billings/return' hoặc '/billing/billings/ipn/momo'
+        // Chúng ta cần chuyển thành '/billings/return' hoặc '/billings/ipn/momo'
+        const billingsIndex = path.indexOf('/billings/');
+        if (billingsIndex !== -1) {
+          cleanPath = path.substring(billingsIndex);
+          logger.debug(`[PATH_REWRITE] Billing webhook detected. Extracted cleanPath: ${cleanPath}`);
+        } else {
+          logger.error(`[PATH_REWRITE] Could not find /billings/ in path: ${path}`);
+          cleanPath = path.replace(new RegExp(`^/v1/${serviceName}`), "");
+        }
+      }
       else {
         // /v1/doctors/123 -> /123
         cleanPath = path.replace(new RegExp(`^/v1/${serviceName}`), "");
@@ -116,7 +129,7 @@ const createServiceProxy = (serviceName) => {
         method: req.method,
         target: service.url,
       });
- 
+
       return newPath;
     },
 
@@ -128,6 +141,7 @@ const createServiceProxy = (serviceName) => {
       console.log(
         `[PROXY DEBUG] Starting proxy request to ${service.url}${proxyReq.path}`
       );
+      console.log(`[PROXY DEBUG] Original request path: ${req.path}, originalUrl: ${req.originalUrl}`);
 
       // Add gateway headers
       proxyReq.setHeader("X-Gateway-Name", config.gatewayName);
@@ -147,17 +161,17 @@ const createServiceProxy = (serviceName) => {
         console.log(`[PROXY DEBUG] req.user is NOT set for ${req.method} ${req.originalUrl}`);
       }
 
-      // Handle POST body manually
-      if (req.body && req.method === "POST") {
+      // Handle POST/PUT/PATCH body manually (important for IPN webhooks)
+      if (req.body && (req.method === "POST" || req.method === "PUT" || req.method === "PATCH")) {
         const bodyData = JSON.stringify(req.body);
         proxyReq.setHeader("Content-Type", "application/json");
         proxyReq.setHeader("Content-Length", Buffer.byteLength(bodyData));
         proxyReq.write(bodyData);
-        console.log(`[PROXY DEBUG] Wrote body: ${bodyData}`);
+        console.log(`[PROXY DEBUG] Wrote body for ${req.method}: ${bodyData}`);
       }
 
       logger.debug(
-        `Proxying ${req.method} ${req.originalUrl} to ${service.url}`
+        `Proxying ${req.method} ${req.originalUrl} to ${service.url}${proxyReq.path}`
       );
     },
 

@@ -26,6 +26,41 @@ try {
     });
   });
 }
+// Public: Payment Gateway Webhooks (Return & IPN)
+// Các route này phải được định nghĩa TRƯỚC middleware `authenticateJWT`
+// vì chúng được gọi bởi các hệ thống bên ngoài (Momo, VNPay) không có token.
+try {
+  const billingWebhookProxy = getServiceProxy('billing');
+
+  // Route cho URL trả về (người dùng được chuyển hướng đến đây)
+  // GET /v1/billing/billings/return
+  router.get('/billing/billings/return', (req, res, next) => {
+    logger.info('Received public return from payment gateway', {
+      params: req.query,
+      path: req.path,
+      originalUrl: req.originalUrl
+    });
+    billingWebhookProxy(req, res, next);
+  });
+
+  // Route cho IPN (backend-to-backend notification)
+  // POST /v1/billing/billings/ipn/:gateway
+  router.post('/billing/billings/ipn/:gateway', (req, res, next) => {
+    logger.info(`Received public IPN for gateway: ${req.params.gateway}`, {
+      body: req.body,
+      path: req.path,
+      originalUrl: req.originalUrl,
+      headers: req.headers
+    });
+    billingWebhookProxy(req, res, next);
+  });
+
+} catch (error) {
+  logger.error('Failed to configure billing webhook proxy', { error: error.message });
+  const unavailableServiceHandler = (req, res) => res.status(503).json({ message: 'Billing service (webhooks) is unavailable' });
+  router.get('/billing/billings/return', unavailableServiceHandler);
+  router.post('/billing/billings/ipn/:gateway', unavailableServiceHandler);
+}
 /**
  * Apply authentication and rate limiting to all service routes
  */
@@ -216,6 +251,37 @@ try {
     });
   });
 }
+/**
+ * Billing Service Routes
+ * Authenticated users can access their own billing information.
+ */
+router.use('/billing', requireAnyRole, (req, res, next) => {
+  logger.info('Billing service access (protected)', {
+    userId: req.user.id,
+    role: req.user.role,
+    path: req.path,
+    method: req.method,
+  });
+  next();
+});
+
+// Configure billing service proxy
+try {
+  const billingProxy = getServiceProxy('billing');
+  router.use('/billing', billingProxy);
+} catch (error) {
+  logger.error('Failed to configure billing service proxy', { error: error.message });
+  router.use('/billing', (req, res) => {
+    res.status(503).json({
+      success: false,
+      message: 'Billing service is temporarily unavailable',
+      code: 503,
+      service: 'billing',
+      timestamp: new Date().toISOString(),
+    });
+  });
+}
+
 
 /**
  * Admin Service Routes (future)

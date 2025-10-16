@@ -28,6 +28,7 @@ const envSchema = Joi.object()
     CHATBOT_SERVICE_URL: Joi.string().default('http://localhost:8087'),
     NOTIFICATION_SERVICE_URL: Joi.string().default('http://localhost:8088'),
     MEDICINE_SERVICE_URL: Joi.string().default('http://localhost:8089'),
+    BILLING_SERVICE_URL: Joi.string().default('http://localhost:8090'),
     
     // Rate Limiting
     RATE_LIMIT_WINDOW_MS: Joi.number().default(15 * 60 * 1000), // 15 minutes
@@ -120,6 +121,11 @@ module.exports = {
     chatbot: {
       url: envVars.CHATBOT_SERVICE_URL,
       basePath: '/',
+      timeout: envVars.SERVICE_TIMEOUT,
+    },
+    billing: {
+      url: envVars.BILLING_SERVICE_URL,
+      basePath: '/api/v1',
       timeout: envVars.SERVICE_TIMEOUT,
     }
   },
