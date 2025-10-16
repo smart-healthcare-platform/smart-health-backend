@@ -48,7 +48,7 @@ export class AppointmentsController {
     @Query('status') status?: 'confirmed' | 'completed' | 'cancelled' | 'all',
     @Query('dateRange') dateRange?: 'today' | 'week' | 'month' | 'year' | 'all',
   ) {
-    return await this.appointmentsService.getAppointmentsWithDoctor(
+    return await this.appointmentsService.getAppointmentsByPatient(
       patientId,
       +page,
       +limit,

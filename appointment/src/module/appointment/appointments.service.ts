@@ -129,7 +129,7 @@ export class AppointmentsService {
 
     return qb.getMany();
   }
-  async getAppointmentsWithDoctor(
+  async getAppointmentsByPatient(
     patientId: string,
     page = 1,
     limit = 3,
@@ -139,6 +139,8 @@ export class AppointmentsService {
   ) {
     const qb = this.appointmentRepo
       .createQueryBuilder('appointment')
+      .leftJoinAndSelect('appointment.medicalRecord', 'medicalRecord')
+      .leftJoinAndSelect('medicalRecord.vitalSigns', 'vitalSigns')
       .where('appointment.patientId = :patientId', { patientId })
       .orderBy('appointment.startAt', 'DESC')
       .skip((page - 1) * limit)
@@ -162,10 +164,10 @@ export class AppointmentsService {
         case 'today':
           start = new Date(now);
           start.setHours(0, 0, 0, 0);
-          qb.andWhere('appointment.startAt >= :start AND appointment.startAt <= :end', {
-            start,
-            end: new Date(now.setHours(23, 59, 59, 999)),
-          });
+          qb.andWhere(
+            'appointment.startAt BETWEEN :start AND :end',
+            { start, end: new Date(now.setHours(23, 59, 59, 999)) }
+          );
           break;
 
         case 'week':
@@ -189,6 +191,7 @@ export class AppointmentsService {
 
     return { appointments, total, page, limit };
   }
+
 
   private getStartOfWeek(date: Date): Date {
     const d = new Date(date);
