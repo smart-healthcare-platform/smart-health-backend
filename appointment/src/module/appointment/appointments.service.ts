@@ -201,8 +201,16 @@ export class AppointmentsService {
   }
 
   async getAppointmentDetail(id: string) {
-    const appointment = await this.findOne(id);
-    if (!appointment) throw new NotFoundException(`Appointment ${id} not found`);
+    const appointment = await this.appointmentRepo
+      .createQueryBuilder('appointment')
+      .leftJoinAndSelect('appointment.medicalRecord', 'medicalRecord')
+      .leftJoinAndSelect('medicalRecord.vitalSigns', 'vitalSigns')
+      .where('appointment.id = :id', { id })
+      .getOne();
+
+    if (!appointment) {
+      throw new NotFoundException(`Appointment ${id} not found`);
+    }
 
     let patientInfo = null;
     if (appointment.patientId) {
@@ -219,4 +227,5 @@ export class AppointmentsService {
       patient: patientInfo,
     };
   }
+
 }
