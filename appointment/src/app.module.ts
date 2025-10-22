@@ -8,6 +8,7 @@ import { AppointmentsModule } from './module/appointment/appointment.module';
 import { MedicalRecordsModule } from './module/medical_records/medical-records.module';
 import { VitalSignsModule } from './module/vital_signs/vital-signs.module';
 import { LabTestsModule } from './module/lab_tests/lab-tests.module';
+import { FollowUpSuggestionsModule } from './module/follow_up_suggestions/follow_up_suggestions.module';
 
 @Module({
   imports: [
@@ -60,7 +61,8 @@ import { LabTestsModule } from './module/lab_tests/lab-tests.module';
     AppointmentsModule,
     MedicalRecordsModule,
     VitalSignsModule,
-    LabTestsModule
+    LabTestsModule,
+    FollowUpSuggestionsModule,
   ],
 })
 export class AppModule { }
