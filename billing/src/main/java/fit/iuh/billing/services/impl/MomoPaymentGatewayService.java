@@ -314,7 +314,17 @@ public class MomoPaymentGatewayService implements PaymentGatewayService {
                 case APPOINTMENT_FEE:
                     if (appointmentServiceClient != null) {
                         log.info("Notifying Appointment Service for payment {}", payment.getPaymentCode());
-                        appointmentServiceClient.confirmAppointmentPayment(payment.getReferenceId());
+                        
+                        // Tạo request body với paymentId và amount
+                        fit.iuh.billing.dto.ConfirmPaymentRequest request = 
+                            fit.iuh.billing.dto.ConfirmPaymentRequest.builder()
+                                .paymentId(String.valueOf(payment.getId()))
+                                .amount(payment.getAmount())
+                                .build();
+                        
+                        appointmentServiceClient.confirmAppointmentPayment(payment.getReferenceId(), request);
+                        log.info("Successfully notified Appointment Service: appointmentId={}, paymentId={}, amount={}", 
+                            payment.getReferenceId(), payment.getId(), payment.getAmount());
                     } else {
                         log.warn("AppointmentServiceClient not available, skipping notification");
                     }
