@@ -24,15 +24,33 @@ public class BillingServiceImpl implements BillingService {
 
     @Override
     public PaymentResponse createPayment(CreatePaymentRequest request) {
+        // Validate payment type
+        if (request.getPaymentType() == null) {
+            throw new IllegalArgumentException("Payment type is required");
+        }
+        
         // Tạo Payment entity
         Payment payment = new Payment();
         payment.setPaymentCode(UUID.randomUUID().toString()); // Mã thanh toán duy nhất
-        payment.setPrescriptionId(request.getPrescriptionId());
+        
+        // Set new fields
+        payment.setPaymentType(request.getPaymentType());
+        payment.setReferenceId(request.getReferenceId());
+        
+        // DEPRECATED: Set prescriptionId cho backward compatibility
+        if (request.getPaymentType().equals(fit.iuh.billing.enums.PaymentType.PRESCRIPTION)) {
+            payment.setPrescriptionId(request.getReferenceId());
+        } else if (request.getPrescriptionId() != null) {
+            // Fallback cho code cũ
+            payment.setPrescriptionId(request.getPrescriptionId());
+        }
+        
         payment.setAmount(request.getAmount());
         payment.setPaymentMethod(request.getPaymentMethod());
         payment.setStatus(PaymentStatus.PENDING);
         payment.setCreatedAt(LocalDateTime.now());
-        // Có thể thêm expiredAt nếu cần
+        // Có thể thêm expiredAt nếu cần (ví dụ: 15 phút)
+        payment.setExpiredAt(LocalDateTime.now().plusMinutes(15));
 
         payment = paymentRepository.save(payment);
 
@@ -75,17 +93,25 @@ public class BillingServiceImpl implements BillingService {
     }
 
     private PaymentResponse mapToPaymentResponse(Payment payment) {
-        return new PaymentResponse(
-                payment.getId(),
-                payment.getPaymentCode(),
-                payment.getPrescriptionId(),
-                payment.getAmount(),
-                payment.getStatus(),
-                payment.getPaymentMethod(),
-                payment.getPaymentUrl(),
-                payment.getCreatedAt(),
-                payment.getExpiredAt()
-        );
+        PaymentResponse response = new PaymentResponse();
+        response.setId(payment.getId());
+        response.setPaymentCode(payment.getPaymentCode());
+        
+        // New fields
+        response.setPaymentType(payment.getPaymentType());
+        response.setReferenceId(payment.getReferenceId());
+        
+        // Deprecated field - giữ lại để tương thích
+        response.setPrescriptionId(payment.getPrescriptionId());
+        
+        response.setAmount(payment.getAmount());
+        response.setStatus(payment.getStatus());
+        response.setPaymentMethod(payment.getPaymentMethod());
+        response.setPaymentUrl(payment.getPaymentUrl());
+        response.setCreatedAt(payment.getCreatedAt());
+        response.setExpiredAt(payment.getExpiredAt());
+        
+        return response;
     }
 
     private fit.iuh.billing.enums.PaymentMethodType mapGatewayStringToEnum(String gateway) {

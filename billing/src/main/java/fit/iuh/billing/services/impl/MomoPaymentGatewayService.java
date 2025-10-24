@@ -1,9 +1,10 @@
 package fit.iuh.billing.services.impl;
 
-import fit.iuh.billing.client.MedicineServiceClient;
+import fit.iuh.billing.client.AppointmentServiceClient;
 import fit.iuh.billing.entity.Payment;
 import fit.iuh.billing.enums.PaymentMethodType;
 import fit.iuh.billing.enums.PaymentStatus;
+import fit.iuh.billing.enums.PaymentType;
 import fit.iuh.billing.repository.PaymentRepository;
 import fit.iuh.billing.services.PaymentGatewayService;
 import lombok.extern.slf4j.Slf4j;
@@ -11,6 +12,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import fit.iuh.billing.dto.momo.MomoPaymentRequest;
 import fit.iuh.billing.dto.momo.MomoPaymentResponse;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -50,13 +52,18 @@ public class MomoPaymentGatewayService implements PaymentGatewayService {
     private String ipnUrl;
 
     private PaymentRepository paymentRepository;
-    private MedicineServiceClient medicineServiceClient;
+    
+    @Autowired(required = false) // Optional vì có thể không cần thiết
+    private AppointmentServiceClient appointmentServiceClient;
+    
     private RestTemplate restTemplate;
     private ObjectMapper objectMapper;
 
-    public MomoPaymentGatewayService(PaymentRepository paymentRepository, MedicineServiceClient medicineServiceClient, RestTemplate restTemplate, ObjectMapper objectMapper) {
+    public MomoPaymentGatewayService(
+            PaymentRepository paymentRepository, 
+            RestTemplate restTemplate, 
+            ObjectMapper objectMapper) {
         this.paymentRepository = paymentRepository;
-        this.medicineServiceClient = medicineServiceClient;
         this.restTemplate = restTemplate;
         this.objectMapper = objectMapper;
     }
@@ -74,6 +81,9 @@ public class MomoPaymentGatewayService implements PaymentGatewayService {
             String currentReturnUrl = returnUrl;
             String currentIpnUrl = ipnUrl;
 
+            // Tạo order info dựa trên loại thanh toán
+            String orderInfo = buildOrderInfo(payment);
+
             // 1. Tạo request object mà KHÔNG có signature
             MomoPaymentRequest momoRequestWithoutSignature = MomoPaymentRequest.builder()
                     .partnerCode(currentPartnerCode)
@@ -82,7 +92,7 @@ public class MomoPaymentGatewayService implements PaymentGatewayService {
                     .requestId(payment.getPaymentCode())
                     .amount(payment.getAmount().longValue())
                     .orderId(payment.getPaymentCode())
-                    .orderInfo("Thanh toan don thuoc " + payment.getPrescriptionId())
+                    .orderInfo(orderInfo)
                     .redirectUrl(currentReturnUrl)
                     .ipnUrl(currentIpnUrl)
                     .lang("vi")
@@ -216,13 +226,11 @@ public class MomoPaymentGatewayService implements PaymentGatewayService {
             // Các tham số cần được sắp xếp theo thứ tự alphabet và khớp với tài liệu Momo
             // LƯU Ý: Chuỗi rawData phải khớp chính xác với cách Momo tạo chữ ký
             // Verify signature
-            // Tạo Map chứa các tham số cần thiết để tạo chữ ký cho IPN
-            // Lấy tất cả dữ liệu IPN, loại bỏ 'signature' và thêm 'accessKey', 'partnerCode'
+            // The rawData for the IPN signature is created by concatenating all fields in the IPN request
+            // PLUS the merchant's accessKey, sorted alphabetically.
             Map<String, String> ipnSignatureParams = new HashMap<>(ipnData);
             ipnSignatureParams.remove("signature");
-            // Thêm các trường cố định từ cấu hình
-            ipnSignatureParams.put("accessKey", accessKey);
-            ipnSignatureParams.put("partnerCode", partnerCode);
+            ipnSignatureParams.put("accessKey", this.accessKey); // This is the crucial missing piece
 
             String generatedSignature = generateSignature(ipnSignatureParams, secretKey);
 
@@ -252,9 +260,10 @@ public class MomoPaymentGatewayService implements PaymentGatewayService {
 
             if (isSuccessful) {
                 payment.setStatus(PaymentStatus.COMPLETED);
-                log.info("Payment {} COMPLETED via MOMO IPN. Notifying Medicine Service...", paymentCode);
-                // Gọi Medicine Service để xác nhận thanh toán
-                medicineServiceClient.confirmPrescriptionPayment(payment.getPrescriptionId());
+                log.info("Payment {} COMPLETED via MOMO IPN.", paymentCode);
+                
+                // Thông báo cho service tương ứng dựa trên loại thanh toán
+                notifyRelatedService(payment);
             } else {
                 payment.setStatus(PaymentStatus.FAILED);
                 log.warn("Payment {} FAILED via MOMO IPN. Response code: {}", paymentCode, momoResponseCode);
@@ -268,6 +277,81 @@ public class MomoPaymentGatewayService implements PaymentGatewayService {
             throw new RuntimeException("Error processing MOMO IPN: " + e.getMessage());
         }
     }
+    
+    /**
+     * Tạo order info description dựa trên loại thanh toán
+     */
+    private String buildOrderInfo(Payment payment) {
+        if (payment.getPaymentType() == null) {
+            // Fallback cho code cũ
+            return "Thanh toan " + payment.getReferenceId();
+        }
+        
+        switch (payment.getPaymentType()) {
+            case APPOINTMENT_FEE:
+                return "Thanh toan phi kham benh - " + payment.getReferenceId();
+            case LAB_TEST:
+                return "Thanh toan xet nghiem - " + payment.getReferenceId();
+            case PRESCRIPTION:
+                return "Thanh toan don thuoc - " + payment.getReferenceId();
+            case OTHER:
+            default:
+                return "Thanh toan dich vu y te - " + payment.getReferenceId();
+        }
+    }
+    
+    /**
+     * Thông báo cho service liên quan khi thanh toán thành công
+     */
+    private void notifyRelatedService(Payment payment) {
+        if (payment.getPaymentType() == null) {
+            log.warn("Payment {} has no paymentType, skipping service notification", payment.getPaymentCode());
+            return;
+        }
+        
+        try {
+            switch (payment.getPaymentType()) {
+                case APPOINTMENT_FEE:
+                    if (appointmentServiceClient != null) {
+                        log.info("Notifying Appointment Service for payment {}", payment.getPaymentCode());
+                        
+                        // Tạo request body với paymentId và amount
+                        fit.iuh.billing.dto.ConfirmPaymentRequest request = 
+                            fit.iuh.billing.dto.ConfirmPaymentRequest.builder()
+                                .paymentId(String.valueOf(payment.getId()))
+                                .amount(payment.getAmount())
+                                .build();
+                        
+                        appointmentServiceClient.confirmAppointmentPayment(payment.getReferenceId(), request);
+                        log.info("Successfully notified Appointment Service: appointmentId={}, paymentId={}, amount={}", 
+                            payment.getReferenceId(), payment.getId(), payment.getAmount());
+                    } else {
+                        log.warn("AppointmentServiceClient not available, skipping notification");
+                    }
+                    break;
+                    
+                case LAB_TEST:
+                    // TODO: Implement LabTestServiceClient when needed
+                    log.info("Lab test payment confirmed: {}", payment.getReferenceId());
+                    break;
+                    
+                case PRESCRIPTION:
+                    // KHÔNG cần thiết - hệ thống không bán thuốc
+                    log.warn("Prescription payment type is deprecated - system does not sell medicine");
+                    break;
+                    
+                case OTHER:
+                default:
+                    log.info("Payment type {} completed for {}", payment.getPaymentType(), payment.getReferenceId());
+                    break;
+            }
+        } catch (Exception e) {
+            log.error("Error notifying related service for payment {}: {}", 
+                payment.getPaymentCode(), e.getMessage());
+            // Không throw exception - payment đã được xử lý thành công
+            // Notification failure không nên rollback payment
+        }
+    }
 
     private String generateSignature(Map<String, String> params, String secretKey) {
         try {
@@ -277,6 +361,8 @@ public class MomoPaymentGatewayService implements PaymentGatewayService {
                     .forEach(entry -> {
                         // Chỉ thêm các tham số có giá trị không null và không phải là "signature"
                         // Bao gồm cả các tham số có giá trị là chuỗi rỗng ("")
+                        // Quan trọng: Phải bao gồm cả các trường có giá trị rỗng (empty string) theo tài liệu của Momo.
+                        // Chỉ bỏ qua trường có giá trị null.
                         if (!entry.getKey().equals("signature") && entry.getValue() != null) {
                             data.append(entry.getKey()).append("=").append(entry.getValue()).append("&");
                         }
@@ -285,6 +371,8 @@ public class MomoPaymentGatewayService implements PaymentGatewayService {
             if (data.length() > 0) {
                 data.deleteCharAt(data.length() - 1);
             }
+
+            log.info("Raw data for IPN signature: {}", data.toString());
 
             Mac sha256_HMAC = Mac.getInstance("HmacSHA256");
             SecretKeySpec secret_key = new SecretKeySpec(secretKey.getBytes(StandardCharsets.UTF_8), "HmacSHA256");

@@ -1,11 +1,13 @@
 package fit.iuh.billing.services.impl;
 
-import fit.iuh.billing.client.MedicineServiceClient;
+import fit.iuh.billing.client.AppointmentServiceClient;
 import fit.iuh.billing.entity.Payment;
 import fit.iuh.billing.enums.PaymentStatus;
+import fit.iuh.billing.enums.PaymentType;
 import fit.iuh.billing.repository.PaymentRepository;
 import fit.iuh.billing.services.PaymentGatewayService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -45,11 +47,12 @@ public class VNPayPaymentGatewayService implements PaymentGatewayService {
     private String vnp_PayUrl;
 
     private final PaymentRepository paymentRepository;
-    private final MedicineServiceClient medicineServiceClient;
+    
+    @Autowired(required = false) // Optional dependency
+    private AppointmentServiceClient appointmentServiceClient;
 
-    public VNPayPaymentGatewayService(PaymentRepository paymentRepository, MedicineServiceClient medicineServiceClient) {
+    public VNPayPaymentGatewayService(PaymentRepository paymentRepository) {
         this.paymentRepository = paymentRepository;
-        this.medicineServiceClient = medicineServiceClient;
     }
 
     @Override
@@ -171,8 +174,10 @@ public class VNPayPaymentGatewayService implements PaymentGatewayService {
 
             if (isSuccessful) {
                 payment.setStatus(PaymentStatus.COMPLETED);
-                log.info("Payment {} COMPLETED via VNPAY IPN. Notifying Medicine Service...", vnp_TxnRef);
-                medicineServiceClient.confirmPrescriptionPayment(payment.getPrescriptionId());
+                log.info("Payment {} COMPLETED via VNPAY IPN.", vnp_TxnRef);
+                
+                // Thông báo cho service tương ứng
+                notifyRelatedService(payment);
             } else {
                 payment.setStatus(PaymentStatus.FAILED);
                 log.warn("Payment {} FAILED via VNPAY IPN. Response code: {} / Transaction status: {}",
@@ -185,6 +190,55 @@ public class VNPayPaymentGatewayService implements PaymentGatewayService {
         } catch (Exception e) {
             log.error("Error processing VNPAY IPN", e);
             throw new RuntimeException("Error processing VNPAY IPN: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Thông báo cho service liên quan khi thanh toán thành công
+     */
+    private void notifyRelatedService(Payment payment) {
+        if (payment.getPaymentType() == null) {
+            log.warn("Payment {} has no paymentType, skipping service notification", payment.getPaymentCode());
+            return;
+        }
+        
+        try {
+            switch (payment.getPaymentType()) {
+                case APPOINTMENT_FEE:
+                    if (appointmentServiceClient != null) {
+                        log.info("Notifying Appointment Service for payment {}", payment.getPaymentCode());
+                        
+                        // Tạo request body với paymentId và amount
+                        fit.iuh.billing.dto.ConfirmPaymentRequest request = 
+                            fit.iuh.billing.dto.ConfirmPaymentRequest.builder()
+                                .paymentId(String.valueOf(payment.getId()))
+                                .amount(payment.getAmount())
+                                .build();
+                        
+                        appointmentServiceClient.confirmAppointmentPayment(payment.getReferenceId(), request);
+                        log.info("Successfully notified Appointment Service: appointmentId={}, paymentId={}, amount={}", 
+                            payment.getReferenceId(), payment.getId(), payment.getAmount());
+                    } else {
+                        log.warn("AppointmentServiceClient not available, skipping notification");
+                    }
+                    break;
+                    
+                case LAB_TEST:
+                    log.info("Lab test payment confirmed: {}", payment.getReferenceId());
+                    break;
+                    
+                case PRESCRIPTION:
+                    log.warn("Prescription payment type is deprecated - system does not sell medicine");
+                    break;
+                    
+                case OTHER:
+                default:
+                    log.info("Payment type {} completed for {}", payment.getPaymentType(), payment.getReferenceId());
+                    break;
+            }
+        } catch (Exception e) {
+            log.error("Error notifying related service for payment {}: {}", 
+                payment.getPaymentCode(), e.getMessage());
         }
     }
 

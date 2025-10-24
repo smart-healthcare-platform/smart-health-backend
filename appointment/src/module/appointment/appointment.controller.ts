@@ -3,6 +3,8 @@ import { AppointmentsService } from './appointments.service';
 import { Appointment } from './appointment.entity';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
+import { CreatePaymentRequestDto } from './dto/create-payment-request.dto';
+import { CheckInDto } from './dto/check-in.dto';
 import { ResponseInterceptor } from 'src/common/interceptors/response.interceptor';
 
 @Controller('api/appointments')
@@ -65,6 +67,30 @@ export class AppointmentsController {
     @Body() dto: UpdateAppointmentDto,
   ): Promise<Appointment> {
     return await this.appointmentsService.update(id, dto);
+  }
+
+  /**
+   * Tạo payment request cho appointment
+   * POST /api/appointments/:id/create-payment
+   */
+  @Post(':id/create-payment')
+  async createPayment(
+    @Param('id') id: string,
+    @Body() dto: CreatePaymentRequestDto,
+  ) {
+    return await this.appointmentsService.createPaymentForAppointment(id, dto);
+  }
+
+  /**
+   * Check-in appointment tại lễ tân
+   * POST /api/appointments/:id/check-in
+   */
+  @Post(':id/check-in')
+  async checkIn(
+    @Param('id') id: string,
+    @Body() dto?: CheckInDto,
+  ) {
+    return await this.appointmentsService.checkIn(id, dto);
   }
 
   @Delete(':id')

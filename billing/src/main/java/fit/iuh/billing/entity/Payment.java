@@ -2,6 +2,7 @@ package fit.iuh.billing.entity;
 
 import fit.iuh.billing.enums.PaymentMethodType;
 import fit.iuh.billing.enums.PaymentStatus;
+import fit.iuh.billing.enums.PaymentType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -26,7 +27,21 @@ public class Payment {
     @Column(nullable = false, unique = true)
     private String paymentCode;
 
+    // Loại thanh toán: PHÍ KHÁM / XÉT NGHIỆM / THUỐC (nếu cần mở rộng sau)
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
+    private PaymentType paymentType;
+
+    // Reference ID tương ứng với paymentType
+    // - Nếu paymentType = APPOINTMENT_FEE → appointmentId
+    // - Nếu paymentType = LAB_TEST → labTestId
+    // - Nếu paymentType = PRESCRIPTION → prescriptionId (cho tương lai nếu bán thuốc)
+    @Column(nullable = false)
+    private String referenceId;
+
+    // DEPRECATED: Giữ lại để tương thích với code cũ, sẽ xóa sau
+    @Deprecated
+    @Column(name = "prescription_id")
     private String prescriptionId;
 
     @Column(nullable = false)
