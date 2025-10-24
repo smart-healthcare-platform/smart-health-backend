@@ -12,7 +12,9 @@ public interface BillingService {
 
     /**
      * Tạo một yêu cầu thanh toán mới.
-     * @param request Thông tin yêu cầu thanh toán.
+     * Hỗ trợ nhiều loại thanh toán: APPOINTMENT_FEE, LAB_TEST, PRESCRIPTION, OTHER
+     * 
+     * @param request Thông tin yêu cầu thanh toán với paymentType và referenceId.
      * @return Phản hồi chứa URL thanh toán và các thông tin khác.
      */
     PaymentResponse createPayment(CreatePaymentRequest request);
@@ -33,8 +35,10 @@ public interface BillingService {
 
     /**
      * Lấy thông tin thanh toán bằng mã đơn thuốc.
+     * @deprecated Sử dụng getPaymentByReferenceId() thay thế
      * @param prescriptionId ID của đơn thuốc.
      * @return Thông tin chi tiết của thanh toán.
      */
+    @Deprecated
     PaymentResponse getPaymentByPrescriptionId(String prescriptionId);
 }
