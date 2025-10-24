@@ -1,0 +1,16 @@
+FROM gradle:8.8-jdk17-alpine
+
+WORKDIR /app
+
+# Copy các file cấu hình Gradle
+COPY build.gradle settings.gradle ./
+COPY gradle gradle
+RUN gradle dependencies --no-daemon
+
+# Copy toàn bộ source
+COPY . .
+
+EXPOSE 8081
+
+# Dùng Gradle bootRun cho hot reload
+CMD ["gradle", "bootRun", "--no-daemon"]
