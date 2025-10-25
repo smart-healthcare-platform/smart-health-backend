@@ -137,6 +137,7 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
+    # === API Gateway (Node.js) ===
   api-gateway:
     build:
       context: ./api-gateway
@@ -145,7 +146,7 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ./gateway:/app
+      - ./api-gateway:/app
       - /app/node_modules
     environment:
       PORT: 8080
@@ -175,3 +176,4 @@ services:
       - appointment-service
     extra_hosts:
       - "host.docker.internal:host-gateway"
+

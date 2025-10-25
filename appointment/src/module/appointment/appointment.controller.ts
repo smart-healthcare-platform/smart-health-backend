@@ -14,7 +14,6 @@ export class AppointmentsController {
 
   @Post()
   async create(@Body() dto: CreateAppointmentDto) {
-    // Trả về dữ liệu gốc, interceptor sẽ wrap
     return await this.appointmentsService.create(dto);
   }
 

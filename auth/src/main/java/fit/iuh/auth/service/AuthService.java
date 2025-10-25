@@ -181,7 +181,6 @@ public class AuthService {
         cookie.setSecure(true);
         cookie.setPath("/");
         cookie.setMaxAge(7 * 24 * 60 * 60);
-        log.info("Ghi xuống cookie thành công");
         response.addCookie(cookie);
     }
 

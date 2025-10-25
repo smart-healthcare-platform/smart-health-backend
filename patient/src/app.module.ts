@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 import { PatientModule } from './modules/patient/patient.module';
+import { PatientKafkaModule } from './kafka/patient.kafka.module';
 
 
 @Module({
@@ -17,7 +18,8 @@ import { PatientModule } from './modules/patient/patient.module';
       autoLoadEntities: true,
       synchronize: true, 
     }),
-    PatientModule   
+    PatientModule,
+    PatientKafkaModule
   ],
 })
 export class AppModule {}

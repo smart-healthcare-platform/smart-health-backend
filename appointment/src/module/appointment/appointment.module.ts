@@ -1,40 +1,22 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppointmentsService } from './appointments.service';
 import { AppointmentsController } from './appointment.controller';
 import { InternalAppointmentController } from './controllers/internal-appointment.controller';
 import { Appointment } from './appointment.entity';
-import { AppointmentProducerService } from './appointment-producer.service';
-import { ProductionAppointmentConsumer } from './production-appointment-consumer.service';
-import { ClientsModule, Transport } from '@nestjs/microservices';
-import { NotificationService } from '../notification/notification.service';
-import { HttpModule } from '@nestjs/axios'; 
+import { HttpModule } from '@nestjs/axios';
+import { KafkaModule } from 'src/kafka/kafka.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Appointment]),
-    HttpModule, 
-    ClientsModule.register([
-      {
-        name: 'KAFKA_SERVICE',
-        transport: Transport.KAFKA,
-        options: {
-          client: {
-            clientId: 'appointment-service-producer',
-            brokers: ['localhost:9092'],
-          },
-          producerOnlyMode: true,
-        },
-      },
-    ]),
+    HttpModule,
+    forwardRef(() => KafkaModule),
   ],
   providers: [
     AppointmentsService,
-    AppointmentProducerService,
-    ProductionAppointmentConsumer,
-    NotificationService,
   ],
   controllers: [AppointmentsController, InternalAppointmentController],
   exports: [AppointmentsService],
 })
-export class AppointmentsModule {}
+export class AppointmentsModule { }
