@@ -7,7 +7,7 @@ import { DoctorKafkaModule } from './kafka/doctor.kafka.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({ isGlobal: true, envFilePath: '.env' }),
     TypeOrmModule.forRoot({
       type: 'mysql',
       host: process.env.DB_HOST,
@@ -16,11 +16,11 @@ import { DoctorKafkaModule } from './kafka/doctor.kafka.module';
       password: process.env.DB_PASSWORD,
       database: process.env.DB_NAME,
       autoLoadEntities: true,
-      synchronize: true, 
+      synchronize: true,
     }),
     DoctorModule,
     AppointmentSlotModule,
     DoctorKafkaModule
   ],
 })
-export class AppModule {}
+export class AppModule { }

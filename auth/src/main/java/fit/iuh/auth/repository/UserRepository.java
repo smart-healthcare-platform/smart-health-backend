@@ -17,7 +17,6 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     boolean existsByUsername(String username);
     Optional<User> findByEmail(String email);
 
-    // Thêm phương thức kiểm tra email đã tồn tại chưa
     boolean existsByEmail(String email);
     List<User> findByRole(Role role);
     

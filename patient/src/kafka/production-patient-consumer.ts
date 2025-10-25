@@ -1,7 +1,9 @@
 import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import { Kafka, Consumer } from 'kafkajs';
-import { PatientService } from './patient.service';
+import { PatientService } from '../modules/patient/patient.service';
 import { PatientProducerService } from './patient-producer.service';
+import { ConfigService } from '@nestjs/config';
+import { createKafkaConfig } from './kafka.config';
 
 interface UserCreatedEvent {
   id: string;
@@ -28,19 +30,19 @@ export class PatientConsumerService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly patientService: PatientService,
     private readonly producer: PatientProducerService,
+    private readonly configService: ConfigService,
   ) { }
 
   async onModuleInit() {
-    this.logger.log('Starting Patient Kafka Consumer...');
+    const { broker, clientId } = createKafkaConfig(this.configService);
 
     this.kafka = new Kafka({
-      clientId: 'patient-service-consumer',
-      brokers: [process.env.KAFKA_BROKER || 'localhost:9092'],
+      clientId,
+      brokers: [broker],
     });
 
     this.consumer = this.kafka.consumer({ groupId: 'patient-service-group' });
     await this.consumer.connect();
-    this.logger.log('Kafka consumer connected');
 
     await this.consumer.subscribe({ topic: 'appointment.book.requested', fromBeginning: false });
     await this.consumer.subscribe({ topic: 'user.created', fromBeginning: false });
@@ -82,12 +84,12 @@ export class PatientConsumerService implements OnModuleInit, OnModuleDestroy {
             }
             case 'patient.detail.requested': {
               const { patientId, correlationId } = data;
-              this.logger.log(`📥 Received [patient.detail.requested]: ${JSON.stringify(data)}`);
+              this.logger.log(`Received [patient.detail.requested]: ${JSON.stringify(data)}`);
 
               try {
                 const patient = await this.patientService.findOne(patientId);
                 if (!patient) {
-                  this.logger.warn(`⚠️ Patient ${patientId} not found`);
+                  this.logger.warn(`Patient ${patientId} not found`);
                   await this.producer.replyPatientDetail({
                     correlationId,
                     patientId,
@@ -109,14 +111,14 @@ export class PatientConsumerService implements OnModuleInit, OnModuleDestroy {
                   },
                 });
 
-                this.logger.log(`✅ Sent [patient.detail.resolved] for patientId=${patientId}`);
+                this.logger.log(`Sent [patient.detail.resolved] for patientId=${patientId}`);
               } catch (err) {
-                this.logger.error(`❌ Error resolving patient.detail.requested: ${err.message}`);
+                this.logger.error(`Error resolving patient.detail.requested: ${err.message}`);
               }
               break;
             }
             default:
-              this.logger.warn(`⚠️ Unhandled topic: ${topic}`);
+              this.logger.warn(`Unhandled topic: ${topic}`);
           }
         } catch (err) {
           this.logger.error(
@@ -126,7 +128,7 @@ export class PatientConsumerService implements OnModuleInit, OnModuleDestroy {
       },
     });
 
-    this.logger.log('🎧 Patient Kafka Consumer is now running');
+    this.logger.log(' Patient Kafka Consumer is now running');
   }
 
   async onModuleDestroy() {

@@ -3,6 +3,8 @@ import { Kafka, Consumer } from 'kafkajs';
 import { AppointmentSlotService } from 'src/modules/appointment-slot/appointment-slot.service';
 import { DoctorProducerService } from './doctor-producer.service';
 import { DoctorService } from 'src/modules/doctor/doctor.service';
+import { ConfigService } from '@nestjs/config';
+import { createKafkaConfig } from './kafka.config';
 
 @Injectable()
 export class DoctorConsumer implements OnModuleInit, OnModuleDestroy {
@@ -14,18 +16,20 @@ export class DoctorConsumer implements OnModuleInit, OnModuleDestroy {
     private readonly slotService: AppointmentSlotService,
     private readonly producerService: DoctorProducerService,
     private readonly doctorService: DoctorService,
+    private readonly configService: ConfigService,
   ) {}
 
   async onModuleInit() {
+    const { broker, clientId } = createKafkaConfig(this.configService);
+
     this.kafka = new Kafka({
-      clientId: 'doctor-service-consumer',
-      brokers: ['localhost:9092'],
+      clientId,
+      brokers: [broker],
     });
 
     this.consumer = this.kafka.consumer({ groupId: 'doctor-service-group' });
     await this.consumer.connect();
 
-    // Đăng ký các topic
     await this.consumer.subscribe({ topic: 'appointment.patient.resolved' });
     await this.consumer.subscribe({ topic: 'doctor.batch.get' });
 
@@ -51,10 +55,9 @@ export class DoctorConsumer implements OnModuleInit, OnModuleDestroy {
       },
     });
 
-    this.logger.log('DoctorConsumer is running');
+    this.logger.log(`DoctorConsumer is running (clientId: ${clientId})`);
   }
 
-  // Booking flow
   private async processBookingRequest(rawValue: string) {
     const data = JSON.parse(rawValue);
     const { doctorId, slotId, patientId, appointmentId, patientName, correlationId } = data;

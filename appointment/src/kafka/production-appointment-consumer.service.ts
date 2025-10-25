@@ -1,7 +1,9 @@
 import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import { Kafka, Consumer } from 'kafkajs';
-import { AppointmentsService } from './appointments.service';
+import { AppointmentsService } from 'src/module/appointment/appointments.service';
 import { AppointmentProducerService } from './appointment-producer.service';
+import { ConfigService } from '@nestjs/config';
+import { createKafkaConfig } from './kafka.config';
 
 @Injectable()
 export class ProductionAppointmentConsumer implements OnModuleInit, OnModuleDestroy {
@@ -11,13 +13,16 @@ export class ProductionAppointmentConsumer implements OnModuleInit, OnModuleDest
 
   constructor(
     private readonly appointmentsService: AppointmentsService,
-    private readonly producerService: AppointmentProducerService, // inject vào để gọi handleReply
+    private readonly producerService: AppointmentProducerService,
+    private readonly configService: ConfigService, 
   ) { }
 
   async onModuleInit() {
+    const { broker, clientId } = createKafkaConfig(this.configService);
+
     this.kafka = new Kafka({
-      clientId: 'appointment-service-consumer',
-      brokers: ['localhost:9092'],
+      clientId,
+      brokers: [broker],
     });
 
     this.consumer = this.kafka.consumer({ groupId: 'appointment-service-group' });

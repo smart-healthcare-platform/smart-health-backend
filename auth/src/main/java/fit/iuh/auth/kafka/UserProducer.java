@@ -6,10 +6,12 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import fit.iuh.auth.dto.request.UserCreatedEvent;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
 @Service
+@Slf4j
 public class UserProducer {
 
     private final KafkaTemplate<String, String> kafkaTemplate;
@@ -19,10 +21,7 @@ public class UserProducer {
         this.kafkaTemplate = kafkaTemplate;
         this.objectMapper = new ObjectMapper();
 
-        // Add module hỗ trợ Java 8 Date/Time
         objectMapper.registerModule(new JavaTimeModule());
-
-        // Serialize LocalDate thành ISO string, không dùng array
         objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     }
 
@@ -30,7 +29,7 @@ public class UserProducer {
         try {
             String message = objectMapper.writeValueAsString(event);
             kafkaTemplate.send("user.created", event.getId(), message);
-            System.out.println("📤 Sent user.created event: " + message);
+            log.info("Sent user.created event: {}", message);
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Error serializing UserCreatedEvent", e);
         }

@@ -1,16 +1,14 @@
 import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ClientsModule, Transport } from '@nestjs/microservices';
-import { DoctorProducerService } from 'src/kafka/doctor-producer.service';
-import { DoctorConsumer } from 'src/kafka/production-doctor-consumer';
-import { AppointmentSlotModule } from 'src/modules/appointment-slot/appointment-slot.module';
-import { DoctorModule } from 'src/modules/doctor/doctor.module';
 import { createKafkaConfig } from './kafka.config';
+import { PatientModule } from 'src/modules/patient/patient.module';
+import { PatientConsumerService } from './production-patient-consumer';
+import { PatientProducerService } from './patient-producer.service';
 
 @Module({
   imports: [
-    AppointmentSlotModule,
-    DoctorModule,
+    PatientModule,
     ClientsModule.registerAsync([
       {
         name: 'KAFKA_SERVICE',
@@ -31,6 +29,6 @@ import { createKafkaConfig } from './kafka.config';
       },
     ]),
   ],
-  providers: [DoctorProducerService, DoctorConsumer],
+  providers: [PatientConsumerService,PatientProducerService],
 })
-export class DoctorKafkaModule {}
+export class PatientKafkaModule {}

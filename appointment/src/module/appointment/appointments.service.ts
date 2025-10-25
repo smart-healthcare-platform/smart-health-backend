@@ -4,8 +4,7 @@ import { Repository } from 'typeorm';
 import { Appointment } from './appointment.entity';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
-import { AppointmentProducerService } from './appointment-producer.service';
-import { NotificationService } from '../notification/notification.service';
+import { AppointmentProducerService } from 'src/kafka/appointment-producer.service';
 import { HttpService } from '@nestjs/axios';
 import { PaymentStatus } from './enums/payment-status.enum';
 import { ConfirmPaymentDto } from './dto/confirm-payment.dto';
@@ -22,7 +21,6 @@ export class AppointmentsService {
     @InjectRepository(Appointment)
     private readonly appointmentRepo: Repository<Appointment>,
     private readonly producer: AppointmentProducerService,
-    private readonly notificationService: NotificationService,
     private readonly http: HttpService,
     private readonly configService: ConfigService,
   ) { }
@@ -67,7 +65,7 @@ export class AppointmentsService {
     const saved = await this.appointmentRepo.save(appointment);
 
     const payload = {
-      patientName: saved.doctorName, // TODO: lấy từ Patient entity
+      patientName: saved.doctorName, 
       patientEmail: 'anh.ltl2511@gmail.com',
       doctorName: saved.doctorName,
       doctorEmail: 'huuvinh.lampart@gmail.com',
@@ -82,11 +80,6 @@ export class AppointmentsService {
     //     error: (err) => console.error(' Lỗi khi gọi webhook:', err.message),
     //   });
 
-
-    this.notificationService
-      .notifyAppointmentConfirmation(payload)
-      .then(() => console.log('Email gửi thành công'))
-      .catch((err) => console.error(' Lỗi khi gửi email:', err.message));
 
     return saved;
   }
