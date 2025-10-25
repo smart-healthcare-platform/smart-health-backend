@@ -15,7 +15,7 @@ public enum PaymentMethodType {
     VNPAY,
 
     /**
-     * Thanh toán khi nhận hàng (Cash On Delivery).
+     * Thanh toán tại quầy lễ tân.
      */
-    COD
+    CASH
 }

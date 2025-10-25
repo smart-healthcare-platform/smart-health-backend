@@ -60,9 +60,14 @@ public class Payment {
 
     private String transactionId; // ID giao dịch từ cổng thanh toán
 
+    @Column(length = 500)
+    private String description; // Ghi chú, mô tả thanh toán
+
     private LocalDateTime createdAt = LocalDateTime.now();
 
     private LocalDateTime updatedAt;
 
     private LocalDateTime expiredAt;
+
+    private LocalDateTime paidAt; // Thời gian thanh toán thành công
 }

@@ -130,4 +130,26 @@ public class BillingController {
         PaymentResponse response = billingService.getPaymentByPrescriptionId(prescriptionId);
         return ResponseEntity.ok(response);
     }
+
+    @Operation(summary = "Create cash payment at reception desk", 
+               description = "Creates a cash payment record for receptionist. Payment is completed immediately.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Cash payment recorded successfully",
+                    content = @Content(schema = @Schema(implementation = PaymentResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid input")
+    })
+    @PostMapping("/cash-payment")
+    public ResponseEntity<PaymentResponse> createCashPayment(
+            @Parameter(description = "Cash payment details", required = true)
+            @Valid @RequestBody fit.iuh.billing.dto.CashPaymentRequest request,
+            @Parameter(description = "Receptionist ID from authentication", required = true)
+            @RequestHeader(value = "X-User-Id", required = false, defaultValue = "RECEPTIONIST") String receptionistId) {
+        
+        log.info("Received cash payment request - Type: {}, ReferenceId: {}, Amount: {}, Receptionist: {}", 
+                 request.getPaymentType(), request.getReferenceId(), request.getAmount(), receptionistId);
+        
+        PaymentResponse response = billingService.createCashPayment(request, receptionistId);
+        
+        return ResponseEntity.ok(response);
+    }
 }
