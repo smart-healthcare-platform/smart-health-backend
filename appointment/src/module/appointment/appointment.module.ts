@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppointmentsService } from './appointments.service';
 import { AppointmentsController } from './appointment.controller';
 import { InternalAppointmentController } from './controllers/internal-appointment.controller';
+import { ReceptionistAppointmentController } from './controllers/receptionist-appointment.controller';
 import { Appointment } from './appointment.entity';
 import { AppointmentProducerService } from './appointment-producer.service';
 import { ProductionAppointmentConsumer } from './production-appointment-consumer.service';
@@ -34,7 +35,11 @@ import { HttpModule } from '@nestjs/axios';
     ProductionAppointmentConsumer,
     NotificationService,
   ],
-  controllers: [AppointmentsController, InternalAppointmentController],
+  controllers: [
+    AppointmentsController,
+    InternalAppointmentController,
+    ReceptionistAppointmentController,
+  ],
   exports: [AppointmentsService],
 })
 export class AppointmentsModule {}

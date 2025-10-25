@@ -10,6 +10,7 @@ import {
 } from 'typeorm';
 import { MedicalRecord } from '../medical_records/medical_records.entity';
 import { PaymentStatus } from './enums/payment-status.enum';
+import { AppointmentStatus } from './enums/appointment-status.enum';
 
 @Entity('appointments')
 export class Appointment {
@@ -31,8 +32,12 @@ export class Appointment {
     @Column()
     slotId: string;
 
-    @Column({ default: 'pending' })
-    status: string; // ví dụ: pending, confirmed, completed, cancelled
+    @Column({
+        type: 'enum',
+        enum: AppointmentStatus,
+        default: AppointmentStatus.PENDING,
+    })
+    status: AppointmentStatus;
 
     @Column({ nullable: true })
     type: string; // ví dụ: online, offline

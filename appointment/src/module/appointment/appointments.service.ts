@@ -8,6 +8,7 @@ import { AppointmentProducerService } from './appointment-producer.service';
 import { NotificationService } from '../notification/notification.service';
 import { HttpService } from '@nestjs/axios';
 import { PaymentStatus } from './enums/payment-status.enum';
+import { AppointmentStatus } from './enums/appointment-status.enum';
 import { ConfirmPaymentDto } from './dto/confirm-payment.dto';
 import { CreatePaymentRequestDto } from './dto/create-payment-request.dto';
 import { CheckInDto } from './dto/check-in.dto';
@@ -28,7 +29,7 @@ export class AppointmentsService {
   ) { }
 
   async create(dto: CreateAppointmentDto): Promise<Appointment> {
-    const appointment = this.appointmentRepo.create({ ...dto, status: 'pending' });
+    const appointment = this.appointmentRepo.create({ ...dto, status: AppointmentStatus.PENDING });
     const saved = await this.appointmentRepo.save(appointment);
 
     await this.producer.requestBooking({
@@ -58,7 +59,7 @@ export class AppointmentsService {
     const appointment = await this.appointmentRepo.findOne({ where: { id: appointmentId } });
     if (!appointment) throw new NotFoundException(`Appointment ${appointmentId} not found`);
 
-    appointment.status = 'confirmed';
+    appointment.status = AppointmentStatus.CONFIRMED;
     appointment.doctorId = doctorId;
     appointment.slotId = slotId;
     appointment.patientId = patientId;
@@ -95,8 +96,8 @@ export class AppointmentsService {
   async failAppointment(appointmentId: string) {
     const appointment = await this.appointmentRepo.findOne({ where: { id: appointmentId } });
     if (!appointment) throw new NotFoundException(`Appointment ${appointmentId} not found`);
-    appointment.status = 'failed';
-    return this.appointmentRepo.save(appointment);
+    appointment.status = AppointmentStatus.CANCELLED;
+    await this.appointmentRepo.save(appointment);
   }
 
   async findAll(): Promise<Appointment[]> {
@@ -387,8 +388,8 @@ export class AppointmentsService {
     appointment.paidAt = new Date();
 
     // Tự động confirm appointment khi đã thanh toán
-    if (appointment.status === 'pending') {
-      appointment.status = 'confirmed';
+    if (appointment.status === AppointmentStatus.PENDING) {
+      appointment.status = AppointmentStatus.CONFIRMED;
       this.logger.log(
         `Auto-confirmed appointment ${appointmentId} after payment`,
       );
@@ -406,7 +407,7 @@ export class AppointmentsService {
 
   /**
    * Check-in bệnh nhân tại cơ sở y tế
-   * Yêu cầu appointment phải đã thanh toán
+   * ✅ KHÔNG YÊU CẦU thanh toán trước - Cho phép check-in và thanh toán sau khi khám
    *
    * @param appointmentId - ID của appointment
    * @param dto - Check-in data (optional notes)
@@ -422,12 +423,13 @@ export class AppointmentsService {
       );
     }
 
-    // 1. Verify đã thanh toán
-    if (appointment.paymentStatus !== PaymentStatus.PAID) {
-      throw new BadRequestException(
-        `Payment required. Appointment payment status is ${appointment.paymentStatus}`,
-      );
-    }
+    // 1. ❌ BỎ VALIDATION PAYMENT - Cho phép check-in dù chưa thanh toán
+    // Payment sẽ được thực hiện SAU KHI KHÁM để tính đúng tổng chi phí
+    // if (appointment.paymentStatus !== PaymentStatus.PAID) {
+    //   throw new BadRequestException(
+    //     `Payment required. Appointment payment status is ${appointment.paymentStatus}`,
+    //   );
+    // }
 
     // 2. Kiểm tra đã check-in chưa
     if (appointment.checkedInAt) {
@@ -439,19 +441,18 @@ export class AppointmentsService {
       );
     }
 
-    // 3. Kiểm tra thời gian appointment (không quá sớm/muộn)
+    // 3. Ghi nhận thời gian check-in
     const now = new Date();
     const appointmentTime = new Date(appointment.startAt);
-    const hoursDiff = (appointmentTime.getTime() - now.getTime()) / (1000 * 60 * 60);
 
     // TODO: Re-enable time validation after testing
+    // const hoursDiff = (appointmentTime.getTime() - now.getTime()) / (1000 * 60 * 60);
     // // Không check-in quá sớm (> 2 giờ trước)
     // if (hoursDiff > 2) {
     //   throw new BadRequestException(
     //     `Too early to check in. Appointment is scheduled for ${appointmentTime.toLocaleString()}`,
     //   );
     // }
-
     // // Không check-in quá muộn (> 30 phút sau giờ hẹn)
     // if (hoursDiff < -0.5) {
     //   throw new BadRequestException(
@@ -459,27 +460,146 @@ export class AppointmentsService {
     //   );
     // }
 
-    // 4. Update status
-    appointment.status = 'in_progress'; // hoặc 'checked_in' tùy business logic
-    appointment.checkedInAt = now;
+    // 4. Chuẩn bị ghi chú
+    let checkInNotes = dto?.notes || '';
     
-    if (dto?.notes) {
-      appointment.notes = dto.notes;
+    // ⚠️ Ghi chú nếu chưa thanh toán - để tracking
+    if (appointment.paymentStatus !== PaymentStatus.PAID) {
+      checkInNotes = `[CHƯA THANH TOÁN - Thu tiền sau khi khám] ${checkInNotes}`.trim();
+      this.logger.warn(
+        `Check-in appointment ${appointmentId} without payment. Status: ${appointment.paymentStatus}`,
+      );
     }
+
+    // 5. Update status và thời gian check-in
+    appointment.status = AppointmentStatus.CHECKED_IN;
+    appointment.checkedInAt = now; // ✅ Cập nhật thời gian check-in chính xác
+    appointment.notes = checkInNotes;
+
+    this.logger.log(`📝 BEFORE SAVE - Appointment ${appointmentId}:`);
+    this.logger.log(`   - status: ${appointment.status}`);
+    this.logger.log(`   - checkedInAt: ${appointment.checkedInAt?.toISOString()}`);
+    this.logger.log(`   - paymentStatus: ${appointment.paymentStatus}`);
 
     await this.appointmentRepo.save(appointment);
 
+    // ✅ Verify sau khi save
+    const savedAppointment = await this.appointmentRepo.findOne({
+      where: { id: appointmentId },
+    });
+    this.logger.log(`✅ AFTER SAVE - Verified from DB:`);
+    this.logger.log(`   - checkedInAt in DB: ${savedAppointment?.checkedInAt?.toISOString()}`);
+
     this.logger.log(
-      `Appointment ${appointmentId} checked in successfully at ${now}`,
+      `✅ Appointment ${appointmentId} checked in successfully at ${now.toISOString()}. Payment status: ${appointment.paymentStatus}`,
     );
 
     return {
       success: true,
       message: 'Checked in successfully',
       appointmentId,
-      checkedInAt: now,
+      checkedInAt: now, // ✅ Trả về thời gian check-in chính xác
+      paymentStatus: appointment.paymentStatus, // ✅ Trả về payment status để frontend biết
+      requiresPayment: appointment.paymentStatus !== PaymentStatus.PAID, // ✅ Flag để frontend hiển thị warning
       appointment,
     };
+  }
+
+  /**
+   * ========================================
+   * RECEPTIONIST METHODS
+   * ========================================
+   */
+
+  /**
+   * Lấy danh sách appointments hôm nay (cho màn hình check-in của Receptionist)
+   * @param filters - Lọc theo status, paymentStatus
+   * @param filters.daysOffset - For testing: 0=today, 1=tomorrow, -1=yesterday
+   */
+  async getTodayAppointments(filters?: {
+    status?: string;
+    paymentStatus?: string;
+    daysOffset?: number;
+  }): Promise<Appointment[]> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Apply offset for testing (e.g., daysOffset=1 for tomorrow)
+    if (filters?.daysOffset) {
+      today.setDate(today.getDate() + filters.daysOffset);
+    }
+
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+
+    const queryBuilder = this.appointmentRepo.createQueryBuilder('appointment')
+      .where('appointment.startAt >= :today', { today })
+      .andWhere('appointment.startAt < :tomorrow', { tomorrow })
+      .orderBy('appointment.startAt', 'ASC');
+
+    if (filters?.status) {
+      queryBuilder.andWhere('appointment.status = :status', { status: filters.status });
+    }
+
+    if (filters?.paymentStatus) {
+      queryBuilder.andWhere('appointment.paymentStatus = :paymentStatus', {
+        paymentStatus: filters.paymentStatus,
+      });
+    }
+
+    return queryBuilder.getMany();
+  }
+
+  /**
+   * Tìm kiếm appointment để check-in (theo mã/tên/SĐT)
+   * @param keyword - Từ khóa tìm kiếm
+   */
+  async searchForReceptionist(keyword: string): Promise<Appointment[]> {
+    if (!keyword || keyword.trim().length === 0) {
+      throw new BadRequestException('Keyword is required');
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return this.appointmentRepo.createQueryBuilder('appointment')
+      .where('appointment.startAt >= :today', { today })
+      .andWhere(
+        '(appointment.id LIKE :keyword OR appointment.patientName LIKE :keyword OR appointment.patientId LIKE :keyword)',
+        { keyword: `%${keyword}%` },
+      )
+      .orderBy('appointment.startAt', 'ASC')
+      .limit(20)
+      .getMany();
+  }
+
+  /**
+   * Cập nhật status của appointment (cho Receptionist/Doctor)
+   * @param appointmentId - ID của appointment
+   * @param newStatus - Status mới
+   */
+  async updateStatus(appointmentId: string, newStatus: string): Promise<Appointment> {
+    const appointment = await this.appointmentRepo.findOne({
+      where: { id: appointmentId },
+    });
+
+    if (!appointment) {
+      throw new NotFoundException(`Appointment ${appointmentId} not found`);
+    }
+
+    appointment.status = newStatus as any;
+    
+    // Cập nhật checkedInAt khi status = CHECKED_IN
+    if (newStatus === AppointmentStatus.CHECKED_IN) {
+      appointment.checkedInAt = new Date();
+      this.logger.log(`Setting checkedInAt for appointment ${appointmentId}`);
+    }
+    
+    await this.appointmentRepo.save(appointment);
+
+    this.logger.log(`Appointment ${appointmentId} status updated to ${newStatus}`);
+
+    return appointment;
   }
 
 }

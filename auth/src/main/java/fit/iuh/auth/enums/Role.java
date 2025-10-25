@@ -2,7 +2,8 @@ package fit.iuh.auth.enums;
 
 public enum Role {
     PATIENT("PATIENT"),
-    DOCTOR("DOCTOR"), 
+    DOCTOR("DOCTOR"),
+    RECEPTIONIST("RECEPTIONIST"),
     ADMIN("ADMIN");
 
     private final String value;
