@@ -1,0 +1,21 @@
+# ===============================
+# Node.js/TypeScript dev mode with hot reload
+# ===============================
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install all dependencies (including devDependencies)
+RUN npm install
+
+# Copy source code
+COPY . .
+
+# Expose port
+EXPOSE 8085
+
+# Run with nodemon for hot reload
+CMD ["npm", "run", "dev"]
