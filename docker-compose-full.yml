@@ -1,0 +1,300 @@
+﻿version: "3.8"
+
+services:
+  # === Zookeeper ===
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+
+  # === Kafka ===
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+  # === Auth Service (Spring Boot) ===
+  auth-service:
+    build:
+      context: ./auth
+      dockerfile: Dockerfile.dev
+    container_name: healthcare-auth
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./auth:/app
+      - /app/.gradle
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://host.docker.internal:3306/smart_health_auth
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: 123456
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    depends_on:
+      - kafka
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # === Appointment Service (NestJS) ===
+  appointment-service:
+    build:
+      context: ./appointment
+      dockerfile: Dockerfile.dev
+    container_name: healthcare-appointment
+    ports:
+      - "8084:8084"
+    volumes:
+      - ./appointment:/app
+      - /app/node_modules
+    environment:
+      DB_HOST: host.docker.internal
+      DB_PORT: 3306
+      DB_USERNAME: root
+      DB_PASSWORD: 123456
+      DB_NAME: smart_health_appointment
+      SMTP_HOST: smtp.gmail.com
+      SMTP_PORT: 587
+      SMTP_USER: phamhuuvinh912003@gmail.com
+      SMTP_PASS: uetx mjde ilwj iwgz
+      SMTP_FROM: "Smart Health <no-reply@smarthealth.com>"
+      JWT_SECRET: supersecret
+      PORT: 8084
+      GOOGLE_CLIENT_EMAIL: clinic-service@smart-health-calendar.iam.gserviceaccount.com
+      GOOGLE_PRIVATE_KEY: |
+        -----BEGIN PRIVATE KEY-----
+        MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDHnxtMU3m4YdQT
+        mb065fLMbImppk0Emv4ygmU+74ECpJM/kwCbw4S//CPXcwsVsjMrM/xtCEYw/MWf
+        ...
+        GSdsfuTS96fizRc4PT8Jzmc=
+        -----END PRIVATE KEY-----
+      GOOGLE_CALENDAR_ID: phamhuuvinh912003@gmail.com
+      KAFKA_BROKER: kafka:9092
+    depends_on:
+      - kafka
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # === Doctor Service (NestJS) ===
+  doctor-service:
+    build:
+      context: ./doctor
+      dockerfile: Dockerfile.dev
+    container_name: healthcare-doctor
+    ports:
+      - "8083:8083"
+    volumes:
+      - ./doctor:/app
+      - /app/node_modules
+    environment:
+      DB_HOST: host.docker.internal
+      DB_PORT: 3306
+      DB_USERNAME: root
+      DB_PASSWORD: 123456
+      DB_NAME: smart_health_doctor
+      JWT_SECRET: supersecret
+      PORT: 8083
+      KAFKA_BROKER: kafka:9092
+    depends_on:
+      - kafka
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # === Patient Service (NestJS) ===
+  patient-service:
+    build:
+      context: ./patient
+      dockerfile: Dockerfile.dev
+    container_name: healthcare-patient
+    ports:
+      - "8082:8082"
+    volumes:
+      - ./patient:/app
+      - /app/node_modules
+    environment:
+      DB_HOST: host.docker.internal
+      DB_PORT: 3306
+      DB_USERNAME: root
+      DB_PASSWORD: 123456
+      DB_NAME: smart_health_patient
+      JWT_SECRET: supersecret
+      PORT: 8082
+      KAFKA_BROKER: kafka:9092
+    depends_on:
+      - kafka
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # === Chat Service (Node.js/TypeScript) ===
+  chat-service:
+    build:
+      context: ./chat
+      dockerfile: Dockerfile.dev
+    container_name: healthcare-chat
+    ports:
+      - "8085:8085"
+    volumes:
+      - ./chat:/app
+      - /app/node_modules
+    environment:
+      DB_HOST: host.docker.internal
+      DB_PORT: 3306
+      DB_USERNAME: root
+      DB_PASSWORD: 123456
+      DB_NAME: smart_health_chat
+      JWT_SECRET: supersecret
+      PORT: 8085
+      DOCTOR_SERVICE_URL: http://doctor-service:8083
+      PATIENT_SERVICE_URL: http://patient-service:8082
+    depends_on:
+      - kafka
+      - doctor-service
+      - patient-service
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # === Prediction Service (Python/FastAPI) ===
+  prediction-service:
+    build:
+      context: ./prediction
+      dockerfile: Dockerfile.dev
+    container_name: healthcare-prediction
+    ports:
+      - "8086:8086"
+    volumes:
+      - ./prediction:/app
+    environment:
+      DB_HOST: host.docker.internal
+      DB_PORT: 27017
+      DB_NAME: smart_health_prediction
+      PORT: 8086
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # === Chatbot Service (Python/LangChain) ===
+  chatbot-service:
+    build:
+      context: ./chat-bot
+      dockerfile: Dockerfile.dev
+    container_name: healthcare-chatbot
+    ports:
+      - "8087:8087"
+    volumes:
+      - ./chat-bot:/app
+    environment:
+      PORT: 8087
+      HUGGINGFACE_API_KEY: ${HUGGINGFACE_API_KEY:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # === Medicine Service (Spring Boot) ===
+  medicine-service:
+    build:
+      context: ./medicine
+      dockerfile: Dockerfile.dev
+    container_name: healthcare-medicine
+    ports:
+      - "8089:8089"
+    volumes:
+      - ./medicine:/app
+      - /app/.gradle
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://host.docker.internal:3306/smart_health_medicine
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: 123456
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SERVER_PORT: 8089
+      PATIENT_SERVICE_URL: http://patient-service:8082
+    depends_on:
+      - kafka
+      - patient-service
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # === Billing Service (Spring Boot) ===
+  billing-service:
+    build:
+      context: ./billing
+      dockerfile: Dockerfile.dev
+    container_name: healthcare-billing
+    ports:
+      - "8090:8090"
+    volumes:
+      - ./billing:/app
+      - /app/.gradle
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://host.docker.internal:3306/smart_health_billing
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: 123456
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SERVER_PORT: 8090
+      APPOINTMENT_SERVICE_URL: http://appointment-service:8084
+    depends_on:
+      - kafka
+      - appointment-service
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    # === API Gateway (Node.js) ===
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile.dev
+    container_name: healthcare-gateway
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./api-gateway:/app
+      - /app/node_modules
+    environment:
+      PORT: 8080
+      NODE_ENV: development
+
+      JWT_SECRET: smartHealthSecretKeyForJWTTokenGenerationAndValidation2024
+      JWT_ISSUER: smart-health-gateway
+
+      AUTH_SERVICE_URL: http://auth-service:8081
+      PATIENT_SERVICE_URL: http://patient-service:8082
+      DOCTOR_SERVICE_URL: http://doctor-service:8083
+      APPOINTMENT_SERVICE_URL: http://appointment-service:8084
+      CHAT_SERVICE_URL: http://chat-service:8085
+      PREDICTION_SERVICE_URL: http://prediction-service:8086
+      CHATBOT_SERVICE_URL: http://chatbot-service:8087
+      MEDICINE_SERVICE_URL: http://medicine-service:8089
+      BILLING_SERVICE_URL: http://billing-service:8090
+
+      RATE_LIMIT_WINDOW_MS: 900000
+      RATE_LIMIT_MAX_REQUESTS: 100
+
+      REDIS_HOST: host.docker.internal
+      REDIS_PORT: 6379
+      REDIS_PASSWORD:
+
+      CORS_ORIGIN: http://localhost:3000,http://localhost:3001,http://localhost:3002
+    depends_on:
+      - auth-service
+      - patient-service
+      - doctor-service
+      - appointment-service
+      - chat-service
+      - prediction-service
+      - chatbot-service
+      - medicine-service
+      - billing-service
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
