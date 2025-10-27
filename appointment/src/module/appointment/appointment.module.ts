@@ -3,6 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppointmentsService } from './appointments.service';
 import { AppointmentsController } from './appointment.controller';
 import { InternalAppointmentController } from './controllers/internal-appointment.controller';
+import { ReceptionistAppointmentController } from './controllers/receptionist-appointment.controller';
 import { Appointment } from './appointment.entity';
 import { HttpModule } from '@nestjs/axios';
 import { KafkaModule } from 'src/kafka/kafka.module';
@@ -16,7 +17,11 @@ import { KafkaModule } from 'src/kafka/kafka.module';
   providers: [
     AppointmentsService,
   ],
-  controllers: [AppointmentsController, InternalAppointmentController],
+  controllers: [
+    AppointmentsController,
+    InternalAppointmentController,
+    ReceptionistAppointmentController,
+  ],
   exports: [AppointmentsService],
 })
 export class AppointmentsModule { }

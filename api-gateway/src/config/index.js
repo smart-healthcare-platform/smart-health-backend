@@ -13,11 +13,11 @@ const envSchema = Joi.object()
     NODE_ENV: Joi.string().valid('production', 'development', 'test').default('development'),
     PORT: Joi.number().default(3000),
     API_GATEWAY_NAME: Joi.string().default('Smart Health API Gateway'),
-    
+
     // JWT Configuration
     JWT_SECRET: Joi.string().required().description('JWT secret key'),
     JWT_ISSUER: Joi.string().default('smart-health-gateway'),
-    
+
     // Services URLs
     AUTH_SERVICE_URL: Joi.string().default('http://localhost:8081'),
     PATIENT_SERVICE_URL: Joi.string().default('http://localhost:8082'),
@@ -29,31 +29,31 @@ const envSchema = Joi.object()
     NOTIFICATION_SERVICE_URL: Joi.string().default('http://localhost:8088'),
     MEDICINE_SERVICE_URL: Joi.string().default('http://localhost:8089'),
     BILLING_SERVICE_URL: Joi.string().default('http://localhost:8090'),
-    
+
     // Rate Limiting
     RATE_LIMIT_WINDOW_MS: Joi.number().default(15 * 60 * 1000), // 15 minutes
     RATE_LIMIT_MAX_REQUESTS: Joi.number().default(100),
-    
+
     // Redis Configuration
     REDIS_HOST: Joi.string().default('localhost'),
     REDIS_PORT: Joi.number().default(6379),
     REDIS_PASSWORD: Joi.string().allow(''),
     REDIS_DB: Joi.number().default(0),
-    
+
     // CORS
     CORS_ORIGIN: Joi.string().default('*'),
     CORS_CREDENTIALS: Joi.boolean().default(true),
-    
+
     // Logging
     LOG_LEVEL: Joi.string().valid('error', 'warn', 'info', 'debug').default('info'),
     LOG_FILE_MAX_SIZE: Joi.string().default('20m'),
     LOG_FILE_MAX_FILES: Joi.string().default('14d'),
-    
+
     // Health Check
     HEALTH_CHECK_INTERVAL: Joi.number().default(30000),
     SERVICE_TIMEOUT: Joi.number().default(5000),
     REQUEST_TIMEOUT_MS: Joi.number().default(60000), // 60 seconds for requests
-    
+
     // API Documentation
     API_DOCS_ENABLED: Joi.boolean().default(true),
     API_DOCS_PATH: Joi.string().default('/api-docs'),
@@ -70,12 +70,12 @@ module.exports = {
   env: envVars.NODE_ENV,
   port: envVars.PORT,
   gatewayName: envVars.API_GATEWAY_NAME,
-  
+
   jwt: {
     secret: envVars.JWT_SECRET,
     issuer: envVars.JWT_ISSUER,
   },
-  
+
   services: {
     auth: {
       url: envVars.AUTH_SERVICE_URL,
@@ -129,35 +129,35 @@ module.exports = {
       timeout: envVars.SERVICE_TIMEOUT,
     }
   },
-  
+
   rateLimit: {
     windowMs: envVars.RATE_LIMIT_WINDOW_MS,
     max: envVars.RATE_LIMIT_MAX_REQUESTS,
   },
-  
+
   redis: {
     host: envVars.REDIS_HOST,
     port: envVars.REDIS_PORT,
     password: envVars.REDIS_PASSWORD || undefined,
     db: envVars.REDIS_DB,
   },
-  
+
   cors: {
     origin: envVars.CORS_ORIGIN.split(',').map(origin => origin.trim()),
     credentials: envVars.CORS_CREDENTIALS,
   },
-  
+
   logging: {
     level: envVars.LOG_LEVEL,
     fileMaxSize: envVars.LOG_FILE_MAX_SIZE,
     fileMaxFiles: envVars.LOG_FILE_MAX_FILES,
   },
-  
+
   healthCheck: {
     interval: envVars.HEALTH_CHECK_INTERVAL,
     timeout: envVars.SERVICE_TIMEOUT,
   },
-  
+
   apiDocs: {
     enabled: envVars.API_DOCS_ENABLED,
     path: envVars.API_DOCS_PATH,

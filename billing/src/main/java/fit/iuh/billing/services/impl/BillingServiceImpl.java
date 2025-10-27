@@ -1,5 +1,7 @@
 package fit.iuh.billing.services.impl;
 
+import fit.iuh.billing.client.AppointmentServiceClient;
+import fit.iuh.billing.dto.ConfirmPaymentRequest;
 import fit.iuh.billing.dto.CreatePaymentRequest;
 import fit.iuh.billing.dto.PaymentResponse;
 import fit.iuh.billing.entity.Payment;
@@ -9,18 +11,22 @@ import fit.iuh.billing.services.BillingService;
 import fit.iuh.billing.services.PaymentGatewayFactory;
 import fit.iuh.billing.services.PaymentGatewayService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class BillingServiceImpl implements BillingService {
 
     private final PaymentRepository paymentRepository;
     private final PaymentGatewayFactory paymentGatewayFactory;
+    private final AppointmentServiceClient appointmentServiceClient;
 
     @Override
     public PaymentResponse createPayment(CreatePaymentRequest request) {
@@ -118,8 +124,99 @@ public class BillingServiceImpl implements BillingService {
         return switch (gateway.toLowerCase()) {
             case "momo" -> fit.iuh.billing.enums.PaymentMethodType.MOMO;
             case "vnpay" -> fit.iuh.billing.enums.PaymentMethodType.VNPAY;
-            case "cod" -> fit.iuh.billing.enums.PaymentMethodType.COD;
+            case "cash", "cod" -> fit.iuh.billing.enums.PaymentMethodType.CASH;
             default -> throw new IllegalArgumentException("Unknown payment gateway: " + gateway);
         };
+    }
+
+    @Override
+    public PaymentResponse createCashPayment(fit.iuh.billing.dto.CashPaymentRequest request, String receptionistId) {
+        log.info("=== Creating cash payment ===");
+        log.info("Request: referenceId={}, amount={}, paymentType={}, notes={}", 
+            request.getReferenceId(), request.getAmount(), request.getPaymentType(), request.getNotes());
+        log.info("ReceptionistId: {}", receptionistId);
+        
+        // Validate
+        if (request.getReferenceId() == null || request.getReferenceId().isEmpty()) {
+            log.error("Validation failed: Reference ID is required");
+            throw new IllegalArgumentException("Reference ID is required");
+        }
+        if (request.getAmount() == null || request.getAmount() <= 0) {
+            log.error("Validation failed: Amount must be positive, got: {}", request.getAmount());
+            throw new IllegalArgumentException("Amount must be positive");
+        }
+        if (request.getPaymentType() == null) {
+            log.error("Validation failed: Payment type is required");
+            throw new IllegalArgumentException("Payment type is required");
+        }
+        
+        log.info("Validation passed, creating payment entity...");
+
+        // Tạo Payment entity
+        Payment payment = new Payment();
+        payment.setPaymentCode("CASH-" + UUID.randomUUID().toString());
+        payment.setPaymentType(request.getPaymentType());
+        payment.setReferenceId(request.getReferenceId());
+        payment.setAmount(BigDecimal.valueOf(request.getAmount())); // Convert Double to BigDecimal
+        payment.setPaymentMethod(fit.iuh.billing.enums.PaymentMethodType.CASH);
+        payment.setStatus(PaymentStatus.COMPLETED); // Thanh toán tiền mặt hoàn thành ngay
+        payment.setCreatedAt(LocalDateTime.now());
+        payment.setPaidAt(LocalDateTime.now()); // Set thời gian thanh toán
+        
+        // Lưu thông tin người thu tiền (có thể thêm field receptionistId vào entity sau)
+        if (request.getNotes() != null) {
+            payment.setDescription(request.getNotes() + " | Collected by: " + receptionistId);
+        } else {
+            payment.setDescription("Cash payment collected by receptionist: " + receptionistId);
+        }
+
+        payment = paymentRepository.save(payment);
+
+        // Thông báo cho service liên quan (Appointment Service)
+        notifyRelatedServiceForCashPayment(payment);
+
+        return mapToPaymentResponse(payment);
+    }
+
+    /**
+     * Thông báo cho service liên quan khi thanh toán tiền mặt thành công
+     */
+    private void notifyRelatedServiceForCashPayment(Payment payment) {
+        if (payment.getPaymentType() == null) {
+            log.warn("Payment {} has no paymentType, skipping service notification", payment.getPaymentCode());
+            return;
+        }
+
+        try {
+            switch (payment.getPaymentType()) {
+                case APPOINTMENT_FEE:
+                    if (appointmentServiceClient != null) {
+                        log.info("Notifying Appointment Service for cash payment {}", payment.getPaymentCode());
+                        
+                        ConfirmPaymentRequest request = ConfirmPaymentRequest.builder()
+                                .paymentId(String.valueOf(payment.getId()))
+                                .amount(payment.getAmount())
+                                .build();
+                        
+                        appointmentServiceClient.confirmAppointmentPayment(payment.getReferenceId(), request);
+                        log.info("Successfully notified Appointment Service: appointmentId={}, paymentId={}, amount={}", 
+                            payment.getReferenceId(), payment.getId(), payment.getAmount());
+                    } else {
+                        log.warn("AppointmentServiceClient not available, skipping notification");
+                    }
+                    break;
+                    
+                case LAB_TEST:
+                    log.info("Lab test cash payment confirmed: {}", payment.getReferenceId());
+                    break;
+                    
+                default:
+                    log.info("Payment type {} completed for {}", payment.getPaymentType(), payment.getReferenceId());
+                    break;
+            }
+        } catch (Exception e) {
+            log.error("Error notifying related service for cash payment {}: {}", 
+                payment.getPaymentCode(), e.getMessage());
+        }
     }
 }

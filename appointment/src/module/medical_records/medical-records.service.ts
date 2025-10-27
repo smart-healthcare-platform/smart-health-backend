@@ -9,6 +9,7 @@ import { MedicalRecord } from './medical_records.entity';
 import { CreateMedicalRecordDto } from './dto/create-medical-record.dto';
 import { UpdateMedicalRecordDto } from './dto/update-medical-record.dto';
 import { Appointment } from '../appointment/appointment.entity';
+import { AppointmentStatus } from '../appointment/enums/appointment-status.enum';
 
 @Injectable()
 export class MedicalRecordsService {
@@ -44,7 +45,7 @@ export class MedicalRecordsService {
         const newRecord = this.medicalRecordRepo.create(dto);
         const savedRecord = await this.medicalRecordRepo.save(newRecord);
 
-        appointment.status = 'completed';
+        appointment.status = AppointmentStatus.COMPLETED;
         await this.appointmentRepo.save(appointment);
 
         return savedRecord;

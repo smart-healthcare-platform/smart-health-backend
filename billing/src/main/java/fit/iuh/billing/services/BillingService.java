@@ -1,5 +1,6 @@
 package fit.iuh.billing.services;
 
+import fit.iuh.billing.dto.CashPaymentRequest;
 import fit.iuh.billing.dto.CreatePaymentRequest;
 import fit.iuh.billing.dto.PaymentResponse;
 
@@ -18,6 +19,16 @@ public interface BillingService {
      * @return Phản hồi chứa URL thanh toán và các thông tin khác.
      */
     PaymentResponse createPayment(CreatePaymentRequest request);
+
+    /**
+     * Tạo thanh toán tiền mặt tại quầy (dành cho Receptionist).
+     * Payment sẽ được tạo với status = COMPLETED ngay lập tức.
+     * 
+     * @param request Thông tin thanh toán tiền mặt.
+     * @param receptionistId ID của lễ tân thực hiện thanh toán.
+     * @return Thông tin thanh toán đã tạo.
+     */
+    PaymentResponse createCashPayment(CashPaymentRequest request, String receptionistId);
 
     /**
      * Xử lý thông báo IPN từ một cổng thanh toán.
