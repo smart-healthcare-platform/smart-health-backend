@@ -27,7 +27,4 @@ export class CreateMedicalRecordDto {
     @IsOptional()
     prescription?: string;
 
-    @IsDateString()
-    @IsOptional()
-    followUpDate?: string;
 }

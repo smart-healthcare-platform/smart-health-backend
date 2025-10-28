@@ -7,9 +7,9 @@ import {
     CreateDateColumn,
   } from 'typeorm';
   import { LabTest } from './lab-tests.entity';
-  import { MedicalRecord } from '../medical_records/medical_records.entity';
+  import { MedicalRecord } from '../medical-records/medical-records.entity';
   
-  @Entity('lab_test_results')
+  @Entity('lab-test-results')
   export class LabTestResult {
     @PrimaryGeneratedColumn('uuid')
     id: string;

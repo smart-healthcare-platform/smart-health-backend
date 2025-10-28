@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { AppointmentsModule } from './module/appointment/appointment.module';
-import { MedicalRecordsModule } from './module/medical_records/medical-records.module';
-import { VitalSignsModule } from './module/vital_signs/vital-signs.module';
-import { LabTestsModule } from './module/lab_tests/lab-tests.module';
-import { FollowUpSuggestionsModule } from './module/follow_up_suggestions/follow_up_suggestions.module';
+import { AppointmentModule } from './module/appointment/appointment.module';
+import { MedicalRecordsModule } from './module/medical-records/medical-records.module';
+import { VitalSignsModule } from './module/vital-signs/vital-signs.module';
+import { LabTestsModule } from './module/lab-tests/lab-tests.module';
+import { FollowUpSuggestionModule } from './module/follow-up-suggestion/follow-up-suggestion.module';
 import { KafkaModule } from './kafka/kafka.module';
 
 @Module({
@@ -25,11 +25,11 @@ import { KafkaModule } from './kafka/kafka.module';
         synchronize: true,
       }),
     }),
-    AppointmentsModule,
+    AppointmentModule,
     MedicalRecordsModule,
     VitalSignsModule,
     LabTestsModule,
-    FollowUpSuggestionsModule,
+    FollowUpSuggestionModule,
     KafkaModule
   ],
 })

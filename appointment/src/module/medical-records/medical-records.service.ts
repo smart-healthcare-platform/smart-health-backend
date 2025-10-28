@@ -5,10 +5,11 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { MedicalRecord } from './medical_records.entity';
+import { MedicalRecord } from './medical-records.entity';
 import { CreateMedicalRecordDto } from './dto/create-medical-record.dto';
 import { UpdateMedicalRecordDto } from './dto/update-medical-record.dto';
 import { Appointment } from '../appointment/appointment.entity';
+import { AppointmentStatus } from '../appointment/enums/appointment-status.enum';
 
 @Injectable()
 export class MedicalRecordsService {
@@ -29,11 +30,13 @@ export class MedicalRecordsService {
             where: { id: appointmentId },
         });
         if (!appointment) {
-            throw new NotFoundException(`Appointment with ID ${appointmentId} not found.`);
+            throw new NotFoundException(
+                `Appointment with ID ${appointmentId} not found.`,
+            );
         }
 
         const existingRecord = await this.medicalRecordRepo.findOne({
-            where: { appointmentId },
+            where: { appointment: { id: appointmentId } },
         });
         if (existingRecord) {
             throw new ConflictException(
@@ -41,10 +44,17 @@ export class MedicalRecordsService {
             );
         }
 
-        const newRecord = this.medicalRecordRepo.create(dto);
+        const newRecord = this.medicalRecordRepo.create({
+            diagnosis: dto.diagnosis,
+            symptoms: dto.symptoms,
+            doctorNotes: dto.doctorNotes,
+            prescription: dto.prescription,
+            appointment, // gán quan hệ OneToOne thay vì appointmentId
+        });
+
         const savedRecord = await this.medicalRecordRepo.save(newRecord);
 
-        appointment.status = 'completed';
+        appointment.status = AppointmentStatus.COMPLETED;
         await this.appointmentRepo.save(appointment);
 
         return savedRecord;
@@ -79,8 +89,8 @@ export class MedicalRecordsService {
      */
     async findByAppointmentId(appointmentId: string): Promise<MedicalRecord> {
         const record = await this.medicalRecordRepo.findOne({
-            where: { appointmentId },
-            relations: ['appointment', 'vitalSign'],
+            where: { appointment: { id: appointmentId } },
+            relations: ['appointment', 'vitalSigns'],
         });
 
         if (!record) {

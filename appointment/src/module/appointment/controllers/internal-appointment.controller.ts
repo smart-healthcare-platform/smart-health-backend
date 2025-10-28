@@ -6,7 +6,7 @@ import {
   UseGuards,
   Logger,
 } from '@nestjs/common';
-import { AppointmentsService } from '../appointments.service';
+import { AppointmentService } from '../appointment.service';
 import { InternalApiGuard } from '../../../common/guards/internal-api.guard';
 import { ConfirmPaymentDto } from '../dto/confirm-payment.dto';
 
@@ -20,7 +20,7 @@ import { ConfirmPaymentDto } from '../dto/confirm-payment.dto';
 export class InternalAppointmentController {
   private readonly logger = new Logger(InternalAppointmentController.name);
 
-  constructor(private readonly appointmentsService: AppointmentsService) {}
+  constructor(private readonly appointmentService: AppointmentService) {}
 
   /**
    * Endpoint được gọi bởi Billing Service khi thanh toán thành công
@@ -39,7 +39,7 @@ export class InternalAppointmentController {
     );
     this.logger.debug(`Payment data: ${JSON.stringify(paymentData)}`);
 
-    await this.appointmentsService.confirmPayment(appointmentId, paymentData);
+    await this.appointmentService.confirmPayment(appointmentId, paymentData);
 
     return {
       success: true,

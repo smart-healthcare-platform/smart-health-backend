@@ -4,12 +4,12 @@ import { ConfigService } from '@nestjs/config';
 import { createKafkaConfig } from './kafka.config';
 import { AppointmentProducerService } from './appointment-producer.service';
 import { ProductionAppointmentConsumer } from './production-appointment-consumer.service';
-import { AppointmentsModule } from 'src/module/appointment/appointment.module';
+import { AppointmentModule } from 'src/module/appointment/appointment.module';
 
 @Global()
 @Module({
   imports: [
-    forwardRef(() => AppointmentsModule),
+    forwardRef(() => AppointmentModule),
     ClientsModule.registerAsync([
       {
         name: 'KAFKA_SERVICE',

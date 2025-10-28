@@ -1,5 +1,3 @@
-// src/vital_signs/vital-signs.service.ts
-
 import {
     Injectable,
     NotFoundException,
@@ -7,10 +5,10 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { VitalSign } from './vital_signs.entity';
+import { VitalSign } from './vital-signs.entity';
 import { CreateVitalSignDto } from './dto/create-vital-sign.dto';
 import { UpdateVitalSignDto } from './dto/update-vital-sign.dto';
-import { MedicalRecord } from '../medical_records/medical_records.entity';
+import { MedicalRecord } from '../medical-records/medical-records.entity';
 
 @Injectable()
 export class VitalSignsService {

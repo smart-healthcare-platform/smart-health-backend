@@ -11,7 +11,7 @@ export class AppointmentSlotService {
     @InjectRepository(AppointmentSlot)
 
     private appointment_slot_repo: Repository<AppointmentSlot>,
-  ) {}
+  ) { }
 
 
   async create(dto: CreateDoctorAppoinmentSlotDto): Promise<AppointmentSlot> {
@@ -23,12 +23,20 @@ export class AppointmentSlotService {
     return this.appointment_slot_repo.find({ relations: ['doctor'] });
   }
 
-  async findByDoctor(doctor_id: string): Promise<AppointmentSlot[]> {
-    return this.appointment_slot_repo.find({ where: { doctor_id } });
+  async findByDoctor(doctor_id: string): Promise<any[]> {
+    const slots = await this.appointment_slot_repo.find({ where: { doctor_id } });
+
+    return slots.map(slot => ({
+      ...slot,
+      start_time: formatDate(slot.start_time),
+      end_time: formatDate(slot.end_time),
+      created_at: formatDate(slot.created_at),
+      updated_at: formatDate(slot.updated_at),
+    }));
   }
 
   async findOne(id: string): Promise<AppointmentSlot> {
-    const slot = await this.appointment_slot_repo .findOne({ where: { id }, relations: ['doctor'] });
+    const slot = await this.appointment_slot_repo.findOne({ where: { id }, relations: ['doctor'] });
     if (!slot) throw new NotFoundException(`AppointmentSlot with id ${id} not found`);
     return slot;
   }
@@ -95,4 +103,8 @@ export class AppointmentSlotService {
     return this.appointment_slot_repo.save(slot);
   }
 
+}
+function formatDate(date: Date): string {
+  // Convert sang định dạng YYYY-MM-DD HH:mm:ss
+  return date.toISOString().replace('T', ' ').replace('Z', '').split('.')[0];
 }

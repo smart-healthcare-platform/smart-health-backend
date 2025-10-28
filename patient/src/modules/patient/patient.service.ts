@@ -50,7 +50,6 @@ export class PatientService {
   async findOne(id: string): Promise<Patient> {
     const patient = await this.patientRepo.findOne({
       where: { id },
-      relations: ['medical_records'],
     });
     if (!patient) {
       throw new NotFoundException(`Patient with id=${id} not found`);
@@ -59,7 +58,7 @@ export class PatientService {
   }
 
   async update(id: string, dto: UpdatePatientDto): Promise<Patient> {
-    await this.findOne(id); // check tồn tại
+    await this.findOne(id); 
     await this.patientRepo.update(id, dto);
     return this.findOne(id);
   }

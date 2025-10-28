@@ -7,15 +7,17 @@ import { UpdateAppointmentDto } from './dto/update-appointment.dto';
 import { AppointmentProducerService } from 'src/kafka/appointment-producer.service';
 import { HttpService } from '@nestjs/axios';
 import { PaymentStatus } from './enums/payment-status.enum';
+import { AppointmentStatus } from './enums/appointment-status.enum';
 import { ConfirmPaymentDto } from './dto/confirm-payment.dto';
 import { CreatePaymentRequestDto } from './dto/create-payment-request.dto';
 import { CheckInDto } from './dto/check-in.dto';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
+import { FollowUpSuggestion } from '../follow-up-suggestion/follow-up-suggestion.entity';
 
 @Injectable()
-export class AppointmentsService {
-  private readonly logger = new Logger(AppointmentsService.name);
+export class AppointmentService {
+  private readonly logger = new Logger(AppointmentService.name);
 
   constructor(
     @InjectRepository(Appointment)
@@ -26,14 +28,14 @@ export class AppointmentsService {
   ) { }
 
   async create(dto: CreateAppointmentDto): Promise<Appointment> {
-    const appointment = this.appointmentRepo.create({ ...dto, status: 'pending' });
+    const appointment = this.appointmentRepo.create({ ...dto, status: AppointmentStatus.PENDING });
     const saved = await this.appointmentRepo.save(appointment);
 
     await this.producer.requestBooking({
       id: saved.id,
       doctorId: dto.doctorId,
       slotId: dto.slotId,
-      userId: dto.userId,
+      patientId: dto.patientId,
     });
 
     return saved;
@@ -56,7 +58,7 @@ export class AppointmentsService {
     const appointment = await this.appointmentRepo.findOne({ where: { id: appointmentId } });
     if (!appointment) throw new NotFoundException(`Appointment ${appointmentId} not found`);
 
-    appointment.status = 'confirmed';
+    appointment.status = AppointmentStatus.CONFIRMED;
     appointment.doctorId = doctorId;
     appointment.slotId = slotId;
     appointment.patientId = patientId;
@@ -65,7 +67,7 @@ export class AppointmentsService {
     const saved = await this.appointmentRepo.save(appointment);
 
     const payload = {
-      patientName: saved.doctorName, 
+      patientName: saved.doctorName,
       patientEmail: 'anh.ltl2511@gmail.com',
       doctorName: saved.doctorName,
       doctorEmail: 'huuvinh.lampart@gmail.com',
@@ -88,7 +90,7 @@ export class AppointmentsService {
   async failAppointment(appointmentId: string) {
     const appointment = await this.appointmentRepo.findOne({ where: { id: appointmentId } });
     if (!appointment) throw new NotFoundException(`Appointment ${appointmentId} not found`);
-    appointment.status = 'failed';
+    appointment.status = AppointmentStatus.FAILED;
     return this.appointmentRepo.save(appointment);
   }
 
@@ -106,6 +108,7 @@ export class AppointmentsService {
     await this.findOne(id);
     await this.appointmentRepo.update(id, dto);
     return this.findOne(id);
+
   }
 
   async remove(id: string): Promise<void> {
@@ -380,8 +383,8 @@ export class AppointmentsService {
     appointment.paidAt = new Date();
 
     // Tự động confirm appointment khi đã thanh toán
-    if (appointment.status === 'pending') {
-      appointment.status = 'confirmed';
+    if (appointment.status === AppointmentStatus.PENDING) {
+      appointment.status = AppointmentStatus.CONFIRMED;
       this.logger.log(
         `Auto-confirmed appointment ${appointmentId} after payment`,
       );
@@ -453,9 +456,9 @@ export class AppointmentsService {
     // }
 
     // 4. Update status
-    appointment.status = 'in_progress'; // hoặc 'checked_in' tùy business logic
+    appointment.status = AppointmentStatus.IN_PROGRESS; // hoặc 'checked_in' tùy business logic
     appointment.checkedInAt = now;
-    
+
     if (dto?.notes) {
       appointment.notes = dto.notes;
     }
@@ -475,4 +478,43 @@ export class AppointmentsService {
     };
   }
 
+  async getPreviousAppointment(appointmentId: string) {
+    const currentAppointment = await this.appointmentRepo.findOne({
+      where: { id: appointmentId },
+      relations: ['followUpSuggestion'],
+    });
+
+    if (!currentAppointment) {
+      throw new NotFoundException(`Appointment ${appointmentId} not found`);
+    }
+
+    const followUpId = currentAppointment.followUpId || currentAppointment.followUpSuggestion?.id;
+    if (!followUpId) {
+      throw new NotFoundException(`Appointment ${appointmentId} is not a follow-up`);
+    }
+
+    const followUpRepo = this.appointmentRepo.manager.getRepository(FollowUpSuggestion);
+    const followUp = await followUpRepo.findOne({
+      where: { id: followUpId },
+      relations: [
+        'medicalRecord',
+        'medicalRecord.vitalSigns',
+        'medicalRecord.appointment',
+      ],
+    });
+
+    if (!followUp?.medicalRecord?.appointment) {
+      throw new NotFoundException(`Previous appointment not found for follow-up ${followUpId}`);
+    }
+
+    const previousAppointment = await this.appointmentRepo.findOne({
+      where: { id: followUp.medicalRecord.appointment.id },
+      relations: [
+        'medicalRecord',
+        'medicalRecord.vitalSigns',
+      ],
+    });
+
+    return previousAppointment;
+  }
 }
