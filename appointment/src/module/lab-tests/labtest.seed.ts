@@ -2,6 +2,7 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { LabTest } from './lab-tests.entity';
+import { LabTestType } from './enums/lab-test-type.enum';
 
 @Injectable()
 export class LabTestSeed implements OnModuleInit {
@@ -25,6 +26,7 @@ export class LabTestSeed implements OnModuleInit {
           'Đánh giá tổng thể sức khỏe qua các chỉ số như hồng cầu, bạch cầu, tiểu cầu, hemoglobin, glucose,...',
         price: 150000,
         isActive: true,
+        type: LabTestType.BLOOD
       },
       {
         name: 'Xét nghiệm nước tiểu tổng quát',
@@ -33,6 +35,7 @@ export class LabTestSeed implements OnModuleInit {
           'Kiểm tra chức năng thận, phát hiện nhiễm trùng đường tiểu, tiểu đường hoặc các bất thường khác.',
         price: 100000,
         isActive: true,
+        type: LabTestType.URINE
       },
     ];
 

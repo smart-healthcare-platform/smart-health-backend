@@ -337,8 +337,8 @@ export class DoctorSeed implements OnModuleInit {
         const shiftStartHour = shift === 'morning' ? 8 : shift === 'afternoon' ? 13 : 8;
         const shiftEndHour = shift === 'morning' ? 12 : shift === 'afternoon' ? 17 : 17;
 
-        const startOfMonth = toVNDate('2025-10-01');
-        const endOfMonth = toVNDate('2025-10-31 23:59:59');
+        const startOfMonth = toVNDate('2025-11-01');
+        const endOfMonth = toVNDate('2025-11-30 23:59:59');
 
         for (let d = new Date(startOfMonth); d <= endOfMonth; d.setDate(d.getDate() + 1)) {
           if (d.getDay() !== weekDaysMap[day]) continue;
@@ -365,15 +365,16 @@ export class DoctorSeed implements OnModuleInit {
         }
       }
 
-      // ===== Block time (nghỉ trưa) =====
       await this.blockRepo.save(
         this.blockRepo.create({
           doctor_id: doctor.id,
-          start_time: toVNDate('2025-09-12 12:00:00'),
-          end_time: toVNDate('2025-09-12 13:00:00'),
+          start_time: toVNDate('2025-11-12 12:00:00'),
+          end_time: toVNDate('2025-11-12 13:00:00'),
           reason: 'Nghỉ trưa',
         }),
       );
+
+
 
       // ===== Đánh giá =====
       const ratings = [

@@ -1,4 +1,5 @@
-import { IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { IsEnum, IsNotEmpty, IsNumber, IsOptional, IsString, Min } from 'class-validator';
+import { LabTestType } from '../enums/lab-test-type.enum';
 
 export class CreateLabTestDto {
   @IsString()
@@ -16,6 +17,10 @@ export class CreateLabTestDto {
   @IsNumber()
   @Min(0)
   price: number;
+
+  @IsEnum(LabTestType)
+  @IsNotEmpty()
+  type: LabTestType;
 
   @IsOptional()
   isActive?: boolean;

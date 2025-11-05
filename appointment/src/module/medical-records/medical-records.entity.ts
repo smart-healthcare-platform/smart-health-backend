@@ -11,6 +11,7 @@ import {
 import { Appointment } from '../appointment/appointment.entity';
 import { VitalSign } from '../vital-signs/vital-signs.entity';
 import { FollowUpSuggestion } from '../follow-up-suggestion/follow-up-suggestion.entity';
+import { LabTestResult } from '../lab-tests/lab-test-results.entity';
 
 @Entity('medical-records')
 export class MedicalRecord {
@@ -18,33 +19,40 @@ export class MedicalRecord {
   id: string;
 
   @Column({ type: 'text', nullable: true })
-  symptoms: string;
+  symptoms?: string;
 
   @Column({ type: 'text' })
   diagnosis: string;
 
   @Column({ type: 'text', nullable: true })
-  doctorNotes: string;
+  doctorNotes?: string;
 
   @Column({ type: 'text', nullable: true })
-  prescription: string;
+  prescription?: string;
+
+  @OneToOne(() => Appointment, (appointment) => appointment.medicalRecord, {
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn({ name: 'appointment_id' })
+  appointment: Appointment;
+
+  /** VitalSign: chỉ số tổng hợp */
+  @OneToOne(() => VitalSign, (vitalSign) => vitalSign.medicalRecord, {
+    cascade: true,
+  })
+  vitalSigns: VitalSign;
+
+  /** Danh sách đề xuất tái khám */
+  @OneToMany(() => FollowUpSuggestion, (follow) => follow.medicalRecord)
+  followUpSuggestions: FollowUpSuggestion[];
+
+  /** Danh sách kết quả xét nghiệm chi tiết */
+  @OneToMany(() => LabTestResult, (result) => result.medicalRecord)
+  labTestResults: LabTestResult[];
 
   @CreateDateColumn()
   createdAt: Date;
 
   @UpdateDateColumn()
   updatedAt: Date;
-
-  @OneToOne(() => Appointment, (appointment) => appointment.medicalRecord)
-  @JoinColumn({ name: 'appointment_id' })
-  appointment: Appointment;
-
-  @OneToOne(() => VitalSign, (vitalSign) => vitalSign.medicalRecord, {
-    cascade: true,
-  })
-  vitalSigns: VitalSign;
-
-  @OneToMany(() => FollowUpSuggestion, (follow) => follow.medicalRecord)
-  followUpSuggestions: FollowUpSuggestion[];
 }
-

@@ -7,6 +7,7 @@ import { LabTestResult } from './lab-test-results.entity';
 import { LabTestsController } from './lab-tests.controller';
 import { LabTestsService } from './lab-tests.service';
 import { LabTestSeed } from './labtest.seed';
+import { LabTestOrder } from './lab-test-order.entity';
 
 @Module({
     imports: [
@@ -14,6 +15,7 @@ import { LabTestSeed } from './labtest.seed';
             LabTest,
             LabTestResult,
             Appointment,
+            LabTestOrder
         ]),
     ],
     controllers: [LabTestsController],
