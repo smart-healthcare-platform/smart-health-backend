@@ -5,4 +5,5 @@ export enum AppointmentStatus {
   CANCELLED = 'CANCELLED',
   FAILED = 'FAILED',
   IN_PROGRESS = 'IN_PROGRESS',
+  CHECKED_IN='CHECKED_IN'
 }

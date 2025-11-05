@@ -22,7 +22,7 @@ public class PaymentGatewayFactory {
                             } else if (entry.getKey().toLowerCase().contains("vnpay")) {
                                 return PaymentMethodType.VNPAY;
                             } else {
-                                return PaymentMethodType.COD;
+                                return PaymentMethodType.CASH;
                             }
                         },
                         Map.Entry::getValue
