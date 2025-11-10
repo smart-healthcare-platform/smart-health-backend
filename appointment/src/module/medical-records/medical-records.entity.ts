@@ -46,9 +46,6 @@ export class MedicalRecord {
   @OneToMany(() => FollowUpSuggestion, (follow) => follow.medicalRecord)
   followUpSuggestions: FollowUpSuggestion[];
 
-  /** Danh sách kết quả xét nghiệm chi tiết */
-  @OneToMany(() => LabTestResult, (result) => result.medicalRecord)
-  labTestResults: LabTestResult[];
 
   @CreateDateColumn()
   createdAt: Date;

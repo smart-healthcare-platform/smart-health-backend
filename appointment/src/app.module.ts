@@ -4,7 +4,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AppointmentModule } from './module/appointment/appointment.module';
 import { MedicalRecordsModule } from './module/medical-records/medical-records.module';
 import { VitalSignsModule } from './module/vital-signs/vital-signs.module';
-import { LabTestsModule } from './module/lab-tests/lab-tests.module';
+import { LabTestsModule } from './module/lab-tests/lab-test.module';
 import { FollowUpSuggestionModule } from './module/follow-up-suggestion/follow-up-suggestion.module';
 import { KafkaModule } from './kafka/kafka.module';
 

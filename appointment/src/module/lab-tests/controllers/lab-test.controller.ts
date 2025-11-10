@@ -9,9 +9,9 @@ import {
     ParseUUIDPipe,
     UseInterceptors,
   } from '@nestjs/common';
-  import { LabTestsService } from './lab-tests.service';
-  import { CreateLabTestDto } from './dto/create-lab-test.dto';
-  import { UpdateLabTestDto } from './dto/update-lab-test.dto';
+  import { LabTestsService } from '../services/lab-tests.service';
+  import { CreateLabTestDto } from '../dto/create-lab-test.dto';
+  import { UpdateLabTestDto } from '../dto/update-lab-test.dto';
   import { ResponseInterceptor } from 'src/common/interceptors/response.interceptor';
   
   @Controller('api/appointments/lab-tests')

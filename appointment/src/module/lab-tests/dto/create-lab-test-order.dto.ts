@@ -1,6 +1,6 @@
 import { IsDateString, IsEnum, IsNotEmpty, IsOptional, IsString, IsUUID } from "class-validator";
 import { LabTestType } from "../enums/lab-test-type.enum";
-import { LabTestStatus } from "../enums/lab-test-status.enum";
+import { LabTestOrderStatus } from "../enums/lab-test-order-status.enum";
 
 export class CreateLabTestOrderDto {
     @IsUUID()
@@ -12,14 +12,10 @@ export class CreateLabTestOrderDto {
     type: LabTestType;
 
     @IsOptional()
-    @IsEnum(LabTestStatus)
-    status?: LabTestStatus;
+    @IsEnum(LabTestOrderStatus)
+    status?: LabTestOrderStatus;
 
     @IsOptional()
     @IsString()
     orderedBy?: string;
-
-    @IsOptional()
-    @IsDateString()
-    performedAt?: Date;
 }

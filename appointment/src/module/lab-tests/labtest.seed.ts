@@ -1,7 +1,7 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { LabTest } from './lab-tests.entity';
+import { LabTest } from './lab-test.entity';
 import { LabTestType } from './enums/lab-test-type.enum';
 
 @Injectable()

@@ -5,9 +5,9 @@ import {
   } from '@nestjs/common';
   import { InjectRepository } from '@nestjs/typeorm';
   import { Repository } from 'typeorm';
-  import { LabTest } from './lab-tests.entity';
-  import { CreateLabTestDto } from './dto/create-lab-test.dto';
-  import { UpdateLabTestDto } from './dto/update-lab-test.dto';
+  import { LabTest } from '../lab-test.entity';
+  import { CreateLabTestDto } from '../dto/create-lab-test.dto';
+  import { UpdateLabTestDto } from '../dto/update-lab-test.dto';
   
   @Injectable()
   export class LabTestsService {

@@ -22,6 +22,6 @@ import { KafkaModule } from 'src/kafka/kafka.module';
     InternalAppointmentController,
     ReceptionistAppointmentController,
   ],
-  exports: [AppointmentsService],
+  exports: [AppointmentService],
 })
 export class AppointmentModule { }
