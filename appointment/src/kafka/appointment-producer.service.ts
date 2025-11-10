@@ -14,14 +14,14 @@ export class AppointmentProducerService implements OnModuleInit {
     this.logger.log('Kafka producer connected');
   }
 
-  async requestBooking(data: { id: string; doctorId: string; slotId: string; userId: string }) {
+  async requestBooking(data: { id: string; doctorId: string; slotId: string; patientId: string}) {
     const correlationId = randomUUID();
 
     const payload = {
       appointmentId: data.id,
       doctorId: data.doctorId,
       slotId: data.slotId,
-      userId: data.userId,
+      patientId: data.patientId,
       correlationId,
     };
 

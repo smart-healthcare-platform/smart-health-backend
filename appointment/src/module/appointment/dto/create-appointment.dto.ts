@@ -1,33 +1,59 @@
-import { IsNotEmpty, IsString, IsOptional, IsDate } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsString,
+  IsOptional,
+  IsDate,
+  IsEnum,
+  IsUUID,
+} from 'class-validator';
+import { Type } from 'class-transformer';
+import { AppointmentType } from '../enums/appointment-type.enum';
+import { AppointmentCategory } from '../enums/appointment-category.enum';
 
 export class CreateAppointmentDto {
-  @IsString()
+  @IsUUID()
   @IsNotEmpty()
   doctorId: string;
+
   @IsString()
   @IsNotEmpty()
   doctorName: string;
 
   @IsOptional()
-  @IsString()
-  patientId?: string; 
+  @IsUUID()
+  patientId: string;
 
-  @IsString()
+  @IsUUID()
   @IsNotEmpty()
   slotId: string;
 
   @IsOptional()
-  @IsString()
-  type?: string;
+  @IsEnum(AppointmentType)
+  type?: AppointmentType = AppointmentType.OFFLINE;
+
+  @IsOptional()
+  @IsEnum(AppointmentCategory)
+  category?: AppointmentCategory = AppointmentCategory.NEW;
 
   @IsOptional()
   @IsString()
   notes?: string;
 
-  @IsString()
+  /** 
+   * Nếu cuộc hẹn này được tạo từ đề xuất tái khám (FollowUpSuggestion)
+   * → followUpId tương ứng 
+   */
+  @IsOptional()
+  @IsUUID()
+  followUpId?: string;
+
   @IsNotEmpty()
-  userId: string; 
+  @Type(() => Date)
   @IsDate()
-  @IsNotEmpty()
-  startAt: string; 
+  startAt: Date;
+
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate()
+  endAt?: Date;
 }

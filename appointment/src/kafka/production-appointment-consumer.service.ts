@@ -1,6 +1,6 @@
 import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
 import { Kafka, Consumer } from 'kafkajs';
-import { AppointmentsService } from 'src/module/appointment/appointments.service';
+import { AppointmentService } from 'src/module/appointment/appointment.service';
 import { AppointmentProducerService } from './appointment-producer.service';
 import { ConfigService } from '@nestjs/config';
 import { createKafkaConfig } from './kafka.config';
@@ -12,7 +12,7 @@ export class ProductionAppointmentConsumer implements OnModuleInit, OnModuleDest
   private consumer: Consumer;
 
   constructor(
-    private readonly appointmentsService: AppointmentsService,
+    private readonly appointmentService: AppointmentService,
     private readonly producerService: AppointmentProducerService,
     private readonly configService: ConfigService, 
   ) { }
@@ -47,7 +47,7 @@ export class ProductionAppointmentConsumer implements OnModuleInit, OnModuleDest
 
           switch (topic) {
             case 'appointment.slot.confirmed':
-              await this.appointmentsService.confirmAppointment(
+              await this.appointmentService.confirmAppointment(
                 data.appointmentId,
                 data.doctorId,
                 data.slotId,
@@ -57,7 +57,7 @@ export class ProductionAppointmentConsumer implements OnModuleInit, OnModuleDest
               break;
 
             case 'appointment.slot.failed':
-              await this.appointmentsService.failAppointment(data.appointmentId);
+              await this.appointmentService.failAppointment(data.appointmentId);
               break;
 
             case 'patient.detail.resolved':

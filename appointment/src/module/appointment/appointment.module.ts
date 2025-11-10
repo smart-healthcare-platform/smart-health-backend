@@ -1,7 +1,7 @@
 import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { AppointmentsService } from './appointments.service';
-import { AppointmentsController } from './appointment.controller';
+import { AppointmentService } from './appointment.service';
+import { AppointmentController } from './appointment.controller';
 import { InternalAppointmentController } from './controllers/internal-appointment.controller';
 import { ReceptionistAppointmentController } from './controllers/receptionist-appointment.controller';
 import { Appointment } from './appointment.entity';
@@ -15,13 +15,13 @@ import { KafkaModule } from 'src/kafka/kafka.module';
     forwardRef(() => KafkaModule),
   ],
   providers: [
-    AppointmentsService,
+    AppointmentService,
   ],
   controllers: [
-    AppointmentsController,
+    AppointmentController,
     InternalAppointmentController,
     ReceptionistAppointmentController,
   ],
-  exports: [AppointmentsService],
+  exports: [AppointmentService],
 })
-export class AppointmentsModule { }
+export class AppointmentModule { }

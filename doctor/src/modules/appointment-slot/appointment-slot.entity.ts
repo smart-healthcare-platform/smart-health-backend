@@ -16,11 +16,12 @@ export class AppointmentSlot {
   @Column({ type: 'char', length: 36 })
   doctor_id: string;
 
-  @Column({ type: 'timestamp' })
+  @Column({ type: 'datetime' })
   start_time: Date;
 
-  @Column({ type: 'timestamp' })
+  @Column({ type: 'datetime' })
   end_time: Date;
+
 
   @Column({ type: 'enum', enum: ['available', 'booked', 'cancelled'], default: 'available' })
   status: 'available' | 'booked' | 'cancelled';
