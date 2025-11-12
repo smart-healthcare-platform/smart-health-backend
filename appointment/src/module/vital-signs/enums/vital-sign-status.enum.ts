@@ -1,0 +1,4 @@
+export enum VitalSignStatus {
+    WAITING_FOR_TEST_RESULT = 'WAITING_FOR_TEST_RESULT',
+    COMPLETED = 'COMPLETED',
+}

@@ -12,7 +12,7 @@ export class DoctorProducerService implements OnModuleInit {
     this.logger.log('Doctor producer connected');
   }
 
-  confirmSlot(data: { appointmentId: string; doctorId: string; slotId: string; patientId: string; patientName: string; correlationId: string }) {
+  confirmSlot(data: { appointmentId: string; doctorId: string; slotId: string; patientId: string;correlationId: string }) {
     this.logger.log(`Emit appointment.slot.confirmed: ${JSON.stringify(data)}`);
     return this.kafka.emit('appointment.slot.confirmed', data);
   }

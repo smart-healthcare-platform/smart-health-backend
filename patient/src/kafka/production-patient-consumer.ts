@@ -44,7 +44,7 @@ export class PatientConsumerService implements OnModuleInit, OnModuleDestroy {
     this.consumer = this.kafka.consumer({ groupId: 'patient-service-group' });
     await this.consumer.connect();
 
-    await this.consumer.subscribe({ topic: 'appointment.book.requested', fromBeginning: false });
+    // await this.consumer.subscribe({ topic: 'appointment.book.requested', fromBeginning: false });
     await this.consumer.subscribe({ topic: 'user.created', fromBeginning: false });
     await this.consumer.subscribe({ topic: 'patient.detail.requested', fromBeginning: false });
     await this.consumer.run({
@@ -63,25 +63,25 @@ export class PatientConsumerService implements OnModuleInit, OnModuleDestroy {
               break;
             }
 
-            case 'appointment.book.requested': {
-              const appointmentEvent: AppointmentBookedEvent = data;
-              this.logger.log(`Received [appointment.book.requested]: ${JSON.stringify(appointmentEvent)}`);
+            // case 'appointment.book.requested': {
+            //   const appointmentEvent: AppointmentBookedEvent = data;
+            //   this.logger.log(`Received [appointment.book.requested]: ${JSON.stringify(appointmentEvent)}`);
 
-              const patient = await this.patientService.findByUserId(appointmentEvent.userId);
+            //   const patient = await this.patientService.findByUserId(appointmentEvent.userId);
 
-              // gửi event mới cho Doctor
-              await this.producer.forwardToDoctor({
-                correlationId: appointmentEvent.correlationId,
-                appointmentId: appointmentEvent.appointmentId,
-                slotId: appointmentEvent.slotId,
-                doctorId: appointmentEvent.doctorId,
-                patientId: patient.id,
-                patientName: patient.full_name,
-              });
+            //   // gửi event mới cho Doctor
+            //   await this.producer.forwardToDoctor({
+            //     correlationId: appointmentEvent.correlationId,
+            //     appointmentId: appointmentEvent.appointmentId,
+            //     slotId: appointmentEvent.slotId,
+            //     doctorId: appointmentEvent.doctorId,
+            //     patientId: patient.id,
+            //     patientName: patient.full_name,
+            //   });
 
-              this.logger.log(`Forwarded to doctor for appointment ${appointmentEvent.appointmentId}`);
-              break;
-            }
+            //   this.logger.log(`Forwarded to doctor for appointment ${appointmentEvent.appointmentId}`);
+            //   break;
+            // }
             case 'patient.detail.requested': {
               const { patientId, correlationId } = data;
               this.logger.log(`Received [patient.detail.requested]: ${JSON.stringify(data)}`);

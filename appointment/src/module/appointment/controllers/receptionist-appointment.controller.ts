@@ -8,7 +8,7 @@ import {
   UseGuards,
   Logger,
 } from '@nestjs/common';
-import { AppointmentsService } from '../appointments.service';
+import { AppointmentService } from '../appointment.service';
 import { UpdateAppointmentStatusDto } from '../dto/update-status.dto';
 
 /**
@@ -19,7 +19,7 @@ import { UpdateAppointmentStatusDto } from '../dto/update-status.dto';
 export class ReceptionistAppointmentController {
   private readonly logger = new Logger(ReceptionistAppointmentController.name);
 
-  constructor(private readonly appointmentsService: AppointmentsService) {}
+  constructor(private readonly appointmentsService: AppointmentService) {}
 
   /**
    * Lấy danh sách appointments hôm nay

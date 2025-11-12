@@ -17,7 +17,7 @@ export class DoctorConsumer implements OnModuleInit, OnModuleDestroy {
     private readonly producerService: DoctorProducerService,
     private readonly doctorService: DoctorService,
     private readonly configService: ConfigService,
-  ) {}
+  ) { }
 
   async onModuleInit() {
     const { broker, clientId } = createKafkaConfig(this.configService);
@@ -30,7 +30,7 @@ export class DoctorConsumer implements OnModuleInit, OnModuleDestroy {
     this.consumer = this.kafka.consumer({ groupId: 'doctor-service-group' });
     await this.consumer.connect();
 
-    await this.consumer.subscribe({ topic: 'appointment.patient.resolved' });
+    await this.consumer.subscribe({ topic: 'appointment.book.requested' });
     await this.consumer.subscribe({ topic: 'doctor.batch.get' });
 
     await this.consumer.run({
@@ -40,7 +40,7 @@ export class DoctorConsumer implements OnModuleInit, OnModuleDestroy {
 
         try {
           switch (topic) {
-            case 'appointment.patient.resolved':
+            case 'appointment.book.requested':
               await this.processBookingRequest(rawValue);
               break;
             case 'doctor.batch.get':
@@ -60,7 +60,7 @@ export class DoctorConsumer implements OnModuleInit, OnModuleDestroy {
 
   private async processBookingRequest(rawValue: string) {
     const data = JSON.parse(rawValue);
-    const { doctorId, slotId, patientId, appointmentId, patientName, correlationId } = data;
+    const { doctorId, slotId, patientId, appointmentId, correlationId } = data;
 
     this.logger.log(`Process booking: ${JSON.stringify(data)}`);
 
@@ -68,7 +68,7 @@ export class DoctorConsumer implements OnModuleInit, OnModuleDestroy {
 
     if (slotAvailable) {
       await this.slotService.bookSlot(doctorId, slotId, patientId);
-      await this.producerService.confirmSlot({ appointmentId, doctorId, slotId, patientId, patientName, correlationId });
+      await this.producerService.confirmSlot({ appointmentId, doctorId, slotId, patientId, correlationId });
     } else {
       await this.producerService.failSlot({ appointmentId, doctorId, slotId, correlationId });
     }
