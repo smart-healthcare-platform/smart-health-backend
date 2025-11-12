@@ -7,6 +7,7 @@ import com.smarthealth.medicine.model.PrescriptionSummaryDto;
 import com.smarthealth.medicine.service.PrescriptionService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -21,13 +22,28 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1")
 @RequiredArgsConstructor
+@Slf4j
 public class PrescriptionController {
 
     private final PrescriptionService prescriptionService;
 
     @PostMapping("/prescriptions")
     public ResponseEntity<PrescriptionResponse> createPrescription(@Valid @RequestBody CreatePrescriptionRequest request) {
+        log.info("📥 Received createPrescription request:");
+        log.info("   Patient ID: {}", request.getPatientId());
+        log.info("   Doctor ID: {}", request.getDoctorId());
+        log.info("   Appointment ID: {}", request.getAppointmentId());
+        log.info("   Items count: {}", request.getItems() != null ? request.getItems().size() : 0);
+        if (request.getItems() != null && !request.getItems().isEmpty()) {
+            request.getItems().forEach(item -> 
+                log.info("     - Drug ID: {}, Dosage: {}, Frequency: {}, Duration: {} days", 
+                    item.getDrugId(), item.getDosage(), item.getFrequency(), item.getDurationDays())
+            );
+        }
+        
         PrescriptionResponse response = prescriptionService.createPrescription(request);
+        
+        log.info("✅ Prescription created successfully with ID: {}", response.getPrescriptionId());
         return new ResponseEntity<>(response, HttpStatus.CREATED);
     }
 
