@@ -155,8 +155,9 @@ services:
       DB_USERNAME: root
       DB_PASSWORD: 1111
       DB_NAME: smart_health_chat
-      JWT_SECRET: supersecret
+      JWT_SECRET: smartHealthSecretKeyForJWTTokenGenerationAndValidation2024
       PORT: 8085
+      AUTH_SERVICE_URL: http://aut-service:8081
       DOCTOR_SERVICE_URL: http://doctor-service:8083
       PATIENT_SERVICE_URL: http://patient-service:8082
     depends_on:
@@ -181,6 +182,7 @@ services:
       DB_PORT: 27017
       DB_NAME: smart_health_prediction
       PORT: 8086
+      MODEL_PATH: ./models/heat_disease_prediction.h5
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
@@ -328,11 +330,11 @@ services:
       - patient-service
       - doctor-service
       - appointment-service
-      # - chat-service
-      # - prediction-service
+      - chat-service
+      - prediction-service
       # - chatbot-service
       # - medicine-service
-      - billing-service
+      # - billing-service
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
