@@ -313,7 +313,7 @@ services:
       MOMO_ACCESS_KEY: klm05TvNBzhg7h7j
       MOMO_SECRET_KEY: at67qH6mk8w5Y1nAyMoYKMWACiEi2bsa
       MOMO_API_ENDPOINT: https://test-payment.momo.vn/v2/gateway/api/create
-      MOMO_RETURN_URL: http://billing-service:8090/api/v1/billings/return
+      MOMO_RETURN_URL: http://localhost:8090/api/v1/billings/return
       MOMO_IPN_URL: http://billing-service:8090/api/v1/billings/ipn/momo
 
       # VNPay Payment Gateway Configuration
@@ -324,7 +324,7 @@ services:
       VNPAY_CURR_CODE: VND
       VNPAY_BANK_CODE: ""
       VNPAY_LOCALE: vn
-      VNPAY_RETURN_URL: http://billing-service:8090/api/v1/billings/return
+      VNPAY_RETURN_URL: http://localhost:8090/api/v1/billings/return
       VNPAY_IPN_URL: http://billing-service:8090/api/v1/billings/ipn/vnpay
       VNPAY_SECRET_KEY: VLCQ2YMCLUOIQCNOR2YB57J13I9NSWBQ
       VNPAY_PAY_URL: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
@@ -375,15 +375,15 @@ services:
 
       CORS_ORIGIN: http://localhost:3000,http://localhost:3001,http://localhost:3002
     depends_on:
-      # - auth-service
-      # - patient-service
-      # - doctor-service
-      # - appointment-service
-      # - chat-service
+      - auth-service
+      - patient-service
+      - doctor-service
+      - appointment-service
+      - chat-service
       - prediction-service
       - chatbot-service
-      # - medicine-service
-      # - billing-service
+      - medicine-service
+      - billing-service
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
