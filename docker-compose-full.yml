@@ -83,6 +83,8 @@ services:
       GOOGLE_CALENDAR_ID: phamhuuvinh912003@gmail.com
       KAFKA_BROKER: kafka:9092
       BILLING_SERVICE_URL: http://billing-service:8090
+      INTERNAL_API_SECRET_KEY: dev-internal-secret-key-12345
+
     depends_on:
       - kafka
     extra_hosts:
@@ -157,7 +159,7 @@ services:
       DB_NAME: smart_health_chat
       JWT_SECRET: smartHealthSecretKeyForJWTTokenGenerationAndValidation2024
       PORT: 8085
-      AUTH_SERVICE_URL: http://aut-service:8081
+      AUTH_SERVICE_URL: http://auth-service:8081
       DOCTOR_SERVICE_URL: http://doctor-service:8083
       PATIENT_SERVICE_URL: http://patient-service:8082
     depends_on:
@@ -176,13 +178,51 @@ services:
     ports:
       - "8086:8086"
     volumes:
-      - ./prediction:/app
+      - ./prediction/src:/app/src          
+      - ./prediction/models:/app/models      
+      - /app/__pycache__                     
+      - /app/.pytest_cache
     environment:
       DB_HOST: host.docker.internal
       DB_PORT: 27017
       DB_NAME: smart_health_prediction
       PORT: 8086
       MODEL_PATH: ./models/heat_disease_prediction.h5
+      PYTHONUNBUFFERED: 1
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # === ChromaDB Service ===
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: chromadb
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma_data:/data
+    command: ["run", "--host", "0.0.0.0", "--port", "8000", "--path", "/data"]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # === Ingestor Service ===
+  ingestor:
+    build:
+      context: ./chat-bot
+      dockerfile: Dockerfile.dev
+    container_name: chatbot_ingestor
+    volumes:
+      - ./chat-bot/src:/app/src                    
+      - ./chat-bot/knowledge_base:/app/knowledge_base  
+      - /app/__pycache__                          
+    depends_on:
+      chromadb:
+        condition: service_started
+    environment:
+      PYTHONUNBUFFERED: 1
+      CHROMA_HOST: chromadb
+      CHROMA_PORT: 8000
+    command: ["python", "-c", "from src.rag_pipeline import ingest_data; ingest_data()"]
+    restart: "no"
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
@@ -195,10 +235,19 @@ services:
     ports:
       - "8087:8087"
     volumes:
-      - ./chat-bot:/app
+      - ./chat-bot/src:/app/src                    # ✅ Chỉ sync source code
+      - ./chat-bot/knowledge_base:/app/knowledge_base  # ✅ Chỉ sync knowledge base
+      - /app/__pycache__                           # 🔒 Named volume cho cache
+      - /app/.pytest_cache
     environment:
       PORT: 8087
+      PYTHONUNBUFFERED: 1
       HUGGINGFACE_API_KEY: ${HUGGINGFACE_API_KEY:-}
+      CHROMA_HOST: chromadb
+      CHROMA_PORT: 8000
+      OLLAMA_HOST: http://host.docker.internal:11434
+    depends_on:
+      - chromadb
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
@@ -246,27 +295,27 @@ services:
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_JPA_SHOW_SQL: "true"
       SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.MySQL8Dialect
-      
+
       # Kafka Configuration
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      
+
       # Server Configuration
       SERVER_PORT: 8090
-      
+
       # Service URLs
       APPOINTMENT_SERVICE_URL: http://appointment-service:8084
-      
+
       # Internal API Security
       INTERNAL_API_SECRET_KEY: dev-internal-secret-key-12345
-      
+
       # Momo Payment Gateway Configuration
       MOMO_PARTNER_CODE: MOMOBKUN20180529
       MOMO_ACCESS_KEY: klm05TvNBzhg7h7j
       MOMO_SECRET_KEY: at67qH6mk8w5Y1nAyMoYKMWACiEi2bsa
       MOMO_API_ENDPOINT: https://test-payment.momo.vn/v2/gateway/api/create
-      MOMO_RETURN_URL: http://localhost:8090/api/v1/billings/return
-      MOMO_IPN_URL: http://localhost:8090/api/v1/billings/ipn/momo
-      
+      MOMO_RETURN_URL: http://billing-service:8090/api/v1/billings/return
+      MOMO_IPN_URL: http://billing-service:8090/api/v1/billings/ipn/momo
+
       # VNPay Payment Gateway Configuration
       VNPAY_VERSION: 2.1.0
       VNPAY_COMMAND: pay
@@ -275,14 +324,14 @@ services:
       VNPAY_CURR_CODE: VND
       VNPAY_BANK_CODE: ""
       VNPAY_LOCALE: vn
-      VNPAY_RETURN_URL: http://localhost:8090/api/v1/billings/return
-      VNPAY_IPN_URL: http://localhost:8090/api/v1/billings/ipn/vnpay
+      VNPAY_RETURN_URL: http://billing-service:8090/api/v1/billings/return
+      VNPAY_IPN_URL: http://billing-service:8090/api/v1/billings/ipn/vnpay
       VNPAY_SECRET_KEY: VLCQ2YMCLUOIQCNOR2YB57J13I9NSWBQ
       VNPAY_PAY_URL: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
-      
+
       # Logging Configuration
       LOGGING_LEVEL_FIT_IUH_BILLING_SERVICES_IMPL: DEBUG
-      
+
     depends_on:
       - kafka
       - appointment-service
@@ -326,15 +375,22 @@ services:
 
       CORS_ORIGIN: http://localhost:3000,http://localhost:3001,http://localhost:3002
     depends_on:
-      - auth-service
-      - patient-service
-      - doctor-service
-      - appointment-service
-      - chat-service
+      # - auth-service
+      # - patient-service
+      # - doctor-service
+      # - appointment-service
+      # - chat-service
       - prediction-service
-      # - chatbot-service
+      - chatbot-service
       # - medicine-service
       # - billing-service
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
+volumes:
+  chroma_data:
+    driver: local
+  chatbot_cache:           
+    driver: local
+  prediction_cache:        
+    driver: local
