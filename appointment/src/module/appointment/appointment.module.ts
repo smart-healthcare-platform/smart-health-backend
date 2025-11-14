@@ -11,12 +11,10 @@ import { KafkaModule } from 'src/kafka/kafka.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Appointment]),
-    HttpModule,
+    HttpModule.register({ timeout: 30000 }),
     forwardRef(() => KafkaModule),
   ],
-  providers: [
-    AppointmentService,
-  ],
+  providers: [AppointmentService],
   controllers: [
     AppointmentController,
     InternalAppointmentController,
@@ -24,4 +22,4 @@ import { KafkaModule } from 'src/kafka/kafka.module';
   ],
   exports: [AppointmentService],
 })
-export class AppointmentModule { }
+export class AppointmentModule {}
