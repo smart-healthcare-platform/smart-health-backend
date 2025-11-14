@@ -1,7 +1,7 @@
 # ===============================
-# Python FastAPI/LangChain application
+# Multi-stage build for Python FastAPI/LangChain application
 # ===============================
-FROM python:3.11-slim
+FROM python:3.11-slim as builder
 
 WORKDIR /app
 
@@ -9,7 +9,7 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# Install system dependencies
+# Install system dependencies for building
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     gcc \
@@ -19,13 +19,28 @@ RUN apt-get update && \
 # Copy requirements file
 COPY requirements.txt .
 
-# Install Python dependencies
+# Install Python dependencies into site-packages
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy source code and knowledge base
+# ===============================
+# Runtime stage
+# ===============================
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# Copy installed packages from builder stage
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Copy only necessary source code and knowledge base
 COPY src/ ./src/
 COPY knowledge_base/ ./knowledge_base/
-COPY docs/ ./docs/
+COPY requirements.txt .
 
 # Expose port
 EXPOSE 8087
