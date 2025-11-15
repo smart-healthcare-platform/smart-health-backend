@@ -275,7 +275,7 @@ const healthCheckService = async (serviceName) => {
 
   try {
     const axios = require("axios");
-    const response = await axios.get(`${service.url}/actuator/health`, {
+    const response = await axios.get(`${service.url}/health`, {
       timeout: service.timeout,
       validateStatus: (status) => status < 500,
     });
