@@ -7,6 +7,8 @@ import { VitalSignsModule } from './module/vital-signs/vital-signs.module';
 import { LabTestsModule } from './module/lab-tests/lab-test.module';
 import { FollowUpSuggestionModule } from './module/follow-up-suggestion/follow-up-suggestion.module';
 import { KafkaModule } from './kafka/kafka.module';
+import { AdminModule } from './modules/admin/admin.module';
+import { AppController } from './app.controller';
 
 @Module({
   imports: [
@@ -30,7 +32,9 @@ import { KafkaModule } from './kafka/kafka.module';
     VitalSignsModule,
     LabTestsModule,
     FollowUpSuggestionModule,
-    KafkaModule
+    KafkaModule,
+    AdminModule,
   ],
+  controllers: [AppController],
 })
 export class AppModule { }

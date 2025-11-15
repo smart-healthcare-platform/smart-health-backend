@@ -161,4 +161,382 @@ router.get('/cache-stats', async (req, res) => {
   }
 });
 
+/**
+ * GET /v1/admin/dashboard/appointments/trends
+ * Get appointment trends data
+ * 
+ * @query period - Time period: 'daily', 'weekly', or 'monthly' (default: 'daily')
+ * @query days - Number of days to look back (default: 30)
+ * @access Admin only
+ * @returns {Object} Appointment trends data
+ */
+router.get('/appointments/trends', async (req, res) => {
+  const requestId = req.id || 'unknown';
+  const startTime = Date.now();
+  
+  try {
+    const { period = 'daily', days = 30 } = req.query;
+    
+    logger.info('Fetching appointment trends', {
+      requestId,
+      period,
+      days,
+      userId: req.user?.id,
+    });
+
+    const trends = await dashboardAggregator.getAppointmentTrends(period, parseInt(days));
+    
+    const responseTime = Date.now() - startTime;
+    
+    logger.info('Appointment trends retrieved successfully', {
+      requestId,
+      responseTime,
+      fromCache: trends?.fromCache,
+    });
+
+    res.json({
+      success: true,
+      data: trends,
+      meta: {
+        requestId,
+        responseTime,
+        timestamp: new Date().toISOString(),
+      },
+    });
+  } catch (error) {
+    const responseTime = Date.now() - startTime;
+    
+    logger.error('Failed to get appointment trends', {
+      requestId,
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      responseTime,
+    });
+    
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve appointment trends',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error',
+      meta: {
+        requestId,
+        responseTime,
+        timestamp: new Date().toISOString(),
+      },
+    });
+  }
+});
+
+/**
+ * GET /v1/admin/dashboard/appointments/distribution
+ * Get appointment status distribution
+ * 
+ * @access Admin only
+ * @returns {Object} Status distribution data
+ */
+router.get('/appointments/distribution', async (req, res) => {
+  const requestId = req.id || 'unknown';
+  const startTime = Date.now();
+  
+  try {
+    logger.info('Fetching appointment distribution', {
+      requestId,
+      userId: req.user?.id,
+    });
+
+    const distribution = await dashboardAggregator.getAppointmentDistribution();
+    
+    const responseTime = Date.now() - startTime;
+    
+    logger.info('Appointment distribution retrieved successfully', {
+      requestId,
+      responseTime,
+      fromCache: distribution?.fromCache,
+    });
+
+    res.json({
+      success: true,
+      data: distribution,
+      meta: {
+        requestId,
+        responseTime,
+        timestamp: new Date().toISOString(),
+      },
+    });
+  } catch (error) {
+    const responseTime = Date.now() - startTime;
+    
+    logger.error('Failed to get appointment distribution', {
+      requestId,
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      responseTime,
+    });
+    
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve appointment distribution',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error',
+      meta: {
+        requestId,
+        responseTime,
+        timestamp: new Date().toISOString(),
+      },
+    });
+  }
+});
+
+/**
+ * GET /v1/admin/dashboard/appointments/recent
+ * Get recent appointments
+ * 
+ * @query page - Page number (default: 1)
+ * @query limit - Items per page (default: 10)
+ * @access Admin only
+ * @returns {Object} Recent appointments data
+ */
+router.get('/appointments/recent', async (req, res) => {
+  const requestId = req.id || 'unknown';
+  const startTime = Date.now();
+  
+  try {
+    const { page = 1, limit = 10 } = req.query;
+    
+    logger.info('Fetching recent appointments', {
+      requestId,
+      page,
+      limit,
+      userId: req.user?.id,
+    });
+
+    const recent = await dashboardAggregator.getRecentAppointments(parseInt(page), parseInt(limit));
+    
+    const responseTime = Date.now() - startTime;
+    
+    logger.info('Recent appointments retrieved successfully', {
+      requestId,
+      responseTime,
+      fromCache: recent?.fromCache,
+    });
+
+    res.json({
+      success: true,
+      data: recent,
+      meta: {
+        requestId,
+        responseTime,
+        timestamp: new Date().toISOString(),
+      },
+    });
+  } catch (error) {
+    const responseTime = Date.now() - startTime;
+    
+    logger.error('Failed to get recent appointments', {
+      requestId,
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      responseTime,
+    });
+    
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve recent appointments',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error',
+      meta: {
+        requestId,
+        responseTime,
+        timestamp: new Date().toISOString(),
+      },
+    });
+  }
+});
+
+/**
+ * GET /v1/admin/dashboard/patients/growth
+ * Get patient growth trends
+ * 
+ * @query period - Time period: 'daily', 'weekly', or 'monthly' (default: 'daily')
+ * @query days - Number of days to look back (default: 30)
+ * @access Admin only
+ * @returns {Object} Patient growth data
+ */
+router.get('/patients/growth', async (req, res) => {
+  const requestId = req.id || 'unknown';
+  const startTime = Date.now();
+  
+  try {
+    const { period = 'daily', days = 30 } = req.query;
+    
+    logger.info('Fetching patient growth', {
+      requestId,
+      period,
+      days,
+      userId: req.user?.id,
+    });
+
+    const growth = await dashboardAggregator.getPatientGrowth(period, parseInt(days));
+    
+    const responseTime = Date.now() - startTime;
+    
+    logger.info('Patient growth retrieved successfully', {
+      requestId,
+      responseTime,
+      fromCache: growth?.fromCache,
+    });
+
+    res.json({
+      success: true,
+      data: growth,
+      meta: {
+        requestId,
+        responseTime,
+        timestamp: new Date().toISOString(),
+      },
+    });
+  } catch (error) {
+    const responseTime = Date.now() - startTime;
+    
+    logger.error('Failed to get patient growth', {
+      requestId,
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      responseTime,
+    });
+    
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve patient growth',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error',
+      meta: {
+        requestId,
+        responseTime,
+        timestamp: new Date().toISOString(),
+      },
+    });
+  }
+});
+
+/**
+ * GET /v1/admin/dashboard/patients/demographics
+ * Get patient demographics
+ * 
+ * @access Admin only
+ * @returns {Object} Patient demographics data
+ */
+router.get('/patients/demographics', async (req, res) => {
+  const requestId = req.id || 'unknown';
+  const startTime = Date.now();
+  
+  try {
+    logger.info('Fetching patient demographics', {
+      requestId,
+      userId: req.user?.id,
+    });
+
+    const demographics = await dashboardAggregator.getPatientDemographics();
+    
+    const responseTime = Date.now() - startTime;
+    
+    logger.info('Patient demographics retrieved successfully', {
+      requestId,
+      responseTime,
+      fromCache: demographics?.fromCache,
+    });
+
+    res.json({
+      success: true,
+      data: demographics,
+      meta: {
+        requestId,
+        responseTime,
+        timestamp: new Date().toISOString(),
+      },
+    });
+  } catch (error) {
+    const responseTime = Date.now() - startTime;
+    
+    logger.error('Failed to get patient demographics', {
+      requestId,
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      responseTime,
+    });
+    
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve patient demographics',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error',
+      meta: {
+        requestId,
+        responseTime,
+        timestamp: new Date().toISOString(),
+      },
+    });
+  }
+});
+
+/**
+ * GET /v1/admin/dashboard/patients/recent
+ * Get recent patients
+ * 
+ * @query page - Page number (default: 1)
+ * @query limit - Items per page (default: 10)
+ * @access Admin only
+ * @returns {Object} Recent patients data
+ */
+router.get('/patients/recent', async (req, res) => {
+  const requestId = req.id || 'unknown';
+  const startTime = Date.now();
+  
+  try {
+    const { page = 1, limit = 10 } = req.query;
+    
+    logger.info('Fetching recent patients', {
+      requestId,
+      page,
+      limit,
+      userId: req.user?.id,
+    });
+
+    const recent = await dashboardAggregator.getRecentPatients(parseInt(page), parseInt(limit));
+    
+    const responseTime = Date.now() - startTime;
+    
+    logger.info('Recent patients retrieved successfully', {
+      requestId,
+      responseTime,
+      fromCache: recent?.fromCache,
+    });
+
+    res.json({
+      success: true,
+      data: recent,
+      meta: {
+        requestId,
+        responseTime,
+        timestamp: new Date().toISOString(),
+      },
+    });
+  } catch (error) {
+    const responseTime = Date.now() - startTime;
+    
+    logger.error('Failed to get recent patients', {
+      requestId,
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      responseTime,
+    });
+    
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve recent patients',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error',
+      meta: {
+        requestId,
+        responseTime,
+        timestamp: new Date().toISOString(),
+      },
+    });
+  }
+});
+
 module.exports = router;

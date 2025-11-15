@@ -34,10 +34,9 @@ class DashboardAggregator {
     }
 
     const url = `${serviceConfig.url}${endpoint}`;
+    const startTime = Date.now();
     
     try {
-      const startTime = Date.now();
-      
       const response = await axios({
         url,
         method: options.method || 'GET',
@@ -100,14 +99,14 @@ class DashboardAggregator {
       // Call all services in parallel
       const [
         patientStats,
-        doctorStats,
         appointmentStats,
+        doctorStats,
         revenueStats,
         medicineStats,
       ] = await Promise.allSettled([
         this.callService('patients', '/v1/admin/patients/stats'),
-        this.callService('doctors', '/v1/admin/doctors/stats'),
         this.callService('appointments', '/v1/admin/appointments/stats'),
+        this.callService('doctors', '/v1/admin/doctors/stats'),
         this.callService('billing', '/v1/admin/revenue/stats'),
         this.callService('medicine', '/v1/admin/medicine/stats'),
       ]);
@@ -115,16 +114,33 @@ class DashboardAggregator {
       // Extract and aggregate data
       const stats = {
         // KPI Cards - extract top-level metrics
-        totalPatients: this.extractValue(patientStats, 'data.totalPatients', 0),
-        activePatients: this.extractValue(patientStats, 'data.activePatients', 0),
+        totalPatients: this.extractValue(patientStats, 'totalPatients', 0),
+        activePatients: this.extractValue(patientStats, 'activePatients', 0),
+        newPatientsThisMonth: this.extractValue(patientStats, 'newThisMonth', 0),
+        newPatientsThisWeek: this.extractValue(patientStats, 'newThisWeek', 0),
+        patientGrowthRate: this.extractValue(patientStats, 'growthRate', 0),
+        
+        totalAppointments: this.extractValue(appointmentStats, 'totalAppointments', 0),
+        pendingAppointments: this.extractValue(appointmentStats, 'pendingAppointments', 0),
+        confirmedAppointments: this.extractValue(appointmentStats, 'confirmedAppointments', 0),
+        completedAppointments: this.extractValue(appointmentStats, 'completedAppointments', 0),
+        cancelledAppointments: this.extractValue(appointmentStats, 'cancelledAppointments', 0),
+        scheduledToday: this.extractValue(appointmentStats, 'scheduledToday', 0),
+        newAppointmentsThisMonth: this.extractValue(appointmentStats, 'newThisMonth', 0),
+        newAppointmentsThisWeek: this.extractValue(appointmentStats, 'newThisWeek', 0),
+        averageAppointmentsPerDay: this.extractValue(appointmentStats, 'averagePerDay', 0),
+        completionRate: this.extractValue(appointmentStats, 'completionRate', 0),
+        cancellationRate: this.extractValue(appointmentStats, 'cancellationRate', 0),
+        
+        totalRevenue: this.extractValue(appointmentStats, 'totalRevenue', 0),
+        revenueThisMonth: this.extractValue(appointmentStats, 'revenueThisMonth', 0),
+        averageConsultationFee: this.extractValue(appointmentStats, 'averageConsultationFee', 0),
+        mostCommonAppointmentType: this.extractValue(appointmentStats, 'mostCommonType', 'N/A'),
+        mostCommonAppointmentCategory: this.extractValue(appointmentStats, 'mostCommonCategory', 'N/A'),
+        
         activeDoctors: this.extractValue(doctorStats, 'data.activeDoctors', 0),
         totalDoctors: this.extractValue(doctorStats, 'data.totalDoctors', 0),
         onlineDoctors: this.extractValue(doctorStats, 'data.onlineNow', 0),
-        todayAppointments: this.extractValue(appointmentStats, 'data.totalToday', 0),
-        completedAppointments: this.extractValue(appointmentStats, 'data.completed', 0),
-        pendingAppointments: this.extractValue(appointmentStats, 'data.pending', 0),
-        confirmedAppointments: this.extractValue(appointmentStats, 'data.confirmed', 0),
-        cancelledAppointments: this.extractValue(appointmentStats, 'data.cancelled', 0),
         revenueToday: this.extractValue(revenueStats, 'data.todayRevenue', 0),
         revenueMonth: this.extractValue(revenueStats, 'data.monthRevenue', 0),
         revenueYear: this.extractValue(revenueStats, 'data.yearRevenue', 0),
@@ -138,11 +154,11 @@ class DashboardAggregator {
         
         // Service availability status
         serviceStatus: {
-          patients: patientStats.status === 'fulfilled',
-          doctors: doctorStats.status === 'fulfilled',
-          appointments: appointmentStats.status === 'fulfilled',
-          revenue: revenueStats.status === 'fulfilled',
-          medicine: medicineStats.status === 'fulfilled',
+          patients: patientStats.status === 'fulfilled' && patientStats.value !== null,
+          appointments: appointmentStats.status === 'fulfilled' && appointmentStats.value !== null,
+          doctors: doctorStats.status === 'fulfilled' && doctorStats.value !== null,
+          revenue: revenueStats.status === 'fulfilled' && revenueStats.value !== null,
+          medicine: medicineStats.status === 'fulfilled' && medicineStats.value !== null,
         },
         
         // Metadata
@@ -152,8 +168,8 @@ class DashboardAggregator {
         cacheHit: false,
         partial: this.isPartialData([
           patientStats,
-          doctorStats,
           appointmentStats,
+          doctorStats,
           revenueStats,
           medicineStats,
         ]),
@@ -255,7 +271,7 @@ class DashboardAggregator {
 
     const healthChecks = await Promise.allSettled(
       services.map(async (service) => {
-        const start = Date.now();
+        const startTime = Date.now();
         try {
           const result = await this.callService(service.name, service.endpoint, { 
             timeout: 3000,
@@ -264,7 +280,7 @@ class DashboardAggregator {
           return {
             name: service.name,
             status: result ? 'healthy' : 'unhealthy',
-            responseTime: Date.now() - start,
+            responseTime: Date.now() - startTime,
             details: result?.data || result,
             url: config.services[service.name]?.url,
           };
@@ -272,7 +288,7 @@ class DashboardAggregator {
           return {
             name: service.name,
             status: 'unhealthy',
-            responseTime: Date.now() - start,
+            responseTime: Date.now() - startTime,
             error: error.message,
             url: config.services[service.name]?.url,
           };
@@ -362,6 +378,228 @@ class DashboardAggregator {
    */
   async getCacheStats() {
     return await redisService.getStats();
+  }
+
+  /**
+   * Get appointment trends data
+   * @param {string} period - Time period: 'daily', 'weekly', or 'monthly'
+   * @param {number} days - Number of days to look back
+   * @returns {Promise<Object>} Appointment trends data
+   */
+  async getAppointmentTrends(period = 'daily', days = 30) {
+    const cacheKey = `admin:appointments:trends:${period}:${days}`;
+    
+    // Try cache first
+    const cached = await redisService.get(cacheKey);
+    if (cached) {
+      logger.debug('Appointment trends cache hit');
+      return { ...cached, fromCache: true };
+    }
+
+    logger.info('Appointment trends cache miss - fetching from service');
+    
+    try {
+      const trends = await this.callService(
+        'appointments',
+        '/v1/admin/appointments/trends',
+        { params: { period, days } }
+      );
+
+      if (trends) {
+        // Cache the result
+        await redisService.set(cacheKey, trends, this.CACHE_TTL.TRENDS);
+        return { ...trends, fromCache: false };
+      }
+
+      return null;
+    } catch (error) {
+      logger.error('Failed to fetch appointment trends', { error: error.message });
+      return null;
+    }
+  }
+
+  /**
+   * Get appointment status distribution
+   * @returns {Promise<Object>} Status distribution data
+   */
+  async getAppointmentDistribution() {
+    const cacheKey = 'admin:appointments:distribution';
+    
+    // Try cache first
+    const cached = await redisService.get(cacheKey);
+    if (cached) {
+      logger.debug('Appointment distribution cache hit');
+      return { ...cached, fromCache: true };
+    }
+
+    logger.info('Appointment distribution cache miss - fetching from service');
+    
+    try {
+      const distribution = await this.callService(
+        'appointments',
+        '/v1/admin/appointments/status-distribution'
+      );
+
+      if (distribution) {
+        // Cache the result
+        await redisService.set(cacheKey, distribution, this.CACHE_TTL.STATS);
+        return { ...distribution, fromCache: false };
+      }
+
+      return null;
+    } catch (error) {
+      logger.error('Failed to fetch appointment distribution', { error: error.message });
+      return null;
+    }
+  }
+
+  /**
+   * Get recent appointments
+   * @param {number} page - Page number
+   * @param {number} limit - Items per page
+   * @returns {Promise<Object>} Recent appointments data
+   */
+  async getRecentAppointments(page = 1, limit = 10) {
+    const cacheKey = `admin:appointments:recent:${page}:${limit}`;
+    
+    // Try cache first (short TTL for recent data)
+    const cached = await redisService.get(cacheKey);
+    if (cached) {
+      logger.debug('Recent appointments cache hit');
+      return { ...cached, fromCache: true };
+    }
+
+    logger.info('Recent appointments cache miss - fetching from service');
+    
+    try {
+      const recent = await this.callService(
+        'appointments',
+        '/v1/admin/appointments/recent',
+        { params: { page, limit } }
+      );
+
+      if (recent) {
+        // Cache with short TTL (10 seconds)
+        await redisService.set(cacheKey, recent, 10);
+        return { ...recent, fromCache: false };
+      }
+
+      return null;
+    } catch (error) {
+      logger.error('Failed to fetch recent appointments', { error: error.message });
+      return null;
+    }
+  }
+
+  /**
+   * Get patient growth trends
+   * @param {string} period - Time period: 'daily', 'weekly', or 'monthly'
+   * @param {number} days - Number of days to look back
+   * @returns {Promise<Object>} Patient growth data
+   */
+  async getPatientGrowth(period = 'daily', days = 30) {
+    const cacheKey = `admin:patients:growth:${period}:${days}`;
+    
+    // Try cache first
+    const cached = await redisService.get(cacheKey);
+    if (cached) {
+      logger.debug('Patient growth cache hit');
+      return { ...cached, fromCache: true };
+    }
+
+    logger.info('Patient growth cache miss - fetching from service');
+    
+    try {
+      const growth = await this.callService(
+        'patients',
+        '/v1/admin/patients/growth',
+        { params: { period, days } }
+      );
+
+      if (growth) {
+        // Cache the result
+        await redisService.set(cacheKey, growth, this.CACHE_TTL.GROWTH);
+        return { ...growth, fromCache: false };
+      }
+
+      return null;
+    } catch (error) {
+      logger.error('Failed to fetch patient growth', { error: error.message });
+      return null;
+    }
+  }
+
+  /**
+   * Get patient demographics
+   * @returns {Promise<Object>} Patient demographics data
+   */
+  async getPatientDemographics() {
+    const cacheKey = 'admin:patients:demographics';
+    
+    // Try cache first
+    const cached = await redisService.get(cacheKey);
+    if (cached) {
+      logger.debug('Patient demographics cache hit');
+      return { ...cached, fromCache: true };
+    }
+
+    logger.info('Patient demographics cache miss - fetching from service');
+    
+    try {
+      const demographics = await this.callService(
+        'patients',
+        '/v1/admin/patients/demographics'
+      );
+
+      if (demographics) {
+        // Cache the result
+        await redisService.set(cacheKey, demographics, this.CACHE_TTL.STATS);
+        return { ...demographics, fromCache: false };
+      }
+
+      return null;
+    } catch (error) {
+      logger.error('Failed to fetch patient demographics', { error: error.message });
+      return null;
+    }
+  }
+
+  /**
+   * Get recent patients
+   * @param {number} page - Page number
+   * @param {number} limit - Items per page
+   * @returns {Promise<Object>} Recent patients data
+   */
+  async getRecentPatients(page = 1, limit = 10) {
+    const cacheKey = `admin:patients:recent:${page}:${limit}`;
+    
+    // Try cache first (short TTL for recent data)
+    const cached = await redisService.get(cacheKey);
+    if (cached) {
+      logger.debug('Recent patients cache hit');
+      return { ...cached, fromCache: true };
+    }
+
+    logger.info('Recent patients cache miss - fetching from service');
+    
+    try {
+      const recent = await this.callService(
+        'patients',
+        '/v1/admin/patients/recent',
+        { params: { page, limit } }
+      );
+
+      if (recent) {
+        // Cache with short TTL (10 seconds)
+        await redisService.set(cacheKey, recent, 10);
+        return { ...recent, fromCache: false };
+      }
+
+      return null;
+    } catch (error) {
+      logger.error('Failed to fetch recent patients', { error: error.message });
+      return null;
+    }
   }
 }
 
