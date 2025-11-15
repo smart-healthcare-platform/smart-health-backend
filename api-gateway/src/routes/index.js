@@ -5,6 +5,7 @@ const router = express.Router();
 const healthRoutes = require("./health");
 const authRoutes = require("./auth");
 const serviceRoutes = require("./services");
+const adminRoutes = require("./admin");
 
 // API versioning
 const API_VERSION = "/v1";
@@ -47,6 +48,12 @@ router.use(`${API_VERSION}/prediction`, predictionProxy);
 const chatbotProxy = getServiceProxy("chatbot");
 router.use(`${API_VERSION}/chatbot`, chatbotProxy);
 
+/**
+ * Admin routes (requires admin authentication)
+ * MUST be before serviceRoutes to prevent authenticateJWT middleware conflict
+ */
+router.use(`${API_VERSION}/admin`, adminRoutes);
+
 router.use(`${API_VERSION}`, serviceRoutes);
 
 /**
@@ -61,6 +68,7 @@ router.get("/", (req, res) => {
     endpoints: {
       health: "/health",
       auth: `${API_VERSION}/auth`,
+      admin: `${API_VERSION}/admin`,
       patients: `${API_VERSION}/patients`,
       doctors: `${API_VERSION}/doctors`,
       appointments: `${API_VERSION}/appointments`,
@@ -89,6 +97,11 @@ router.get("/api", (req, res) => {
         register: `${API_VERSION}/auth/register`,
         refresh: `${API_VERSION}/auth/refresh-token`,
       },
+      admin: {
+        dashboard: `${API_VERSION}/admin/dashboard/stats`,
+        systemHealth: `${API_VERSION}/admin/system/health`,
+        cacheStats: `${API_VERSION}/admin/dashboard/cache-stats`,
+      },
       services: {
         patients: `${API_VERSION}/patients`,
         doctors: `${API_VERSION}/doctors`,
@@ -115,6 +128,16 @@ router.get(`${API_VERSION}`, (req, res) => {
       auth: {
         description: "Authentication and authorization service",
         endpoints: ["/auth/login", "/auth/register", "/auth/refresh-token"],
+      },
+      admin: {
+        description: "Admin dashboard and monitoring (requires admin role)",
+        endpoints: [
+          "/admin/dashboard/stats",
+          "/admin/system/health",
+          "/admin/dashboard/refresh",
+          "/admin/dashboard/cache-stats",
+          "/admin/system/info",
+        ],
       },
       patients: {
         description: "Patient management service",

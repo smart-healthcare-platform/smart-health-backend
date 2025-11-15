@@ -3,6 +3,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
 import { PatientModule } from './modules/patient/patient.module';
 import { PatientKafkaModule } from './kafka/patient.kafka.module';
+import { AdminModule } from './modules/admin/admin.module';
+import { AppController } from './app.controller';
 
 
 @Module({
@@ -19,7 +21,9 @@ import { PatientKafkaModule } from './kafka/patient.kafka.module';
       synchronize: true, 
     }),
     PatientModule,
-    PatientKafkaModule
+    PatientKafkaModule,
+    AdminModule,
   ],
+  controllers: [AppController],
 })
 export class AppModule {}

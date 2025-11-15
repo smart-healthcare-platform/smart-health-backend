@@ -26,6 +26,22 @@ services:
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
 
+  # === Redis ===
+  redis:
+    image: redis:7-alpine
+    container_name: smart-health-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
   # === Auth Service (Spring Boot) ===
   auth-service:
     build:
@@ -84,6 +100,7 @@ services:
       KAFKA_BROKER: kafka:9092
       BILLING_SERVICE_URL: http://billing-service:8090
       INTERNAL_API_SECRET_KEY: dev-internal-secret-key-12345
+      GATEWAY_SECRET: your-secure-gateway-secret-change-in-production
 
     depends_on:
       - kafka
@@ -110,6 +127,7 @@ services:
       JWT_SECRET: supersecret
       PORT: 8083
       KAFKA_BROKER: kafka:9092
+      GATEWAY_SECRET: your-secure-gateway-secret-change-in-production
     depends_on:
       - kafka
     extra_hosts:
@@ -135,6 +153,7 @@ services:
       JWT_SECRET: supersecret
       PORT: 8082
       KAFKA_BROKER: kafka:9092
+      GATEWAY_SECRET: your-secure-gateway-secret-change-in-production
     depends_on:
       - kafka
     extra_hosts:
@@ -307,6 +326,7 @@ services:
 
       # Internal API Security
       INTERNAL_API_SECRET_KEY: dev-internal-secret-key-12345
+      GATEWAY_SECRET: your-secure-gateway-secret-change-in-production
 
       # Momo Payment Gateway Configuration
       MOMO_PARTNER_CODE: MOMOBKUN20180529
@@ -369,25 +389,30 @@ services:
       RATE_LIMIT_WINDOW_MS: 900000
       RATE_LIMIT_MAX_REQUESTS: 100
 
-      REDIS_HOST: host.docker.internal
+      REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD:
 
+      GATEWAY_SECRET: your-secure-gateway-secret-change-in-production
+
       CORS_ORIGIN: http://localhost:3000,http://localhost:3001,http://localhost:3002
     depends_on:
+      - redis
       - auth-service
       - patient-service
       - doctor-service
       - appointment-service
-      - chat-service
-      - prediction-service
-      - chatbot-service
-      - medicine-service
+      # - chat-service
+      # - prediction-service
+      # - chatbot-service
+      # - medicine-service
       - billing-service
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
 volumes:
+  redis_data:
+    driver: local
   chroma_data:
     driver: local
   chatbot_cache:           
