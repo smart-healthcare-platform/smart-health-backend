@@ -7,7 +7,7 @@ import { VitalSignsModule } from './module/vital-signs/vital-signs.module';
 import { LabTestsModule } from './module/lab-tests/lab-test.module';
 import { FollowUpSuggestionModule } from './module/follow-up-suggestion/follow-up-suggestion.module';
 import { KafkaModule } from './kafka/kafka.module';
-import { AdminModule } from './modules/admin/admin.module';
+import { AdminModule } from './module/admin/admin.module';
 import { AppController } from './app.controller';
 
 @Module({

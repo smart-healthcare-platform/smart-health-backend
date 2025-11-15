@@ -107,7 +107,7 @@ class DashboardAggregator {
         this.callService('patients', '/v1/admin/patients/stats'),
         this.callService('appointments', '/v1/admin/appointments/stats'),
         this.callService('doctors', '/v1/admin/doctors/stats'),
-        this.callService('billing', '/v1/admin/revenue/stats'),
+        this.callService('billing', '/api/v1/admin/billing/revenue/stats'),
         this.callService('medicine', '/v1/admin/medicine/stats'),
       ]);
 
@@ -138,9 +138,16 @@ class DashboardAggregator {
         mostCommonAppointmentType: this.extractValue(appointmentStats, 'mostCommonType', 'N/A'),
         mostCommonAppointmentCategory: this.extractValue(appointmentStats, 'mostCommonCategory', 'N/A'),
         
-        activeDoctors: this.extractValue(doctorStats, 'data.activeDoctors', 0),
+        // Doctor metrics
         totalDoctors: this.extractValue(doctorStats, 'data.totalDoctors', 0),
-        onlineDoctors: this.extractValue(doctorStats, 'data.onlineNow', 0),
+        activeDoctors: this.extractValue(doctorStats, 'data.activeDoctors', 0),
+        inactiveDoctors: this.extractValue(doctorStats, 'data.inactiveDoctors', 0),
+        newDoctorsThisMonth: this.extractValue(doctorStats, 'data.newDoctorsThisMonth', 0),
+        doctorsWorkingToday: this.extractValue(doctorStats, 'data.doctorsWorkingToday', 0),
+        averageDoctorRating: this.extractValue(doctorStats, 'data.averageRating', 0),
+        totalDoctorRatings: this.extractValue(doctorStats, 'data.totalRatings', 0),
+        mostPopularSpecialty: this.extractValue(doctorStats, 'data.mostPopularSpecialty', 'N/A'),
+        averageExperienceYears: this.extractValue(doctorStats, 'data.averageExperienceYears', 0),
         revenueToday: this.extractValue(revenueStats, 'data.todayRevenue', 0),
         revenueMonth: this.extractValue(revenueStats, 'data.monthRevenue', 0),
         revenueYear: this.extractValue(revenueStats, 'data.yearRevenue', 0),
@@ -261,12 +268,12 @@ class DashboardAggregator {
     }
 
     const services = [
-      { name: 'patients', endpoint: '/health' },
-      { name: 'doctors', endpoint: '/health' },
-      { name: 'appointments', endpoint: '/health' },
-      { name: 'billing', endpoint: '/health' },
-      { name: 'medicine', endpoint: '/health' },
-      { name: 'notification', endpoint: '/health' },
+      { name: 'patients', endpoint: '/health', type: 'nestjs' },
+      { name: 'doctors', endpoint: '/health', type: 'nestjs' },
+      { name: 'appointments', endpoint: '/health', type: 'nestjs' },
+      { name: 'billing', endpoint: '/actuator/health', type: 'spring' },
+      { name: 'medicine', endpoint: '/actuator/health', type: 'spring' },
+      { name: 'notification', endpoint: '/health', type: 'nestjs' },
     ];
 
     const healthChecks = await Promise.allSettled(
@@ -277,11 +284,27 @@ class DashboardAggregator {
             timeout: 3000,
           });
           
+          // Handle different response formats
+          let isHealthy = false;
+          let details = null;
+          
+          if (result) {
+            if (service.type === 'spring') {
+              // Spring Boot Actuator format: { status: "UP" }
+              isHealthy = result.status === 'UP';
+              details = result;
+            } else {
+              // NestJS format: { status: "ok" }
+              isHealthy = result.status === 'ok' || result.status === 'UP';
+              details = result;
+            }
+          }
+          
           return {
             name: service.name,
-            status: result ? 'healthy' : 'unhealthy',
+            status: isHealthy ? 'healthy' : 'unhealthy',
             responseTime: Date.now() - startTime,
-            details: result?.data || result,
+            details: details,
             url: config.services[service.name]?.url,
           };
         } catch (error) {
@@ -601,9 +624,294 @@ class DashboardAggregator {
       return null;
     }
   }
+
+  /**
+   * Get top doctors by various metrics
+   * @param {number} limit - Number of top doctors to return
+   * @returns {Promise<Object>} Top doctors data
+   */
+  async getTopDoctors(limit = 10) {
+    const cacheKey = `admin:doctors:top:${limit}`;
+    
+    // Try cache first
+    const cached = await redisService.get(cacheKey);
+    if (cached) {
+      logger.debug('Top doctors cache hit');
+      return { ...cached, fromCache: true };
+    }
+
+    logger.info('Top doctors cache miss - fetching from service');
+    
+    try {
+      const response = await this.callService(
+        'doctors',
+        '/v1/admin/doctors/top',
+        { params: { limit } }
+      );
+
+      if (response) {
+        // Extract data from service response (unwrap {success, data, meta})
+        const topDoctors = response.data || response;
+        // Cache with TTL (10 minutes)
+        await redisService.set(cacheKey, topDoctors, this.CACHE_TTL.TOP_DOCTORS);
+        return { ...topDoctors, fromCache: false };
+      }
+
+      return null;
+    } catch (error) {
+      logger.error('Failed to fetch top doctors', { error: error.message });
+      return null;
+    }
+  }
+
+  /**
+   * Get department/specialty performance metrics
+   * @returns {Promise<Object>} Department performance data
+   */
+  async getDepartmentPerformance() {
+    const cacheKey = 'admin:departments:performance';
+    
+    // Try cache first
+    const cached = await redisService.get(cacheKey);
+    if (cached) {
+      logger.debug('Department performance cache hit');
+      return { ...cached, fromCache: true };
+    }
+
+    logger.info('Department performance cache miss - fetching from service');
+    
+    try {
+      const response = await this.callService(
+        'doctors',
+        '/v1/admin/doctors/departments/performance'
+      );
+
+      if (response) {
+        // Extract data from service response (unwrap {success, data, meta})
+        const performance = response.data || response;
+        // Cache with TTL (10 minutes)
+        await redisService.set(cacheKey, performance, this.CACHE_TTL.TOP_DOCTORS);
+        return { ...performance, fromCache: false };
+      }
+
+      return null;
+    } catch (error) {
+      logger.error('Failed to fetch department performance', { error: error.message });
+      return null;
+    }
+  }
+
+  /**
+   * Get doctor statistics
+   * @returns {Promise<Object>} Doctor stats data
+   */
+  async getDoctorStats() {
+    const cacheKey = 'admin:doctors:stats';
+    
+    // Try cache first
+    const cached = await redisService.get(cacheKey);
+    if (cached) {
+      logger.debug('Doctor stats cache hit');
+      return { ...cached, fromCache: true };
+    }
+
+    logger.info('Doctor stats cache miss - fetching from service');
+    
+    try {
+      const response = await this.callService(
+        'doctors',
+        '/v1/admin/doctors/stats'
+      );
+
+      if (response) {
+        // Extract data from service response (unwrap {success, data, meta})
+        const stats = response.data || response;
+        // Cache with TTL (5 minutes)
+        await redisService.set(cacheKey, stats, 300);
+        return { ...stats, fromCache: false };
+      }
+
+      return null;
+    } catch (error) {
+      logger.error('Failed to fetch doctor stats', { error: error.message });
+      return null;
+    }
+  }
+
+  /**
+   * Get revenue analytics (stats, distribution, trends)
+   * Aggregates data from billing service
+   */
+  async getRevenueAnalytics() {
+    const cacheKey = 'admin:revenue:analytics';
+    
+    // Try cache first
+    const cached = await redisService.get(cacheKey);
+    if (cached) {
+      logger.debug('Revenue analytics cache hit');
+      return { ...cached, fromCache: true };
+    }
+
+    logger.info('Revenue analytics cache miss - fetching from billing service');
+
+    try {
+      const [stats, distribution, trends, paymentMethods] = await Promise.allSettled([
+        this.callService('billing', '/api/v1/admin/billing/revenue/stats'),
+        this.callService('billing', '/api/v1/admin/billing/revenue/distribution'),
+        this.callService('billing', '/api/v1/admin/billing/revenue/trends', { params: { period: 'DAILY', days: 30 } }),
+        this.callService('billing', '/api/v1/admin/billing/payment-methods/stats'),
+      ]);
+
+      const analytics = {
+        stats: this.extractData(stats),
+        distribution: this.extractData(distribution),
+        trends: this.extractData(trends),
+        paymentMethods: this.extractData(paymentMethods),
+        timestamp: new Date().toISOString(),
+        fromCache: false,
+      };
+
+      // Cache for 1 minute (revenue data changes frequently)
+      await redisService.set(cacheKey, analytics, 60);
+
+      return analytics;
+    } catch (error) {
+      logger.error('Failed to get revenue analytics', { error: error.message });
+      throw error;
+    }
+  }
+
+  /**
+   * Get revenue statistics only
+   */
+  async getRevenueStats() {
+    const cacheKey = 'admin:revenue:stats';
+    
+    const cached = await redisService.get(cacheKey);
+    if (cached) {
+      return { ...cached, fromCache: true };
+    }
+
+    try {
+      const stats = await this.callService('billing', '/api/v1/admin/billing/revenue/stats');
+      
+      if (!stats) {
+        throw new Error('Billing service unavailable');
+      }
+      
+      const data = {
+        ...(stats.data || stats),
+        timestamp: new Date().toISOString(),
+        fromCache: false,
+      };
+
+      await redisService.set(cacheKey, data, 60);
+      return data;
+    } catch (error) {
+      logger.error('Failed to get revenue stats', { error: error.message });
+      throw error;
+    }
+  }
+
+  /**
+   * Get revenue distribution
+   */
+  async getRevenueDistribution() {
+    const cacheKey = 'admin:revenue:distribution';
+    
+    const cached = await redisService.get(cacheKey);
+    if (cached) {
+      return { ...cached, fromCache: true };
+    }
+
+    try {
+      const distribution = await this.callService('billing', '/api/v1/admin/billing/revenue/distribution');
+      
+      if (!distribution) {
+        throw new Error('Billing service unavailable');
+      }
+      
+      const data = {
+        ...(distribution.data || distribution),
+        timestamp: new Date().toISOString(),
+        fromCache: false,
+      };
+
+      await redisService.set(cacheKey, data, 300); // 5 minutes
+      return data;
+    } catch (error) {
+      logger.error('Failed to get revenue distribution', { error: error.message });
+      throw error;
+    }
+  }
+
+  /**
+   * Get revenue trends
+   */
+  async getRevenueTrends(period = 'DAILY', days = 30) {
+    const cacheKey = `admin:revenue:trends:${period}:${days}`;
+    
+    const cached = await redisService.get(cacheKey);
+    if (cached) {
+      return { ...cached, fromCache: true };
+    }
+
+    try {
+      const trends = await this.callService('billing', '/api/v1/admin/billing/revenue/trends', {
+        params: { period, days }
+      });
+      
+      if (!trends) {
+        throw new Error('Billing service unavailable');
+      }
+      
+      const data = {
+        ...(trends.data || trends),
+        timestamp: new Date().toISOString(),
+        fromCache: false,
+      };
+
+      await redisService.set(cacheKey, data, 3600); // 1 hour
+      return data;
+    } catch (error) {
+      logger.error('Failed to get revenue trends', { error: error.message });
+      throw error;
+    }
+  }
+
+  /**
+   * Get payment method statistics
+   */
+  async getPaymentMethodStats() {
+    const cacheKey = 'admin:payment:methods';
+    
+    const cached = await redisService.get(cacheKey);
+    if (cached) {
+      return { ...cached, fromCache: true };
+    }
+
+    try {
+      const stats = await this.callService('billing', '/api/v1/admin/billing/payment-methods/stats');
+      
+      if (!stats) {
+        throw new Error('Billing service unavailable');
+      }
+      
+      const data = {
+        ...(stats.data || stats),
+        timestamp: new Date().toISOString(),
+        fromCache: false,
+      };
+
+      await redisService.set(cacheKey, data, 300); // 5 minutes
+      return data;
+    } catch (error) {
+      logger.error('Failed to get payment method stats', { error: error.message });
+      throw error;
+    }
+  }
 }
 
-// Export singleton instance
 const dashboardAggregator = new DashboardAggregator();
 
 module.exports = dashboardAggregator;
