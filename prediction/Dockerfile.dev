@@ -1,13 +1,9 @@
 # ===============================
-# Multi-stage build for Python FastAPI/LangChain application
+# Multi-stage build for Python FastAPI dev mode with hot reload
 # ===============================
 FROM python:3.11-slim as builder
 
 WORKDIR /app
-
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
 
 # Install system dependencies for building
 RUN apt-get update && \
@@ -29,21 +25,23 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-
 # Copy installed packages from builder stage
 COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
-# Copy only necessary source code and knowledge base
-COPY src/ ./src/
-COPY knowledge_base/ ./knowledge_base/
+# Copy only necessary source code and model files
+COPY src ./src
+COPY models ./models
+COPY standard_scaler.pkl .
 COPY requirements.txt .
 
 # Expose port
-EXPOSE 8087
+EXPOSE 8086
 
-# Start FastAPI with Uvicorn
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8087"]
+# Environment variables
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app/src
+ENV PYTHONDONTWRITEBYTECODE=1
+
+# Start with auto-reload
+CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8086", "--reload"]

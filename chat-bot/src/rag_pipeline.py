@@ -1,8 +1,8 @@
 import os
 import chromadb
 from langchain_community.document_loaders import PyPDFLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import SentenceTransformerEmbeddings
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_chroma import Chroma
 
 # --- Configuration ---
@@ -43,7 +43,7 @@ def create_embeddings(model_name: str = EMBEDDING_MODEL_NAME):
     """
     Creates an embedding function using SentenceTransformer.
     """
-    return SentenceTransformerEmbeddings(model_name=model_name, model_kwargs={'device': 'cpu'})
+    return HuggingFaceEmbeddings(model_name=model_name, model_kwargs={'device': 'cpu'})
 
 def store_embeddings(documents, embedding_function):
     """

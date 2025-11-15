@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     DEBUG: bool = os.getenv("DEBUG", "False").lower() == "true"
     
     # Model settings
-    MODEL_PATH: str = os.getenv("MODEL_PATH", "heat_disease_prediction.h5")
+    MODEL_PATH: str = os.getenv("MODEL_PATH", "./models/heat_disease_prediction.h5")
     
     # Logging settings
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")

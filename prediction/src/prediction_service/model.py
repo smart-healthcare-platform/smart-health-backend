@@ -58,7 +58,7 @@ class ModelLoader:
             logger.warning("scikit-learn not available. Skipping scaler loading.")
             return
             
-        scaler_path = "standard_scaler.pkl"
+        scaler_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "standard_scaler.pkl")
         if os.path.exists(scaler_path):
             try:
                 self._scaler = joblib.load(scaler_path)
