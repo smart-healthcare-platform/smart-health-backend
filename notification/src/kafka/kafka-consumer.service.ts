@@ -8,6 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { Kafka, Consumer, EachMessagePayload } from 'kafkajs';
 import { EmailService } from '../modules/email/email.service';
 import { FirebaseService } from '../modules/firebase/firebase.service';
+import { DeviceService } from '../modules/device/device.service';
 
 @Injectable()
 export class KafkaConsumerService implements OnModuleInit, OnModuleDestroy {
@@ -19,6 +20,7 @@ export class KafkaConsumerService implements OnModuleInit, OnModuleDestroy {
     private readonly configService: ConfigService,
     private readonly emailService: EmailService,
     private readonly firebaseService: FirebaseService,
+    private readonly deviceService: DeviceService,
   ) {
     this.kafka = new Kafka({
       clientId: 'notification-service-consumer',
@@ -88,21 +90,71 @@ export class KafkaConsumerService implements OnModuleInit, OnModuleDestroy {
 
   private async handleNewMessage(rawValue: string) {
     this.logger.debug(`Processing message.new event: ${rawValue}`);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const eventData: any = JSON.parse(rawValue);
+    
+    const eventData: {
+      recipientId: string;
+      senderId: string;
+      senderName: string;
+      messageContent: string;
+      conversationId: string;
+    } = JSON.parse(rawValue);
 
-    const { recipientDeviceToken, senderName, messageContent } = eventData;
+    const { recipientId, senderName, messageContent, conversationId } = eventData;
 
-    if (!recipientDeviceToken) {
-      this.logger.error('Missing recipientDeviceToken in message.new event');
+    if (!recipientId) {
+      this.logger.error('Missing recipientId in message.new event');
       return;
     }
 
-    await this.firebaseService.sendPushNotification(
-      recipientDeviceToken,
-      `New message from ${senderName}`,
-      messageContent,
-    );
+    // Lấy tất cả devices active của recipient
+    try {
+      const devices = await this.deviceService.getActiveDevices(recipientId);
+
+      if (devices.length === 0) {
+        this.logger.warn(`No active devices found for user ${recipientId}`);
+        return;
+      }
+
+      this.logger.log(`Found ${devices.length} active device(s) for user ${recipientId}`);
+
+      // Gửi notification đến tất cả devices
+      const notificationPromises = devices.map(async (device) => {
+        try {
+          // Format notification with truncated message preview
+          const title = `💬 ${senderName}`;
+          const preview = messageContent.length > 100 
+            ? messageContent.substring(0, 100) + '...' 
+            : messageContent;
+          
+          await this.firebaseService.sendPushNotification(
+            device.deviceToken,
+            title,
+            preview,
+          );
+          this.logger.log(
+            `Sent notification to ${device.deviceType} device for user ${recipientId}`,
+          );
+        } catch (error: any) {
+          this.logger.error(
+            `Failed to send notification to ${device.deviceType} device ${device.id}: ${error.message}`,
+            error.stack,
+          );
+          // Nếu token invalid, deactivate device
+          if (error.code === 'messaging/invalid-registration-token' || 
+              error.code === 'messaging/registration-token-not-registered') {
+            await this.deviceService.deactivateDevice(recipientId, device.deviceToken);
+            this.logger.log(`Deactivated invalid device token for user ${recipientId}`);
+          }
+        }
+      });
+
+      await Promise.allSettled(notificationPromises);
+    } catch (error: any) {
+      this.logger.error(
+        `Error processing message.new event for user ${recipientId}: ${error.message}`,
+        error.stack,
+      );
+    }
   }
 
   private async handleAppointmentConfirmed(rawValue: string) {
@@ -114,6 +166,8 @@ export class KafkaConsumerService implements OnModuleInit, OnModuleDestroy {
       appointmentTime: string;
       patientName: string;
       conversation: string;
+      patientId?: string;
+      doctorId?: string;
     } = JSON.parse(rawValue);
 
     const {
@@ -122,7 +176,9 @@ export class KafkaConsumerService implements OnModuleInit, OnModuleDestroy {
       doctorName,
       appointmentTime,
       patientName,
-      conversation
+      conversation,
+      patientId,
+      doctorId,
     } = eventData;
 
     if (!patientEmail || !doctorEmail) {
@@ -130,6 +186,7 @@ export class KafkaConsumerService implements OnModuleInit, OnModuleDestroy {
       return;
     }
 
+    // Gửi email notification
     await this.emailService.notifyAppointmentConfirmation({
       doctorEmail,
       doctorName,
@@ -138,6 +195,84 @@ export class KafkaConsumerService implements OnModuleInit, OnModuleDestroy {
       appointmentTime,
       conversation,
     });
+
+    // Gửi push notification cho bác sĩ (nếu có doctorId)
+    if (doctorId) {
+      try {
+        const doctorDevices = await this.deviceService.getActiveDevices(doctorId);
+        
+        if (doctorDevices.length > 0) {
+          this.logger.log(`Sending push notifications to ${doctorDevices.length} device(s) for doctor ${doctorId}`);
+          
+          const notificationPromises = doctorDevices.map(async (device) => {
+            try {
+              await this.firebaseService.sendPushNotification(
+                device.deviceToken,
+                '📅 Lịch hẹn mới',
+                `Bạn có lịch khám mới với ${patientName} lúc ${new Date(appointmentTime).toLocaleString('vi-VN')}`,
+              );
+              this.logger.log(`Sent appointment notification to ${device.deviceType} device for doctor ${doctorId}`);
+            } catch (error: any) {
+              this.logger.error(
+                `Failed to send notification to doctor ${device.deviceType} device: ${error.message}`,
+                error.stack,
+              );
+              // Deactivate invalid tokens
+              if (error.code === 'messaging/invalid-registration-token' || 
+                  error.code === 'messaging/registration-token-not-registered') {
+                await this.deviceService.deactivateDevice(doctorId, device.deviceToken);
+              }
+            }
+          });
+
+          await Promise.allSettled(notificationPromises);
+        }
+      } catch (error: any) {
+        this.logger.error(
+          `Error sending push notifications to doctor ${doctorId}: ${error.message}`,
+          error.stack,
+        );
+      }
+    }
+
+    // Gửi push notification cho bệnh nhân (nếu có patientId)
+    if (patientId) {
+      try {
+        const patientDevices = await this.deviceService.getActiveDevices(patientId);
+        
+        if (patientDevices.length > 0) {
+          this.logger.log(`Sending push notifications to ${patientDevices.length} device(s) for patient ${patientId}`);
+          
+          const notificationPromises = patientDevices.map(async (device) => {
+            try {
+              await this.firebaseService.sendPushNotification(
+                device.deviceToken,
+                '✅ Lịch hẹn đã được xác nhận',
+                `Lịch hẹn của bạn với ${doctorName} lúc ${new Date(appointmentTime).toLocaleString('vi-VN')} đã được xác nhận`,
+              );
+              this.logger.log(`Sent appointment notification to ${device.deviceType} device for patient ${patientId}`);
+            } catch (error: any) {
+              this.logger.error(
+                `Failed to send notification to patient ${device.deviceType} device: ${error.message}`,
+                error.stack,
+              );
+              // Deactivate invalid tokens
+              if (error.code === 'messaging/invalid-registration-token' || 
+                  error.code === 'messaging/registration-token-not-registered') {
+                await this.deviceService.deactivateDevice(patientId, device.deviceToken);
+              }
+            }
+          });
+
+          await Promise.allSettled(notificationPromises);
+        }
+      } catch (error: any) {
+        this.logger.error(
+          `Error sending push notifications to patient ${patientId}: ${error.message}`,
+          error.stack,
+        );
+      }
+    }
   }
 
   private async disconnect() {

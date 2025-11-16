@@ -17,7 +17,9 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "test:integration": "bash test-scripts/test-device-api.sh",
+    "test:kafka": "echo 'Publishing test Kafka events...' && docker exec -i kafka kafka-console-producer --bootstrap-server localhost:9092 --topic message.new"
   },
   "dependencies": {
     "@nestjs-modules/mailer": "^2.0.2",
@@ -26,11 +28,14 @@
     "@nestjs/core": "^11.0.1",
     "@nestjs/microservices": "^11.1.6",
     "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/typeorm": "^11.0.0",
     "firebase-admin": "^13.5.0",
     "handlebars": "^4.7.8",
+    "mysql2": "^3.15.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
-    "twilio": "^5.10.2"
+    "twilio": "^5.10.2",
+    "typeorm": "^0.3.20"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
