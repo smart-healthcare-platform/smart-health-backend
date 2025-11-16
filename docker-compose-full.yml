@@ -181,6 +181,8 @@ services:
       AUTH_SERVICE_URL: http://auth-service:8081
       DOCTOR_SERVICE_URL: http://doctor-service:8083
       PATIENT_SERVICE_URL: http://patient-service:8082
+      KAFKA_BROKER: kafka:9092
+      KAFKA_CLIENT_ID: chat-service
     depends_on:
       - kafka
       - doctor-service
