@@ -1,39 +1,41 @@
-# Stage 1: Build the TypeScript application
+# ===============================
+# STAGE 1: Build TypeScript app
+# ===============================
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package.json and package-lock.json first to leverage Docker cache
+# Copy package files
 COPY package*.json ./
 
 # Install dependencies
 RUN npm install
 
-# Copy the rest of the application code
+# Copy source code
 COPY . .
 
-# Build the TypeScript code
+# Build TypeScript to JavaScript
 RUN npm run build
 
-# Stage 2: Run the production application
+# ===============================
+# STAGE 2: Runtime
+# ===============================
 FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy package.json and package-lock.json
+# Copy built files from builder
+COPY --from=builder /app/dist ./dist
 COPY package*.json ./
 
 # Install production dependencies only
-RUN npm install --only=production
+RUN npm ci --omit=dev
 
-# Copy built application from the builder stage
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/.sequelizerc ./.sequelizerc
-COPY --from=builder /app/src/config/database.js ./src/config/database.js
+# Expose port
+EXPOSE 8085
 
-# Expose the application port
-EXPOSE 3001
+# Environment variable
+ENV NODE_ENV=production
 
-# Define the command to run the application
+# Start application
 CMD ["node", "dist/app.js"]

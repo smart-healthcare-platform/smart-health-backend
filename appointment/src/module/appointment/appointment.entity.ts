@@ -83,6 +83,9 @@ export class Appointment {
   @Column({ nullable: true })
   paymentId: string;
 
+  @Column({ nullable: true })
+  paymentUrl: string;
+
   @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
   paidAmount: number;
 
@@ -95,9 +98,10 @@ export class Appointment {
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 200000 })
   consultationFee: number;
 
-
   /** Nếu cuộc hẹn này được tạo từ một đề xuất tái khám */
-  @ManyToOne(() => FollowUpSuggestion, (f) => f.newAppointment, { nullable: true })
+  @ManyToOne(() => FollowUpSuggestion, (f) => f.newAppointment, {
+    nullable: true,
+  })
   @JoinColumn({ name: 'follow_up_id' })
   followUpSuggestion?: FollowUpSuggestion;
 

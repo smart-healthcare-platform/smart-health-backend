@@ -6,6 +6,7 @@ const morgan = require("morgan");
 
 const config = require("./config");
 const logger = require("./config/logger");
+const redisService = require("./services/cache/redisService");
 const {
   initializeErrorHandlers,
   timeoutHandler,
@@ -114,12 +115,23 @@ app.use((req, res, next) => {
 // app.use(speedLimiter);     // Temporarily disabled for testing
 app.use("/", routes);
 
-const server = app.listen(config.port, () => {
+const server = app.listen(config.port, async () => {
   logger.info(`Smart Health API Gateway started`, {
     port: config.port,
     environment: config.env,
     nodeVersion: process.version,
   });
+
+  // Initialize Redis connection
+  try {
+    await redisService.initialize();
+    logger.info('Redis service initialized successfully');
+  } catch (error) {
+    logger.error('Failed to initialize Redis service', {
+      error: error.message,
+    });
+    logger.warn('API Gateway will continue without cache');
+  }
 });
 
 server.on('upgrade', (req, socket, head) => {
@@ -139,8 +151,24 @@ server.on('upgrade', (req, socket, head) => {
 
 initializeErrorHandlers(app, server);
 
-process.on("SIGTERM", () => {
+process.on("SIGTERM", async () => {
   logger.info("SIGTERM received, starting graceful shutdown");
+  
+  // Disconnect Redis
+  await redisService.disconnect();
+  
+  server.close(() => {
+    logger.info("Server closed successfully");
+    process.exit(0);
+  });
+});
+
+process.on("SIGINT", async () => {
+  logger.info("SIGINT received, starting graceful shutdown");
+  
+  // Disconnect Redis
+  await redisService.disconnect();
+  
   server.close(() => {
     logger.info("Server closed successfully");
     process.exit(0);

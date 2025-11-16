@@ -4,6 +4,8 @@ import { ConfigModule } from '@nestjs/config';
 import { DoctorModule } from './modules/doctor/doctor.module';
 import { AppointmentSlotModule } from './modules/appointment-slot/appointment-slot.module';
 import { DoctorKafkaModule } from './kafka/doctor.kafka.module';
+import { AdminModule } from './modules/admin/admin.module';
+import { AppController } from './app.controller';
 
 @Module({
   imports: [
@@ -20,7 +22,9 @@ import { DoctorKafkaModule } from './kafka/doctor.kafka.module';
     }),
     DoctorModule,
     AppointmentSlotModule,
-    DoctorKafkaModule
+    DoctorKafkaModule,
+    AdminModule,
   ],
+  controllers: [AppController],
 })
 export class AppModule { }

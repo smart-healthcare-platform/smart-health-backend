@@ -16,6 +16,7 @@ import com.smarthealth.medicine.model.PrescriptionResponse;
 import com.smarthealth.medicine.model.PrescriptionSummaryDto;
 import com.smarthealth.medicine.service.PrescriptionService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
@@ -24,6 +25,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class PrescriptionServiceImpl implements PrescriptionService {
 
     private final PrescriptionRepository prescriptionRepository;
@@ -33,9 +35,15 @@ public class PrescriptionServiceImpl implements PrescriptionService {
     @Override
     @Transactional
     public PrescriptionResponse createPrescription(CreatePrescriptionRequest request) {
+        log.info("=== Creating prescription with {} items ===", request.getItems() != null ? request.getItems().size() : 0);
+        log.debug("Request details: patientId={}, doctorId={}, appointmentId={}", 
+            request.getPatientId(), request.getDoctorId(), request.getAppointmentId());
+        
         // Step 1: Validate patient by calling Patient Service through the client interface
         PatientDto patient = patientClient.getPatientById(request.getPatientId())
                 .orElseThrow(() -> new ResourceNotFoundException("Patient not found with id: " + request.getPatientId()));
+        
+        log.info("Patient validated: {}", patient.name());
 
         // TODO: (Future - Day 5) Use patient.allergies() for CDSS checks
 
@@ -48,9 +56,17 @@ public class PrescriptionServiceImpl implements PrescriptionService {
         prescription.setNotes(request.getNotes());
         prescription.setStatus(PrescriptionStatus.PENDING_PAYMENT);
 
+        log.info("Processing {} prescription items...", request.getItems().size());
+        
+        int itemCount = 0;
         for (PrescriptionItemDto itemDto : request.getItems()) {
+            itemCount++;
+            log.info("Processing item #{} - drugId: {}", itemCount, itemDto.getDrugId());
+            
             Drug drug = drugRepository.findById(itemDto.getDrugId())
                     .orElseThrow(() -> new ResourceNotFoundException("Drug not found with id: " + itemDto.getDrugId()));
+            
+            log.info("Found drug: {} ({})", drug.getName(), drug.getActiveIngredient());
 
             PrescriptionItem item = new PrescriptionItem();
             item.setDrug(drug);
@@ -62,9 +78,13 @@ public class PrescriptionServiceImpl implements PrescriptionService {
 
             // Use the helper method to sync both sides of the relationship
             prescription.addItem(item);
+            log.debug("Added item to prescription. Total items in prescription: {}", prescription.getItems().size());
         }
 
+        log.info("Saving prescription with {} items...", prescription.getItems().size());
         Prescription savedPrescription = prescriptionRepository.save(prescription);
+        log.info("✅ Prescription saved successfully! ID: {}, Items count: {}",  
+            savedPrescription.getId(), savedPrescription.getItems().size());
 
         // TODO: (Future - Day 6) Send event to Notification Service
 

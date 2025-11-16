@@ -1,18 +1,49 @@
-# Use an official Python runtime as a parent image
-FROM python:3.11-slim
+# ===============================
+# Multi-stage build for Python FastAPI/LangChain application
+# ===============================
+FROM python:3.11-slim as builder
 
-# Set the working directory in the container
 WORKDIR /app
 
-# Copy the requirements file and install dependencies
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# Install system dependencies for building
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    gcc \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements file
 COPY requirements.txt .
+
+# Install Python dependencies into site-packages
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the application's source code
-COPY . .
+# ===============================
+# Runtime stage
+# ===============================
+FROM python:3.11-slim
 
-# Expose the port the app runs on
+WORKDIR /app
+
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+# Copy installed packages from builder stage
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Copy only necessary source code and knowledge base
+COPY src/ ./src/
+COPY knowledge_base/ ./knowledge_base/
+COPY requirements.txt .
+
+# Expose port
 EXPOSE 8087
 
-# Command to run the application
+# Start FastAPI with Uvicorn
 CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8087"]

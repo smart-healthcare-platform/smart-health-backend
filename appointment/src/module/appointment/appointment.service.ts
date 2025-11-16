@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, Logger, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  Logger,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Appointment } from './appointment.entity';
@@ -25,10 +30,13 @@ export class AppointmentService {
     private readonly producer: AppointmentProducerService,
     private readonly http: HttpService,
     private readonly configService: ConfigService,
-  ) { }
+  ) {}
 
   async create(dto: CreateAppointmentDto): Promise<Appointment> {
-    const appointment = this.appointmentRepo.create({ ...dto, status: AppointmentStatus.PENDING });
+    const appointment = this.appointmentRepo.create({
+      ...dto,
+      status: AppointmentStatus.PENDING,
+    });
     const saved = await this.appointmentRepo.save(appointment);
 
     await this.producer.requestBooking({
@@ -42,8 +50,11 @@ export class AppointmentService {
   }
 
   async updatePatientId(appointmentId: string, patientId: string) {
-    const appointment = await this.appointmentRepo.findOne({ where: { id: appointmentId } });
-    if (!appointment) throw new NotFoundException(`Appointment ${appointmentId} not found`);
+    const appointment = await this.appointmentRepo.findOne({
+      where: { id: appointmentId },
+    });
+    if (!appointment)
+      throw new NotFoundException(`Appointment ${appointmentId} not found`);
     appointment.patientId = patientId;
     return this.appointmentRepo.save(appointment);
   }
@@ -53,10 +64,13 @@ export class AppointmentService {
     doctorId: string,
     slotId: string,
     patientId: string,
-    patientName: string
+    patientName: string,
   ) {
-    const appointment = await this.appointmentRepo.findOne({ where: { id: appointmentId } });
-    if (!appointment) throw new NotFoundException(`Appointment ${appointmentId} not found`);
+    const appointment = await this.appointmentRepo.findOne({
+      where: { id: appointmentId },
+    });
+    if (!appointment)
+      throw new NotFoundException(`Appointment ${appointmentId} not found`);
 
     appointment.status = AppointmentStatus.CONFIRMED;
     appointment.doctorId = doctorId;
@@ -82,14 +96,15 @@ export class AppointmentService {
     //     error: (err) => console.error(' Lỗi khi gọi webhook:', err.message),
     //   });
 
-
     return saved;
   }
 
-
   async failAppointment(appointmentId: string) {
-    const appointment = await this.appointmentRepo.findOne({ where: { id: appointmentId } });
-    if (!appointment) throw new NotFoundException(`Appointment ${appointmentId} not found`);
+    const appointment = await this.appointmentRepo.findOne({
+      where: { id: appointmentId },
+    });
+    if (!appointment)
+      throw new NotFoundException(`Appointment ${appointmentId} not found`);
     appointment.status = AppointmentStatus.FAILED;
     return this.appointmentRepo.save(appointment);
   }
@@ -100,7 +115,8 @@ export class AppointmentService {
 
   async findOne(id: string): Promise<Appointment> {
     const appointment = await this.appointmentRepo.findOne({ where: { id } });
-    if (!appointment) throw new NotFoundException(`Appointment with id ${id} not found`);
+    if (!appointment)
+      throw new NotFoundException(`Appointment with id ${id} not found`);
     return appointment;
   }
 
@@ -108,7 +124,6 @@ export class AppointmentService {
     await this.findOne(id);
     await this.appointmentRepo.update(id, dto);
     return this.findOne(id);
-
   }
 
   async remove(id: string): Promise<void> {
@@ -169,10 +184,10 @@ export class AppointmentService {
         case 'today':
           start = new Date(now);
           start.setHours(0, 0, 0, 0);
-          qb.andWhere(
-            'appointment.startAt BETWEEN :start AND :end',
-            { start, end: new Date(now.setHours(23, 59, 59, 999)) }
-          );
+          qb.andWhere('appointment.startAt BETWEEN :start AND :end', {
+            start,
+            end: new Date(now.setHours(23, 59, 59, 999)),
+          });
           break;
 
         case 'week':
@@ -194,9 +209,32 @@ export class AppointmentService {
 
     const [appointments, total] = await qb.getManyAndCount();
 
-    return { appointments, total, page, limit };
-  }
+    // Populate patient info for each appointment
+    const appointmentsWithPatient = await Promise.all(
+      appointments.map(async (appointment) => {
+        let patientInfo = null;
+        if (appointment.patientId) {
+          try {
+            const reply = await this.producer.requestPatientDetail(
+              appointment.patientId,
+            );
+            patientInfo = reply?.patient ?? reply ?? null;
+          } catch (err) {
+            console.warn(
+              `Không thể lấy thông tin patientId=${appointment.patientId}:`,
+              err.message,
+            );
+          }
+        }
+        return {
+          ...appointment,
+          patient: patientInfo,
+        };
+      }),
+    );
 
+    return { appointments: appointmentsWithPatient, total, page, limit };
+  }
 
   private getStartOfWeek(date: Date): Date {
     const d = new Date(date);
@@ -220,10 +258,15 @@ export class AppointmentService {
     let patientInfo = null;
     if (appointment.patientId) {
       try {
-        const reply = await this.producer.requestPatientDetail(appointment.patientId);
+        const reply = await this.producer.requestPatientDetail(
+          appointment.patientId,
+        );
         patientInfo = reply?.patient ?? reply ?? null;
       } catch (err) {
-        console.warn(`Không thể lấy thông tin patientId=${appointment.patientId}:`, err.message);
+        console.warn(
+          `Không thể lấy thông tin patientId=${appointment.patientId}:`,
+          err.message,
+        );
       }
     }
 
@@ -251,16 +294,12 @@ export class AppointmentService {
     });
 
     if (!appointment) {
-      throw new NotFoundException(
-        `Appointment ${appointmentId} not found`,
-      );
+      throw new NotFoundException(`Appointment ${appointmentId} not found`);
     }
 
     // 2. Kiểm tra đã thanh toán chưa
     if (appointment.paymentStatus === PaymentStatus.PAID) {
-      throw new BadRequestException(
-        'Appointment has already been paid',
-      );
+      throw new BadRequestException('Appointment has already been paid');
     }
 
     // 3. Kiểm tra nếu đã có payment request pending
@@ -281,9 +320,7 @@ export class AppointmentService {
     );
 
     if (!billingServiceUrl) {
-      throw new Error(
-        'BILLING_SERVICE_URL is not configured',
-      );
+      throw new Error('BILLING_SERVICE_URL is not configured');
     }
 
     try {
@@ -305,6 +342,7 @@ export class AppointmentService {
       // 5. Cập nhật appointment với payment info
       appointment.paymentStatus = PaymentStatus.PENDING;
       appointment.paymentId = paymentData.paymentCode;
+      appointment.paymentUrl = paymentData.paymentUrl;
       await this.appointmentRepo.save(appointment);
 
       this.logger.log(
@@ -361,9 +399,7 @@ export class AppointmentService {
     });
 
     if (!appointment) {
-      throw new NotFoundException(
-        `Appointment ${appointmentId} not found`,
-      );
+      throw new NotFoundException(`Appointment ${appointmentId} not found`);
     }
 
     // Idempotency check: Nếu đã thanh toán rồi thì bỏ qua
@@ -413,9 +449,7 @@ export class AppointmentService {
     });
 
     if (!appointment) {
-      throw new NotFoundException(
-        `Appointment ${appointmentId} not found`,
-      );
+      throw new NotFoundException(`Appointment ${appointmentId} not found`);
     }
 
     // 1. ❌ BỎ VALIDATION PAYMENT - Cho phép check-in dù chưa thanh toán
@@ -431,9 +465,7 @@ export class AppointmentService {
       this.logger.warn(
         `Appointment ${appointmentId} already checked in at ${appointment.checkedInAt}`,
       );
-      throw new BadRequestException(
-        'Appointment has already been checked in',
-      );
+      throw new BadRequestException('Appointment has already been checked in');
     }
 
     // 3. Ghi nhận thời gian check-in
@@ -457,10 +489,11 @@ export class AppointmentService {
 
     // 4. Chuẩn bị ghi chú
     let checkInNotes = dto?.notes || '';
-    
+
     // ⚠️ Ghi chú nếu chưa thanh toán - để tracking
     if (appointment.paymentStatus !== PaymentStatus.PAID) {
-      checkInNotes = `[CHƯA THANH TOÁN - Thu tiền sau khi khám] ${checkInNotes}`.trim();
+      checkInNotes =
+        `[CHƯA THANH TOÁN - Thu tiền sau khi khám] ${checkInNotes}`.trim();
       this.logger.warn(
         `Check-in appointment ${appointmentId} without payment. Status: ${appointment.paymentStatus}`,
       );
@@ -473,7 +506,9 @@ export class AppointmentService {
 
     this.logger.log(`📝 BEFORE SAVE - Appointment ${appointmentId}:`);
     this.logger.log(`   - status: ${appointment.status}`);
-    this.logger.log(`   - checkedInAt: ${appointment.checkedInAt?.toISOString()}`);
+    this.logger.log(
+      `   - checkedInAt: ${appointment.checkedInAt?.toISOString()}`,
+    );
     this.logger.log(`   - paymentStatus: ${appointment.paymentStatus}`);
 
     await this.appointmentRepo.save(appointment);
@@ -483,7 +518,9 @@ export class AppointmentService {
       where: { id: appointmentId },
     });
     this.logger.log(`✅ AFTER SAVE - Verified from DB:`);
-    this.logger.log(`   - checkedInAt in DB: ${savedAppointment?.checkedInAt?.toISOString()}`);
+    this.logger.log(
+      `   - checkedInAt in DB: ${savedAppointment?.checkedInAt?.toISOString()}`,
+    );
 
     this.logger.log(
       `✅ Appointment ${appointmentId} checked in successfully at ${now.toISOString()}. Payment status: ${appointment.paymentStatus}`,
@@ -510,12 +547,17 @@ export class AppointmentService {
       throw new NotFoundException(`Appointment ${appointmentId} not found`);
     }
 
-    const followUpId = currentAppointment.followUpId || currentAppointment.followUpSuggestion?.id;
+    const followUpId =
+      currentAppointment.followUpId ||
+      currentAppointment.followUpSuggestion?.id;
     if (!followUpId) {
-      throw new NotFoundException(`Appointment ${appointmentId} is not a follow-up`);
+      throw new NotFoundException(
+        `Appointment ${appointmentId} is not a follow-up`,
+      );
     }
 
-    const followUpRepo = this.appointmentRepo.manager.getRepository(FollowUpSuggestion);
+    const followUpRepo =
+      this.appointmentRepo.manager.getRepository(FollowUpSuggestion);
     const followUp = await followUpRepo.findOne({
       where: { id: followUpId },
       relations: [
@@ -526,15 +568,14 @@ export class AppointmentService {
     });
 
     if (!followUp?.medicalRecord?.appointment) {
-      throw new NotFoundException(`Previous appointment not found for follow-up ${followUpId}`);
+      throw new NotFoundException(
+        `Previous appointment not found for follow-up ${followUpId}`,
+      );
     }
 
     const previousAppointment = await this.appointmentRepo.findOne({
       where: { id: followUp.medicalRecord.appointment.id },
-      relations: [
-        'medicalRecord',
-        'medicalRecord.vitalSigns',
-      ],
+      relations: ['medicalRecord', 'medicalRecord.vitalSigns'],
     });
 
     return previousAppointment;
@@ -557,7 +598,7 @@ export class AppointmentService {
   }): Promise<Appointment[]> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     // Apply offset for testing (e.g., daysOffset=1 for tomorrow)
     if (filters?.daysOffset) {
       today.setDate(today.getDate() + filters.daysOffset);
@@ -566,13 +607,16 @@ export class AppointmentService {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
-    const queryBuilder = this.appointmentRepo.createQueryBuilder('appointment')
+    const queryBuilder = this.appointmentRepo
+      .createQueryBuilder('appointment')
       .where('appointment.startAt >= :today', { today })
       .andWhere('appointment.startAt < :tomorrow', { tomorrow })
       .orderBy('appointment.startAt', 'ASC');
 
     if (filters?.status) {
-      queryBuilder.andWhere('appointment.status = :status', { status: filters.status });
+      queryBuilder.andWhere('appointment.status = :status', {
+        status: filters.status,
+      });
     }
 
     if (filters?.paymentStatus) {
@@ -596,7 +640,8 @@ export class AppointmentService {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    return this.appointmentRepo.createQueryBuilder('appointment')
+    return this.appointmentRepo
+      .createQueryBuilder('appointment')
       .where('appointment.startAt >= :today', { today })
       .andWhere(
         '(appointment.id LIKE :keyword OR appointment.patientName LIKE :keyword OR appointment.patientId LIKE :keyword)',
@@ -612,7 +657,10 @@ export class AppointmentService {
    * @param appointmentId - ID của appointment
    * @param newStatus - Status mới
    */
-  async updateStatus(appointmentId: string, newStatus: string): Promise<Appointment> {
+  async updateStatus(
+    appointmentId: string,
+    newStatus: string,
+  ): Promise<Appointment> {
     const appointment = await this.appointmentRepo.findOne({
       where: { id: appointmentId },
     });
@@ -622,18 +670,19 @@ export class AppointmentService {
     }
 
     appointment.status = newStatus as any;
-    
+
     // Cập nhật checkedInAt khi status = CHECKED_IN
     if (newStatus === AppointmentStatus.CHECKED_IN) {
       appointment.checkedInAt = new Date();
       this.logger.log(`Setting checkedInAt for appointment ${appointmentId}`);
     }
-    
+
     await this.appointmentRepo.save(appointment);
 
-    this.logger.log(`Appointment ${appointmentId} status updated to ${newStatus}`);
+    this.logger.log(
+      `Appointment ${appointmentId} status updated to ${newStatus}`,
+    );
 
     return appointment;
   }
-
 }

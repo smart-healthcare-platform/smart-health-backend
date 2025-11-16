@@ -1,2 +1,9 @@
 .kilocode
 .cursor
+# Admin token files
+.admin-token
+.env.test
+
+# Phase documentation
+PHASE1_COMPLETE.md
+PHASE1_TESTING.md

@@ -1,0 +1,22 @@
+# ===============================
+# Spring Boot dev mode with hot reload
+# ===============================
+FROM gradle:8.8-jdk21-alpine
+
+WORKDIR /app
+
+# Copy Gradle configuration files
+COPY build.gradle settings.gradle ./
+COPY gradle gradle
+
+# Download dependencies (cache layer)
+RUN gradle dependencies --no-daemon
+
+# Copy source code
+COPY . .
+
+# Expose port
+EXPOSE 8089
+
+# Run with Gradle bootRun for hot reload
+CMD ["gradle", "bootRun", "--no-daemon"]
