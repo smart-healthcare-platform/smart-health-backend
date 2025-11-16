@@ -46,7 +46,6 @@ public class AuthService {
 
         User user = new User();
         user.setUsername(request.getUsername());
-        user.setPhone(request.getPhone());
         user.setEmail(request.getEmail());
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         user.setRole(request.getRole());
@@ -59,9 +58,10 @@ public class AuthService {
             UserCreatedEvent event = new UserCreatedEvent(
                     savedUser.getId().toString(),
                     request.getFullName(),
-                    request.getDateOfBirth(),
+                    request.getDateOfBirth().toString(),
                     request.getGender(),
-                    request.getAddress()
+                    request.getAddress(),
+                    request.getPhone()
             );
             userProducer.sendUserCreated(event);
         }
@@ -123,7 +123,6 @@ public class AuthService {
                         .id(user.getId())
                         .username(user.getUsername())
                         .role(user.getRole())
-                        .phone(user.getPhone())
                         .email(user.getEmail())
                         .createdAt(user.getCreatedAt())
                         .build())
@@ -160,7 +159,6 @@ public class AuthService {
                         .id(user.getId())
                         .username(user.getUsername())
                         .role(user.getRole())
-                        .phone(user.getPhone())
                         .email(user.getEmail())
                         .createdAt(user.getCreatedAt())
                         .build())

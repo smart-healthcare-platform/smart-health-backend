@@ -115,36 +115,6 @@ const requireRole = (allowedRoles) => {
   };
 };
 
-/**
- * Permission-based Authorization Middleware
- * @param {string|string[]} permissions - Permission or array of permissions required
- */
-const requirePermission = (permissions) => {
-  return (req, res, next) => {
-    if (!req.user) {
-      return next(new ApiError(401, 'Authentication required'));
-    }
-
-    const requiredPermissions = Array.isArray(permissions) ? permissions : [permissions];
-    const userAuthorities = req.user.authorities || [];
-
-    const hasPermission = requiredPermissions.every(permission =>
-      userAuthorities.includes(permission) || userAuthorities.includes('ADMIN')
-    );
-
-    if (!hasPermission) {
-      logger.securityLog('Authorization failed - insufficient permissions', {
-        userId: req.user.id,
-        userPermissions: userAuthorities,
-        requiredPermissions,
-        url: req.originalUrl,
-      });
-      return next(new ApiError(403, 'Insufficient permissions'));
-    }
-
-    next();
-  };
-};
 
 /**
  * Admin Only Middleware
@@ -165,7 +135,6 @@ module.exports = {
   authenticateJWT,
   optionalAuth,
   requireRole,
-  requirePermission,
   requireAdmin,
   requireDoctorOrAdmin,
   requireAnyRole,

@@ -1,10 +1,6 @@
-import {
-    CallHandler,
-    ExecutionContext,
-    Injectable,
-    NestInterceptor,
-} from '@nestjs/common';
+import { CallHandler, ExecutionContext, Injectable, NestInterceptor } from '@nestjs/common';
 import { Observable, map } from 'rxjs';
+import { instanceToPlain } from 'class-transformer';
 
 @Injectable()
 export class ResponseInterceptor<T> implements NestInterceptor<T, any> {
@@ -14,7 +10,7 @@ export class ResponseInterceptor<T> implements NestInterceptor<T, any> {
                 return {
                     success: true,
                     message: data?.message || 'Thành công',
-                    data: data?.result ?? data,
+                    data: instanceToPlain(data?.result ?? data),
                     code: 200,
                 };
             }),

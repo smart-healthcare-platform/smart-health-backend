@@ -1,7 +1,7 @@
 import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppointmentService } from './appointment.service';
-import { AppointmentController } from './appointment.controller';
+import { AppointmentController } from './controllers/appointment.controller';
 import { InternalAppointmentController } from './controllers/internal-appointment.controller';
 import { ReceptionistAppointmentController } from './controllers/receptionist-appointment.controller';
 import { Appointment } from './appointment.entity';

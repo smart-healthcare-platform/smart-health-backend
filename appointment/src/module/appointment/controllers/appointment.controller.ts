@@ -1,10 +1,10 @@
 import { Controller, Get, Post, Body, Param, Patch, Delete, UseInterceptors, Query, NotFoundException } from '@nestjs/common';
-import { AppointmentService } from './appointment.service';
-import { Appointment } from './appointment.entity';
-import { CreateAppointmentDto } from './dto/create-appointment.dto';
-import { UpdateAppointmentDto } from './dto/update-appointment.dto';
-import { CreatePaymentRequestDto } from './dto/create-payment-request.dto';
-import { CheckInDto } from './dto/check-in.dto';
+import { AppointmentService } from '../appointment.service';
+import { Appointment } from '../appointment.entity';
+import { CreateAppointmentDto } from '../dto/create-appointment.dto';
+import { UpdateAppointmentDto } from '../dto/update-appointment.dto';
+import { CreatePaymentRequestDto } from '../dto/create-payment-request.dto';
+import { CheckInDto } from '../dto/check-in.dto';
 import { ResponseInterceptor } from 'src/common/interceptors/response.interceptor';
 
 @Controller('api/appointments')

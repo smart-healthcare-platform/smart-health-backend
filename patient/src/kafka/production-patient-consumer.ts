@@ -4,22 +4,9 @@ import { PatientService } from '../modules/patient/patient.service';
 import { PatientProducerService } from './patient-producer.service';
 import { ConfigService } from '@nestjs/config';
 import { createKafkaConfig } from './kafka.config';
+import { CreatePatientDto } from 'src/modules/patient/dto/create-patient.dto';
 
-interface UserCreatedEvent {
-  id: string;
-  fullName?: string;
-  dateOfBirth?: string;
-  gender?: string;
-  address?: string;
-}
 
-interface AppointmentBookedEvent {
-  appointmentId: string;
-  userId: string;
-  doctorId: string;
-  slotId: string;
-  correlationId: string;
-}
 
 @Injectable()
 export class PatientConsumerService implements OnModuleInit, OnModuleDestroy {
@@ -47,6 +34,7 @@ export class PatientConsumerService implements OnModuleInit, OnModuleDestroy {
     // await this.consumer.subscribe({ topic: 'appointment.book.requested', fromBeginning: false });
     await this.consumer.subscribe({ topic: 'user.created', fromBeginning: false });
     await this.consumer.subscribe({ topic: 'patient.detail.requested', fromBeginning: false });
+    await this.consumer.subscribe({ topic: 'user.detail.resolved', fromBeginning: false });
     await this.consumer.run({
       eachMessage: async ({ topic, partition, message }) => {
         try {
@@ -57,9 +45,9 @@ export class PatientConsumerService implements OnModuleInit, OnModuleDestroy {
 
           switch (topic) {
             case 'user.created': {
-              const userEvent: UserCreatedEvent = data;
+              const userEvent: CreatePatientDto = data;
               this.logger.log(`Received [user.created]: ${JSON.stringify(userEvent)}`);
-              await this.patientService.createFromUser(userEvent);
+              await this.patientService.create(userEvent);
               break;
             }
 
@@ -117,6 +105,7 @@ export class PatientConsumerService implements OnModuleInit, OnModuleDestroy {
               }
               break;
             }
+            
             default:
               this.logger.warn(`Unhandled topic: ${topic}`);
           }

@@ -43,4 +43,9 @@ export class PatientProducerService implements OnModuleInit {
     console.log('Emit patient.detail.resolved:', data);
     return this.kafka.emit('patient.detail.resolved', data);
   }
+
+  requestUserDetail(userId: string, correlationId: string) {
+    console.log('Emit user.detail.requested:', { userId, correlationId });
+    return this.kafka.emit('user.detail.requested', { userId, correlationId });
+  }
 }
