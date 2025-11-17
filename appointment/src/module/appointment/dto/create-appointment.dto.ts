@@ -23,6 +23,10 @@ export class CreateAppointmentDto {
   @IsUUID()
   patientId: string;
 
+  @IsOptional()
+  @IsString()
+  patientName: string;
+
   @IsUUID()
   @IsNotEmpty()
   slotId: string;
