@@ -13,7 +13,7 @@ export class CreatePatientDto {
   date_of_birth: Date;
 
   @IsOptional()
-  @IsEnum(Gender, { message: 'gender must be one of: male, female, other' })
+  @IsEnum(Gender, { message: 'gender must be one of: male, female' })
   gender: Gender;
 
   @IsOptional()
