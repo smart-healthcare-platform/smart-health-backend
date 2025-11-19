@@ -7,6 +7,7 @@ import {
   Body,
   Param,
   UseInterceptors,
+  Query,
 } from '@nestjs/common';
 import { PatientService } from './patient.service';
 import { CreatePatientDto } from './dto/create-patient.dto';
@@ -25,9 +26,19 @@ export class PatientController {
   }
 
   @Get()
-  async findAll(): Promise<Patient[]> {
-    return this.patientService.findAll();
+  async findAll(
+    @Query('page') page = '1',
+    @Query('limit') limit = '5',
+    @Query('search') search?: string,
+  ) {
+    return this.patientService.findAll(+page, +limit, search);
   }
+
+  @Get('stats')
+  async getStats() {
+    return this.patientService.getPatientStats();
+  }
+
   @Get('by-user/:userId')
   async getByUserId(@Param('userId') userId: string): Promise<Patient> {
     return this.patientService.findByUserId(userId);
@@ -49,4 +60,6 @@ export class PatientController {
   async remove(@Param('id') id: string): Promise<void> {
     return this.patientService.remove(id);
   }
+
+
 }

@@ -75,18 +75,6 @@ public class UserController {
         }
     }
 
-    @PutMapping("/{userId}/deactivate")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<User>> deactivateUser(@PathVariable UUID userId) {
-        try {
-            User user = userService.deactivateUser(userId);
-            return ResponseEntity.ok(ApiResponse.success("Đã vô hiệu hóa tài khoản", user));
-        } catch (Exception e) {
-            log.error("Error deactivating user: {}", userId, e);
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("Không thể vô hiệu hóa tài khoản"));
-        }
-    }
 
     @PutMapping("/{userId}/activate")
     @PreAuthorize("hasRole('ADMIN')")

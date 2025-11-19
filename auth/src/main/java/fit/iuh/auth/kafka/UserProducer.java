@@ -28,7 +28,7 @@ public class UserProducer {
     public void sendUserCreated(UserCreatedEvent event) {
         try {
             String message = objectMapper.writeValueAsString(event);
-            kafkaTemplate.send("user.created", event.getId(), message);
+            kafkaTemplate.send("user.created", event.getUser_id(), message);
             log.info("Sent user.created event: {}", message);
         } catch (JsonProcessingException e) {
             throw new RuntimeException("Error serializing UserCreatedEvent", e);

@@ -7,10 +7,14 @@ export class FirebaseService implements OnModuleInit {
   private readonly logger = new Logger(FirebaseService.name);
 
   constructor(private readonly configService: ConfigService) {
-    const firebaseCredentialsPath = this.configService.get<string>('FIREBASE_CREDENTIALS_PATH');
-    
+    const firebaseCredentialsPath = this.configService.get<string>(
+      'FIREBASE_CREDENTIALS_PATH',
+    );
+
     if (!firebaseCredentialsPath) {
-      throw new Error('FIREBASE_CREDENTIALS_PATH environment variable is required');
+      throw new Error(
+        'FIREBASE_CREDENTIALS_PATH environment variable is required',
+      );
     }
 
     // Initialize Firebase Admin SDK
@@ -19,7 +23,7 @@ export class FirebaseService implements OnModuleInit {
     });
   }
 
-  async onModuleInit() {
+  onModuleInit() {
     this.logger.log('Firebase Service initialized');
   }
 
@@ -36,8 +40,14 @@ export class FirebaseService implements OnModuleInit {
       const response = await admin.messaging().send(message);
       this.logger.log(`Successfully sent push notification: ${response}`);
       return response;
-    } catch (error: any) {
-      this.logger.error(`Failed to send push notification: ${error.message}`, error.stack);
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      this.logger.error(
+        `Failed to send push notification: ${errorMessage}`,
+        errorStack,
+      );
       throw error;
     }
   }

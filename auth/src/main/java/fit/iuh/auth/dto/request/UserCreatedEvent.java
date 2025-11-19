@@ -11,10 +11,11 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 public class UserCreatedEvent {
-    private String id;
-    // bổ sung thêm để Patient service nhận đủ
-    private String fullName;
-    private LocalDate dateOfBirth;
+    private String user_id;
+    private String full_name;
+    private String date_of_birth;
     private String gender;
     private String address;
+    private String phone;
 }
+

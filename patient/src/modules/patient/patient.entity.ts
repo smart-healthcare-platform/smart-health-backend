@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
   OneToMany,
 } from 'typeorm';
+import { Gender } from './enums/patient-gender.enum';
 
 @Entity('patients')
 export class Patient {
@@ -21,12 +22,19 @@ export class Patient {
   @Column({ type: 'date', nullable: true })
   date_of_birth: Date;
 
-  @Column({ length: 10, nullable: true })
-  gender: string;
+  @Column({
+    type: 'enum',
+    enum: Gender,
+    nullable: true,
+    name: 'gender',
+  })
+  gender?: Gender;
 
   @Column({ length: 255, nullable: true })
   address: string;
 
+  @Column({ length: 20, nullable: true })
+  phone?: string;
 
   @CreateDateColumn()
   created_at: Date;

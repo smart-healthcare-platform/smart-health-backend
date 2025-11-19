@@ -35,6 +35,12 @@ jwt:
 
 server:
   port: 8081
+  ssl:
+    enabled: false  # Set to true in production for HTTPS
+    # key-store: classpath:keystore.p12  # Uncomment and configure in production
+    # key-store-password: your-password
+    # key-store-type: PKCS12
+    # key-alias: your-alias
 
 logging:
   level:

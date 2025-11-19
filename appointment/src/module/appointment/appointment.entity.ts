@@ -16,6 +16,7 @@ import { AppointmentStatus } from './enums/appointment-status.enum';
 import { AppointmentType } from './enums/appointment-type.enum';
 import { AppointmentCategory } from './enums/appointment-category.enum';
 import { LabTestOrder } from '../lab-tests/lab-test-order.entity';
+import { Transform } from 'class-transformer';
 
 @Entity('appointments')
 export class Appointment {
@@ -62,10 +63,13 @@ export class Appointment {
   notes: string;
 
   @Column({ type: 'datetime' })
+  @Transform(({ value }) => value ? value.toISOString().slice(0, 19).replace("T", " ") : null)
   startAt: Date;
 
   @Column({ type: 'datetime', nullable: true })
+  @Transform(({ value }) => value ? value.toISOString().slice(0, 19).replace("T", " ") : null)
   endAt: Date;
+
 
   // ============ PAYMENT ============
 

@@ -2,8 +2,8 @@ import { AuthenticatedSocket } from '../types/socket';
 import { ConversationParticipant } from '../models/conversation-participant';
 import { Message } from '../models/message';
 import { Server } from 'socket.io';
-import axios from 'axios';
 import { fetchUserInfo } from '../utils/userInfoFetcher';
+import { chatProducer } from '../kafka/chat-producer.service';
 
 type ContentType = 'text' | 'image' | 'file';
 
@@ -76,20 +76,83 @@ export const handleSendMessage = async (
     // Gửi phản hồi cho người gửi
     socket.emit('messageSent', { success: true, message: messageData });
 
-    // 4. Nếu người nhận không trực tuyến, gọi Notification Service (Tạm thời tắt)
-    const recipientSockets = await io.in(recipientId).fetchSockets();
-    if (process.env.NOTIFICATION_SERVICE_ENABLED === 'true' && recipientSockets.length === 0) {
-      console.log(`User ${recipientId} is offline. Sending notification...`);
+    // 4. Lấy userId thực của recipient (có thể nhận participant ID từ frontend)
+    let actualRecipientUserId = recipientId;
+    
+    // Kiểm tra xem recipientId có phải là participant ID không
+    const recipientParticipant = await ConversationParticipant.findOne({
+      where: { id: recipientId }
+    });
+    
+    if (recipientParticipant) {
+      // recipientId là participant ID, lấy userId thực
+      actualRecipientUserId = recipientParticipant.userId;
+      console.log(`[handleSendMessage] Resolved participant ID ${recipientId} to userId ${actualRecipientUserId}`);
+    }
+
+    // 5. Smart notification: Gửi push notification nếu user offline HOẶC không active trong conversation này
+    const recipientSockets = await io.in(actualRecipientUserId).fetchSockets();
+    const isOnline = recipientSockets.length > 0;
+    
+    // Kiểm tra xem user có đang active trong conversation này không
+    let isActiveInConversation = false;
+    if (isOnline) {
+      // Kiểm tra socket có join vào room conversation này không
+      const conversationRoom = await io.in(conversationId).fetchSockets();
+      isActiveInConversation = conversationRoom.some(s => (s as any).userId === actualRecipientUserId);
+    }
+
+    // Chỉ gửi push notification nếu:
+    // - User offline (không có socket), HOẶC
+    // - User online nhưng KHÔNG đang xem conversation này
+    const shouldNotify = !isOnline || !isActiveInConversation;
+    
+    if (shouldNotify) {
+      const status = !isOnline ? 'offline' : 'online but not viewing this conversation';
+      console.log(`[handleSendMessage] User ${actualRecipientUserId} is ${status}. Publishing Kafka event for push notification...`);
+      
       try {
-        await axios.post(`${process.env.NOTIFICATION_SERVICE_URL}/send`, {
-          userId: recipientId,
-          title: 'Tin nhắn mới',
-          body: `Bạn có tin nhắn mới từ ${socket.userId}: ${content}`,
-          data: { conversationId: conversationId, senderId: socket.userId }
+        // Lấy role và tên thực của người gửi từ participant
+        const senderParticipant = await ConversationParticipant.findOne({
+          where: { conversationId, userId: socket.userId }
         });
-      } catch (notificationError) {
-        console.error('Error sending notification:', notificationError);
+        
+        let senderName = socket.userId; // fallback to userId
+        
+        if (senderParticipant) {
+          // Nếu đã có fullName trong participant, dùng luôn
+          if (senderParticipant.fullName) {
+            senderName = senderParticipant.fullName;
+          } else {
+            // Nếu chưa có, fetch từ service tương ứng
+            const senderRole = senderParticipant.role.toUpperCase(); // 'doctor' -> 'DOCTOR', 'patient' -> 'PATIENT'
+            const fetchedName = await fetchUserInfo(socket.userId, senderRole);
+            senderName = fetchedName || socket.userId;
+            
+            // Lưu lại fullName vào participant để lần sau không phải fetch nữa
+            if (fetchedName) {
+              await ConversationParticipant.update(
+                { fullName: fetchedName },
+                { where: { id: senderParticipant.id } }
+              );
+            }
+          }
+        }
+
+        await chatProducer.publishNewMessageEvent({
+          recipientId: actualRecipientUserId,
+          senderId: socket.userId,
+          senderName: senderName,
+          messageContent: content,
+          conversationId: conversationId,
+        });
+
+        console.log(`[handleSendMessage] Kafka event published successfully for user ${actualRecipientUserId}`);
+      } catch (kafkaError: any) {
+        console.error('[handleSendMessage] Error publishing Kafka event:', kafkaError.message);
       }
+    } else {
+      console.log(`[handleSendMessage] User ${actualRecipientUserId} is actively viewing conversation. Skipping push notification.`);
     }
   } catch (error) {
     console.error('[handleSendMessage] General error:', error);

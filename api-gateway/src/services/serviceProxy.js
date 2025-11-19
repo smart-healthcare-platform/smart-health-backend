@@ -114,8 +114,14 @@ const createServiceProxy = (serviceName) => {
           cleanPath = path.replace(new RegExp(`^/v1/${serviceName}`), "");
         }
       }
+      // Handle plural service names (e.g., /v1/notifications -> /device/register)
+      else if (serviceName === 'notification' && path.startsWith('/v1/notifications')) {
+        // /v1/notifications/device/register -> /device/register
+        cleanPath = path.replace(/^\/v1\/notifications/, "");
+      }
       else {
         // /v1/doctors/123 -> /123
+        // Use word boundary to avoid partial matches (e.g., notification vs notifications)
         cleanPath = path.replace(new RegExp(`^/v1/${serviceName}`), "");
       }
       logger.debug(`[PATH_REWRITE] serviceName: ${serviceName}, originalPath: ${path}, cleanPath (before basePath): ${cleanPath}`);

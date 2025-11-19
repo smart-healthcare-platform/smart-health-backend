@@ -9,11 +9,33 @@ const {
 } = require('../middleware/auth');
 const { dynamicLimiter } = require('../middleware/rateLimiter');
 const logger = require('../config/logger');
+const adminEndpoints = require('../config/admin-endpoints'); 
 
+adminEndpoints.forEach(ep => {
+  try {
+    const proxy = getServiceProxy(ep.service);
+    const method = ep.method.toLowerCase();
+
+    // register route with authentication + requireAdmin
+    router[method](ep.path, authenticateJWT, requireAdmin, (req, res, next) => {
+      logger.securityLog('Admin endpoint accessed', {
+        userId: req.user.id,
+        role: req.user.role,
+        path: req.path,
+        method: req.method,
+      });
+      proxy(req, res, next);
+    });
+
+    console.log(`Registered admin endpoint: [${ep.method}] ${ep.path} -> ${ep.service}`);
+  } catch (err) {
+    logger.error(`Failed to register admin endpoint ${ep.path}`, { error: err.message });
+  }
+});
 // --- PUBLIC: ai cũng có thể xem danh sách bác sĩ hoặc xem chi tiết
 try {
   const doctorProxy = getServiceProxy('doctors');
-  router.use('/public/doctors', doctorProxy);  // GET /v1/public/doctors
+  router.use('/public/doctors', doctorProxy);
 } catch (error) {
   logger.error('Failed to configure public doctor service proxy', { error: error.message });
   router.use('/public/doctors', (req, res) => {
@@ -299,18 +321,18 @@ router.use('/admin', requireAdmin, (req, res, next) => {
 });
 
 // Admin endpoints will be implemented when admin service is created
-router.use('/admin', (req, res) => {
-  res.json({
-    success: true,
-    message: 'Admin service endpoints will be available soon',
-    availableEndpoints: [
-      'GET /admin/users',
-      'GET /admin/analytics',
-      'GET /admin/system-status',
-    ],
-    timestamp: new Date().toISOString(),
-  });
-});
+// router.use('/admin', (req, res) => {
+//   res.json({
+//     success: true,
+//     message: 'Admin service endpoints will be available soon',
+//     availableEndpoints: [
+//       'GET /admin/users',
+//       'GET /admin/analytics',
+//       'GET /admin/system-status',
+//     ],
+//     timestamp: new Date().toISOString(),
+//   });
+// });
 
 /**
  * Handle service-specific errors

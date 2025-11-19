@@ -64,7 +64,7 @@ public class UserService implements UserDetailsService {
         return userRepository.findByIsActive(true);
     }
 
-    public User deactivateUser(UUID userId) {
+    public User deActiveUser(UUID userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found"));
         user.setIsActive(false);

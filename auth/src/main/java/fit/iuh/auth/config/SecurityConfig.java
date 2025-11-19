@@ -45,6 +45,7 @@ public class SecurityConfig {
                                 "/api/auth/refresh-token",
                                 "/api/auth/logout",
                                 "/api/auth/health",
+                                "/api/auth/**",
                                 "/actuator/health",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
