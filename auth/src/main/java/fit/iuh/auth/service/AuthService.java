@@ -18,6 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.juli.logging.Log;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -30,6 +31,9 @@ import java.util.Map;
 @Slf4j
 @Transactional
 public class AuthService {
+
+    @Value("${server.ssl.enabled:false}")
+    private boolean sslEnabled;
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -140,6 +144,14 @@ public class AuthService {
             throw new RuntimeException("Invalid refresh token");
         }
 
+        // Check if refresh token exists in database and is not expired
+        RefreshToken storedToken = refreshTokenRepository.findByToken(refreshToken)
+                .orElseThrow(() -> new RuntimeException("Invalid refresh token"));
+        if (storedToken.getExpiryDate().isBefore(LocalDateTime.now())) {
+            refreshTokenRepository.delete(storedToken);
+            throw new RuntimeException("Refresh token expired");
+        }
+
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", user.getRole());
         claims.put("authorities", user.getAuthorities());
@@ -154,7 +166,7 @@ public class AuthService {
 
         return AuthResponse.builder()
                 .token(newJwtToken)
-                .refreshToken(refreshToken)
+                .refreshToken(newRefreshToken)
                 .user(AuthResponse.UserInfo.builder()
                         .id(user.getId())
                         .username(user.getUsername())
@@ -176,7 +188,8 @@ public class AuthService {
     private void setRefreshTokenCookie(HttpServletResponse response, String refreshToken) {
         Cookie cookie = new Cookie("refreshToken", refreshToken);
         cookie.setHttpOnly(true);
-        cookie.setSecure(true);
+        cookie.setSecure(sslEnabled);
+        cookie.setDomain("localhost");
         cookie.setPath("/");
         cookie.setMaxAge(7 * 24 * 60 * 60);
         response.addCookie(cookie);
@@ -188,7 +201,8 @@ public class AuthService {
 
         Cookie cookie = new Cookie("refreshToken", null);
         cookie.setHttpOnly(true);
-        cookie.setSecure(true);
+        cookie.setSecure(sslEnabled);
+        cookie.setDomain("localhost");
         cookie.setPath("/");
         cookie.setMaxAge(0);
         response.addCookie(cookie);

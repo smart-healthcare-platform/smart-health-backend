@@ -59,6 +59,25 @@ services:
       SPRING_DATASOURCE_PASSWORD: 1111
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SPRING_KAFKA_PRODUCER_KEY_SERIALIZER: org.apache.kafka.common.serialization.StringSerializer
+      SPRING_KAFKA_PRODUCER_VALUE_SERIALIZER: org.apache.kafka.common.serialization.StringSerializer
+      SPRING_KAFKA_CONSUMER_GROUP_ID: auth-service-group
+      SPRING_KAFKA_CONSUMER_KEY_DESERIALIZER: org.apache.kafka.common.serialization.StringDeserializer
+      SPRING_KAFKA_CONSUMER_VALUE_DESERIALIZER: org.apache.kafka.common.serialization.StringDeserializer
+
+      # JWT Configuration
+      JWT_SECRET: smartHealthSecretKeyForJWTTokenGenerationAndValidation2024
+      JWT_EXPIRATION: 86400000
+      JWT_REFRESH_EXPIRATION: 604800000
+
+      # Server Configuration
+      SERVER_PORT: 8081
+      SERVER_SSL_ENABLED: "false"
+
+      # Logging Configuration
+      LOGGING_LEVEL_FIT_IUH_AUTH: DEBUG
+      LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY: DEBUG
+
     depends_on:
       - kafka
     extra_hosts:
@@ -171,20 +190,77 @@ services:
       - ./chat:/app
       - /app/node_modules
     environment:
+      NODE_ENV: development
+      PORT: 8085
+      CLIENT_URL: http://localhost:3000
       DB_HOST: host.docker.internal
       DB_PORT: 3306
       DB_USERNAME: root
       DB_PASSWORD: 1111
-      DB_NAME: smart_health_chat
-      JWT_SECRET: smartHealthSecretKeyForJWTTokenGenerationAndValidation2024
-      PORT: 8085
+      DB_DATABASE: smart_health_chat
       AUTH_SERVICE_URL: http://auth-service:8081
       DOCTOR_SERVICE_URL: http://doctor-service:8083
       PATIENT_SERVICE_URL: http://patient-service:8082
+      JWT_SECRET: smartHealthSecretKeyForJWTTokenGenerationAndValidation2024
+      KAFKA_BROKER: kafka:9092
+      KAFKA_CLIENT_ID: chat-service
+      LOG_LEVEL: debug
     depends_on:
       - kafka
       - doctor-service
       - patient-service
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # === Notification Service (NestJS) ===
+  notification-service:
+    build:
+      context: ./notification
+      dockerfile: Dockerfile.dev
+    container_name: healthcare-notification
+    ports:
+      - "8088:8088"
+    volumes:
+      - ./notification:/app
+      - /app/node_modules
+      - ./notification/config/firebase-admin.json:/app/config/firebase-admin.json:ro
+    environment:
+      # Application
+      PORT: 8088
+      NODE_ENV: development
+
+      # Database
+      DB_HOST: host.docker.internal
+      DB_PORT: 3306
+      DB_USERNAME: root
+      DB_PASSWORD: 1111
+      DB_DATABASE: smart_health_notification
+
+      # Kafka
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_CLIENT_ID: notification-service
+      KAFKA_GROUP_ID: notification-group
+
+      # SMTP (Email notifications)
+      MAIL_HOST: smtp.gmail.com
+      MAIL_PORT: 587
+      MAIL_SECURE: "false"
+      MAIL_USER: phamhuuvinh912003@gmail.com
+      MAIL_PASSWORD: uetx mjde ilwj iwgz
+      MAIL_FROM: "Smart Health <no-reply@smarthealth.com>"
+
+      # Firebase (Push notifications)
+      FIREBASE_CREDENTIALS_PATH: ./config/firebase-admin.json
+
+      # Twilio (SMS notifications - optional)
+      TWILIO_ACCOUNT_SID: ""
+      TWILIO_AUTH_TOKEN: ""
+      TWILIO_PHONE_NUMBER: ""
+
+      # Gateway Secret
+      GATEWAY_SECRET: your-secure-gateway-secret-change-in-production
+    depends_on:
+      - kafka
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
@@ -383,6 +459,7 @@ services:
       CHAT_SERVICE_URL: http://chat-service:8085
       PREDICTION_SERVICE_URL: http://prediction-service:8086
       CHATBOT_SERVICE_URL: http://chatbot-service:8087
+      NOTIFICATION_SERVICE_URL: http://notification-service:8088
       MEDICINE_SERVICE_URL: http://medicine-service:8089
       BILLING_SERVICE_URL: http://billing-service:8090
 
@@ -402,11 +479,12 @@ services:
       - patient-service
       - doctor-service
       - appointment-service
-      # - chat-service
+      - chat-service
+      - notification-service
       # - prediction-service
       # - chatbot-service
       # - medicine-service
-      - billing-service
+      # - billing-service
     extra_hosts:
       - "host.docker.internal:host-gateway"
 

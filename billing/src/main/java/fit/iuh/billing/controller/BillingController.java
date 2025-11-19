@@ -13,8 +13,12 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.view.RedirectView;
+import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -27,6 +31,9 @@ import java.util.Map;
 public class BillingController {
 
     private final BillingService billingService;
+
+    @Value("${frontend.url:http://localhost:3000}")
+    private String frontendUrl;
 
     @Operation(summary = "Create a new payment request", 
                description = "Creates a payment request and returns a payment URL. Supports multiple payment types: APPOINTMENT_FEE, LAB_TEST, PRESCRIPTION, OTHER.")
@@ -69,13 +76,13 @@ public class BillingController {
         }
     }
 
-    @Operation(summary = "Handle return from payment gateway (for user redirection)", description = "Endpoint for user redirection after completing payment on gateway. This endpoint primarily for UX.")
+    @Operation(summary = "Handle return from payment gateway (for user redirection)", description = "Endpoint for user redirection after completing payment on gateway. Redirects to frontend payment success page.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Return handled successfully"),
-            @ApiResponse(responseCode = "400", description = "Error handling return")
+            @ApiResponse(responseCode = "302", description = "Redirect to frontend payment success page"),
+            @ApiResponse(responseCode = "302", description = "Redirect to frontend payment success page even on error")
     })
     @GetMapping("/return")
-    public ResponseEntity<Map<String, String>> handleReturnFromGateway(@RequestParam Map<String, String> params) {
+    public RedirectView handleReturnFromGateway(@RequestParam Map<String, String> params) {
         log.info("Received return from payment gateway. Params: {}", params);
         
         // FALLBACK: In test environment, MoMo sandbox may not send IPN
@@ -89,18 +96,23 @@ public class BillingController {
             
             log.info("Processing return as fallback IPN for gateway: {}", gateway);
             billingService.processIpn(gateway, params);
-            
-            Map<String, String> response = new HashMap<>();
-            response.put("message", "Payment processed successfully");
-            response.put("status", "success");
-            return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("Error processing return from gateway: {}", e.getMessage());
-            Map<String, String> errorResponse = new HashMap<>();
-            errorResponse.put("message", "Payment return received but processing failed");
-            errorResponse.put("error", e.getMessage());
-            return ResponseEntity.ok(errorResponse); // Still return 200 for UX
+            // Continue to redirect even on error - frontend will handle display
         }
+        
+        // Build redirect URL with all query parameters
+        UriComponentsBuilder builder = UriComponentsBuilder
+                .fromHttpUrl(frontendUrl)
+                .path("/payment/success");
+        
+        // Add all payment gateway parameters to the redirect URL
+        params.forEach(builder::queryParam);
+        
+        String redirectUrl = builder.build().toUriString();
+        log.info("Redirecting user to: {}", redirectUrl);
+        
+        return new RedirectView(redirectUrl);
     }
 
     @Operation(summary = "Get payment by ID", description = "Retrieve payment details by payment ID")

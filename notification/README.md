@@ -1,53 +1,216 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# 🔔 Notification Service
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Smart Health Notification Service - Handles push notifications via Firebase Cloud Messaging (FCM) and email notifications.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+**Version:** 1.0.0  
+**Port:** 8088  
+**Framework:** NestJS + TypeScript
 
-## Description
+## Overview
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+This service is responsible for:
+- 📱 Managing device tokens (FCM registration)
+- 🔔 Sending push notifications to mobile/web devices
+- ✉️ Sending email notifications
+- 🎯 Consuming Kafka events from other services
+- 🗄️ Storing device information in database
 
-## Project setup
+## Features
+
+- **Device Management**: Register, deactivate, and track user devices
+- **Firebase Cloud Messaging**: Send push notifications to web, iOS, and Android
+- **Email Notifications**: Send transactional emails via SMTP
+- **Kafka Integration**: Event-driven architecture for real-time notifications
+- **Auto Token Cleanup**: Automatically deactivate invalid/expired FCM tokens
+- **Multi-Device Support**: Send to all user's registered devices
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- Node.js 18+
+- MySQL 8.0+
+- Kafka 2.8+
+- Firebase Project with Admin SDK credentials
+
+### Installation
 
 ```bash
-$ npm install
+# Install dependencies
+npm install
+
+# Copy environment file
+cp .env.example .env
+
+# Update .env with your credentials
 ```
 
-## Compile and run the project
+### Environment Variables
 
-```bash
-# development
-$ npm run start
+```env
+# Server
+PORT=8088
+NODE_ENV=development
 
-# watch mode
-$ npm run start:dev
+# Database
+DB_HOST=localhost
+DB_PORT=3306
+DB_USERNAME=root
+DB_PASSWORD=your-password
+DB_DATABASE=smart_health_notification
 
-# production mode
-$ npm run start:prod
+# Kafka
+KAFKA_BROKERS=localhost:9092
+
+# Firebase Admin SDK
+FIREBASE_PROJECT_ID=your-project-id
+FIREBASE_CLIENT_EMAIL=firebase-adminsdk@your-project.iam.gserviceaccount.com
+FIREBASE_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+
+# Email (SMTP)
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASSWORD=your-app-password
+EMAIL_FROM=Smart Health <noreply@smarthealth.com>
 ```
 
-## Run tests
+### Running the Service
 
 ```bash
-# unit tests
+# Development mode
+npm run start:dev
+
+# Production mode
+npm run build
+npm run start:prod
+
+# Watch mode
+npm run start:dev
+```
+
+### Verify Service is Running
+
+```bash
+# Check health endpoint
+curl http://localhost:8088/api/notifications/health
+
+# Expected response
+OK
+```
+
+## 📡 API Endpoints
+
+### Device Management
+
+#### Register Device Token
+```bash
+POST /api/notifications/device/register
+Content-Type: application/json
+
+{
+  "userId": "user-123",
+  "deviceToken": "fcm-token-abc...",
+  "deviceType": "web" | "ios" | "android"
+}
+```
+
+#### Deactivate Device Token
+```bash
+DELETE /api/notifications/device/deactivate
+Content-Type: application/json
+
+{
+  "userId": "user-123",
+  "deviceToken": "fcm-token-abc..."
+}
+```
+
+#### Get User's Active Devices
+```bash
+GET /api/notifications/:userId/devices
+```
+
+#### Deactivate All User Devices
+```bash
+DELETE /api/notifications/:userId/all
+```
+
+## 🎯 Kafka Events
+
+This service consumes the following Kafka topics:
+
+### message.new
+Triggered when a chat message is sent to an offline user.
+
+```json
+{
+  "recipientId": "user-123",
+  "senderId": "user-456",
+  "senderName": "John Doe",
+  "messageContent": "Hello!",
+  "conversationId": "conv-789",
+  "timestamp": "2024-01-01T10:00:00.000Z"
+}
+```
+
+### appointment.confirmed
+Triggered when an appointment is confirmed.
+
+```json
+{
+  "patientEmail": "patient@example.com",
+  "doctorEmail": "doctor@example.com",
+  "patientId": "patient-123",
+  "doctorId": "doctor-456",
+  "patientName": "Jane Doe",
+  "doctorName": "Dr. Smith",
+  "appointmentTime": "2024-01-15T14:00:00.000Z",
+  "conversation": "Regular checkup"
+}
+```
+
+## 🗄️ Database Schema
+
+### user_devices
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| user_id | VARCHAR(255) | User ID |
+| device_token | TEXT | FCM device token |
+| device_type | ENUM | 'web', 'ios', or 'android' |
+| is_active | BOOLEAN | Device active status |
+| created_at | TIMESTAMP | Creation timestamp |
+| updated_at | TIMESTAMP | Last update timestamp |
+
+## 🔧 Recent Fixes (2024-01)
+
+### ✅ Fixed: 404 Not Found on Device Registration
+
+**Problem:** API Gateway was getting 404 when calling `/api/notifications/device/register`
+
+**Root Cause:** Notification service was missing the global prefix `/api/notifications`
+
+**Solution:** Added global prefix in `src/main.ts`:
+```typescript
+app.setGlobalPrefix('api/notifications');
+```
+
+**Impact:** Device registration now works correctly via API Gateway
+
+### ✅ Fixed: Authentication Integration
+
+**Problem:** Frontend wasn't syncing auth tokens properly
+
+**Solution:** Updated frontend to sync tokens between Redux and localStorage
+
+**See:** [../docs/NOTIFICATION_FIX_SUMMARY.md](../docs/NOTIFICATION_FIX_SUMMARY.md) for complete details
+
+## 🧪 Testing
+
+```bash
+# Unit tests
 $ npm run test
 
 # e2e tests
