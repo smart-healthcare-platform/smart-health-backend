@@ -8,6 +8,7 @@ import { Sequelize } from 'sequelize';
 import * as dbConfig from './config/database.js';
 import axios from 'axios'; // Import axios
 import conversationRoutes from './api/routes/conversationRoutes';
+import { chatProducer } from './kafka/chat-producer.service';
 
 // Import các mô hình
 import { Conversation } from './models/conversation';
@@ -179,6 +180,14 @@ if (env !== 'test') { // Chỉ lắng nghe cổng khi không phải môi trườ
     if (env === 'development') {
       await syncDatabase();
     }
+
+    // Khởi tạo Kafka producer
+    try {
+      await chatProducer.connect();
+      console.log('[Chat Service] Kafka producer initialized successfully');
+    } catch (error) {
+      console.error('[Chat Service] Failed to initialize Kafka producer:', error);
+    }
   });
 
   io.engine.on('connection_error', (err) => {
@@ -190,6 +199,34 @@ if (env !== 'test') { // Chỉ lắng nghe cổng khi không phải môi trườ
     });
   });
 }
+
+// Xử lý graceful shutdown
+const gracefulShutdown = async () => {
+  console.log('[Chat Service] Shutting down gracefully...');
+  
+  try {
+    // Disconnect Kafka producer
+    await chatProducer.disconnect();
+    console.log('[Chat Service] Kafka producer disconnected');
+    
+    // Close database connection
+    await sequelize.close();
+    console.log('[Chat Service] Database connection closed');
+    
+    // Close server
+    server.close(() => {
+      console.log('[Chat Service] Server closed');
+      process.exit(0);
+    });
+  } catch (error) {
+    console.error('[Chat Service] Error during shutdown:', error);
+    process.exit(1);
+  }
+};
+
+// Listen for termination signals
+process.on('SIGTERM', gracefulShutdown);
+process.on('SIGINT', gracefulShutdown);
 
 // Khởi tạo models cho các test
 initializeModels(sequelize);
