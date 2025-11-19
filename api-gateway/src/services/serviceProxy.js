@@ -122,7 +122,7 @@ const createServiceProxy = (serviceName) => {
       else {
         // /v1/doctors/123 -> /123
         // Use word boundary to avoid partial matches (e.g., notification vs notifications)
-        cleanPath = path.replace(new RegExp(`^/v1/${serviceName}s?(?=/|$)`), "");
+        cleanPath = path.replace(new RegExp(`^/v1/${serviceName}`), "");
       }
       logger.debug(`[PATH_REWRITE] serviceName: ${serviceName}, originalPath: ${path}, cleanPath (before basePath): ${cleanPath}`);
 
