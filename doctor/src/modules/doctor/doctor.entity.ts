@@ -7,6 +7,7 @@ import { DoctorRating } from '../doctor-rating/doctor-rating.entity';
 import { DoctorAvailability } from '../doctor-availability/doctor-availability.entity';
 import { DoctorBlockTime } from '../doctor-block-time/doctor-block-time.entity';
 import { AppointmentSlot } from '../appointment-slot/appointment-slot.entity';
+import { Gender } from './enums/doctor-gender.enum';
 
 @Entity('doctors')
 export class Doctor {
@@ -19,8 +20,13 @@ export class Doctor {
   @Column({ length: 36, nullable: true })
   user_id: string;
 
-  @Column({ type: 'enum', enum: ['male', 'female', 'other'], nullable: true })
-  gender: string;
+  @Column({
+    type: 'enum',
+    enum: Gender,
+    nullable: true,
+    name: 'gender',
+  })
+  gender: Gender;
 
   @Column({ type: 'date', nullable: true })
   date_of_birth: Date;
@@ -28,8 +34,6 @@ export class Doctor {
   @Column({ length: 255, nullable: true })
   avatar: string;
 
-  @Column({ length: 100 })
-  specialty: string;
 
   @Column({ type: 'int', default: 0 })
   experience_years: number;
@@ -39,6 +43,9 @@ export class Doctor {
 
   @Column({ default: true })
   active: boolean;
+
+  @Column({ length: 20, nullable: true })
+  phone: string;
 
   @CreateDateColumn()
   created_at: Date;

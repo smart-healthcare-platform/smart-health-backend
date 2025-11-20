@@ -1,11 +1,14 @@
+import { Gender } from "../enums/doctor-gender.enum";
+
 export class DoctorListDto {
   id: string;
   full_name: string;
   avatar: string;
-  specialty: string;
+  gender: Gender
   experience_years: number;
+  phone:string
   bio: string;
   active: boolean;
-  degree?: string;        // Ví dụ: "Tiến sĩ"
-  display_name?: string;  // Ví dụ: "TS. Đồng Văn Hệ"
+  degree?: string;
+  display_name?: string;
 }

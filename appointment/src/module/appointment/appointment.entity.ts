@@ -63,12 +63,11 @@ export class Appointment {
   notes: string;
 
   @Column({ type: 'datetime' })
-  @Transform(({ value }) => value ? value.toISOString().slice(0, 19).replace("T", " ") : null)
   startAt: Date;
 
   @Column({ type: 'datetime', nullable: true })
-  @Transform(({ value }) => value ? value.toISOString().slice(0, 19).replace("T", " ") : null)
   endAt: Date;
+
 
 
   // ============ PAYMENT ============

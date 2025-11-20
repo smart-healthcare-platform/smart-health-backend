@@ -1,4 +1,5 @@
 import { IsString, IsEmail, IsEnum, IsOptional, IsDateString, IsInt, Min, Max, IsBoolean } from 'class-validator';
+import { Gender } from '../enums/doctor-gender.enum';
 
 export class CreateDoctorDto {
   @IsString()
@@ -8,8 +9,8 @@ export class CreateDoctorDto {
   full_name: string;
 
   @IsOptional()
-  @IsEnum(['male', 'female', 'other'])
-  gender?: string;
+  @IsEnum(Gender, { message: 'gender must be one of: male, female, other' })
+  gender: Gender;
 
   @IsOptional()
   @IsDateString()
@@ -19,8 +20,9 @@ export class CreateDoctorDto {
   @IsString()
   avatar?: string;
 
+  @IsOptional()
   @IsString()
-  specialty: string;
+  phone: string;
 
   @IsOptional()
   @IsInt()

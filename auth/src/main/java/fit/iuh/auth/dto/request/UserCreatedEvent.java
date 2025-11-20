@@ -1,5 +1,6 @@
 package fit.iuh.auth.dto.request;
 
+import fit.iuh.auth.enums.Gender;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -14,7 +15,7 @@ public class UserCreatedEvent {
     private String user_id;
     private String full_name;
     private String date_of_birth;
-    private String gender;
+    private Gender gender;
     private String address;
     private String phone;
 }

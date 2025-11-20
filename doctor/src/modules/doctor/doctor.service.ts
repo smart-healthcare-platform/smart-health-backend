@@ -85,10 +85,12 @@ export class DoctorService {
         'doctor.id',
         'doctor.full_name',
         'doctor.avatar',
-        'doctor.specialty',
+        'doctor.gender',
         'doctor.experience_years',
         'doctor.bio',
+        'doctor.phone',
         'doctor.active',
+        'doctor.date_of_birth',
         'cert',
       ])
       .orderBy('doctor.full_name', 'ASC')
