@@ -51,13 +51,13 @@ export class CreateAppointmentDto {
   @IsUUID()
   followUpId?: string;
 
-  @IsNotEmpty()
-  @Type(() => Date)
+  @IsOptional()
   @IsDate()
+  @Type(() => Date)   
   startAt: Date;
 
   @IsOptional()
-  @Type(() => Date)
   @IsDate()
+  @Type(() => Date)
   endAt?: Date;
 }

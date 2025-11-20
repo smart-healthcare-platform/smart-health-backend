@@ -1,6 +1,7 @@
 package fit.iuh.auth.dto.request;
 
 import fit.iuh.auth.enums.Role;
+import fit.iuh.auth.enums.Gender;
 import jakarta.validation.constraints.*;
 import lombok.Data;
 
@@ -38,9 +39,8 @@ public class RegisterRequest {
 
     private LocalDate dateOfBirth;
 
-    @Pattern(regexp = "^(male|female|other)?$",
-            message = "Giới tính phải là male, female hoặc other")
-    private String gender;
+    @NotNull(message = "Giới tính không được để trống")
+    private Gender gender;
 
     @Size(max = 255, message = "Địa chỉ không quá 255 ký tự")
     private String address;

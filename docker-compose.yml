@@ -26,6 +26,22 @@ services:
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
 
+  # === Redis ===
+  redis:
+    image: redis:7-alpine
+    container_name: smart-health-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
   # === Auth Service (Spring Boot) ===
   auth-service:
     build:
@@ -43,6 +59,73 @@ services:
       SPRING_DATASOURCE_PASSWORD: 123456
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SPRING_KAFKA_PRODUCER_KEY_SERIALIZER: org.apache.kafka.common.serialization.StringSerializer
+      SPRING_KAFKA_PRODUCER_VALUE_SERIALIZER: org.apache.kafka.common.serialization.StringSerializer
+      SPRING_KAFKA_CONSUMER_GROUP_ID: auth-service-group
+      SPRING_KAFKA_CONSUMER_KEY_DESERIALIZER: org.apache.kafka.common.serialization.StringDeserializer
+      SPRING_KAFKA_CONSUMER_VALUE_DESERIALIZER: org.apache.kafka.common.serialization.StringDeserializer
+
+      JWT_SECRET: smartHealthSecretKeyForJWTTokenGenerationAndValidation2024
+      JWT_EXPIRATION: 86400000
+      JWT_REFRESH_EXPIRATION: 604800000
+      SERVER_PORT: 8081
+      SERVER_SSL_ENABLED: "false"
+
+      LOGGING_LEVEL_FIT_IUH_AUTH: DEBUG
+      LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY: DEBUG
+
+    depends_on:
+      - kafka
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # === Patient Service (NestJS) ===
+  patient-service:
+    build:
+      context: ./patient
+      dockerfile: Dockerfile.dev
+    container_name: healthcare-patient
+    ports:
+      - "8082:8082"
+    volumes:
+      - ./patient:/app
+      - /app/node_modules
+    environment:
+      DB_HOST: host.docker.internal
+      DB_PORT: 3306
+      DB_USERNAME: root
+      DB_PASSWORD: 123456
+      DB_NAME: smart_health_patient
+      JWT_SECRET: supersecret
+      PORT: 8082
+      KAFKA_BROKER: kafka:9092
+      GATEWAY_SECRET: your-secure-gateway-secret-change-in-production
+    depends_on:
+      - kafka
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  # === Doctor Service (NestJS) ===
+  doctor-service:
+    build:
+      context: ./doctor
+      dockerfile: Dockerfile.dev
+    container_name: healthcare-doctor
+    ports:
+      - "8083:8083"
+    volumes:
+      - ./doctor:/app
+      - /app/node_modules
+    environment:
+      DB_HOST: host.docker.internal
+      DB_PORT: 3306
+      DB_USERNAME: root
+      DB_PASSWORD: 123456
+      DB_NAME: smart_health_doctor
+      JWT_SECRET: supersecret
+      PORT: 8083
+      KAFKA_BROKER: kafka:9092
+      GATEWAY_SECRET: your-secure-gateway-secret-change-in-production
     depends_on:
       - kafka
     extra_hosts:
@@ -75,69 +158,92 @@ services:
       GOOGLE_CLIENT_EMAIL: clinic-service@smart-health-calendar.iam.gserviceaccount.com
       GOOGLE_PRIVATE_KEY: |
         -----BEGIN PRIVATE KEY-----
-        MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDHnxtMU3m4YdQT
-        mb065fLMbImppk0Emv4ygmU+74ECpJM/kwCbw4S//CPXcwsVsjMrM/xtCEYw/MWf
         ...
-        GSdsfuTS96fizRc4PT8Jzmc=
         -----END PRIVATE KEY-----
       GOOGLE_CALENDAR_ID: phamhuuvinh912003@gmail.com
       KAFKA_BROKER: kafka:9092
+      BILLING_SERVICE_URL: http://billing-service:8090
+      INTERNAL_API_SECRET_KEY: dev-internal-secret-key-12345
+      GATEWAY_SECRET: your-secure-gateway-secret-change-in-production
     depends_on:
       - kafka
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
-  # === Doctor Service (NestJS) ===
-  doctor-service:
+  # === Chat Service (Node.js/TS) ===
+  chat-service:
     build:
-      context: ./doctor
+      context: ./chat
       dockerfile: Dockerfile.dev
-    container_name: healthcare-doctor
+    container_name: healthcare-chat
     ports:
-      - "8083:8083"
+      - "8085:8085"
     volumes:
-      - ./doctor:/app
+      - ./chat:/app
       - /app/node_modules
     environment:
+      NODE_ENV: development
+      PORT: 8085
+      CLIENT_URL: http://localhost:3000
       DB_HOST: host.docker.internal
       DB_PORT: 3306
       DB_USERNAME: root
       DB_PASSWORD: 123456
-      DB_NAME: smart_health_doctor
-      JWT_SECRET: supersecret
-      PORT: 8083
+      DB_DATABASE: smart_health_chat
+      AUTH_SERVICE_URL: http://auth-service:8081
+      DOCTOR_SERVICE_URL: http://doctor-service:8083
+      PATIENT_SERVICE_URL: http://patient-service:8082
+      JWT_SECRET: smartHealthSecretKeyForJWTTokenGenerationAndValidation2024
       KAFKA_BROKER: kafka:9092
+      KAFKA_CLIENT_ID: chat-service
+      LOG_LEVEL: debug
     depends_on:
       - kafka
+      - doctor-service
+      - patient-service
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
-  # === Patient Service (NestJS) ===
-  patient-service:
+  # === Notification Service (NestJS) ===
+  notification-service:
     build:
-      context: ./patient
+      context: ./notification
       dockerfile: Dockerfile.dev
-    container_name: healthcare-patient
+    container_name: healthcare-notification
     ports:
-      - "8082:8082"
+      - "8088:8088"
     volumes:
-      - ./patient:/app
+      - ./notification:/app
       - /app/node_modules
+      - ./notification/config/firebase-admin.json:/app/config/firebase-admin.json:ro
     environment:
+      PORT: 8088
+      NODE_ENV: development
       DB_HOST: host.docker.internal
       DB_PORT: 3306
       DB_USERNAME: root
       DB_PASSWORD: 123456
-      DB_NAME: smart_health_patient
-      JWT_SECRET: supersecret
-      PORT: 8082
-      KAFKA_BROKER: kafka:9092
+      DB_DATABASE: smart_health_notification
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_CLIENT_ID: notification-service
+      KAFKA_GROUP_ID: notification-group
+      MAIL_HOST: smtp.gmail.com
+      MAIL_PORT: 587
+      MAIL_SECURE: "false"
+      MAIL_USER: phamhuuvinh912003@gmail.com
+      MAIL_PASSWORD: uetx mjde ilwj iwgz
+      MAIL_FROM: "Smart Health <no-reply@smarthealth.com>"
+      FIREBASE_CREDENTIALS_PATH: ./config/firebase-admin.json
+      TWILIO_ACCOUNT_SID: ""
+      TWILIO_AUTH_TOKEN: ""
+      TWILIO_PHONE_NUMBER: ""
+      GATEWAY_SECRET: your-secure-gateway-secret-change-in-production
     depends_on:
       - kafka
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
-    # === API Gateway (Node.js) ===
+  # === API Gateway ===
   api-gateway:
     build:
       context: ./api-gateway
@@ -151,29 +257,32 @@ services:
     environment:
       PORT: 8080
       NODE_ENV: development
-
       JWT_SECRET: smartHealthSecretKeyForJWTTokenGenerationAndValidation2024
       JWT_ISSUER: smart-health-gateway
-
       AUTH_SERVICE_URL: http://auth-service:8081
       PATIENT_SERVICE_URL: http://patient-service:8082
       DOCTOR_SERVICE_URL: http://doctor-service:8083
       APPOINTMENT_SERVICE_URL: http://appointment-service:8084
       CHAT_SERVICE_URL: http://chat-service:8085
-
+      NOTIFICATION_SERVICE_URL: http://notification-service:8088
       RATE_LIMIT_WINDOW_MS: 900000
       RATE_LIMIT_MAX_REQUESTS: 100
-
-      REDIS_HOST: host.docker.internal
+      REDIS_HOST: redis
       REDIS_PORT: 6379
       REDIS_PASSWORD:
-
+      GATEWAY_SECRET: your-secure-gateway-secret-change-in-production
       CORS_ORIGIN: http://localhost:3000,http://localhost:3001,http://localhost:3002
     depends_on:
+      - redis
       - auth-service
       - patient-service
       - doctor-service
       - appointment-service
+      - chat-service
+      - notification-service
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
+volumes:
+  redis_data:
+    driver: local
