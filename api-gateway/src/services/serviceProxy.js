@@ -162,6 +162,12 @@ const createServiceProxy = (serviceName) => {
           "X-User-Authorities",
           JSON.stringify(req.user.authorities)
         );
+        
+        // Forward doctor-specific headers for medicine and other services
+        if (req.user.role === 'DOCTOR') {
+          proxyReq.setHeader("X-Doctor-Id", req.user.id);
+        }
+        
         console.log(`[PROXY DEBUG] Forwarding X-User-ID: ${req.user.id}, X-User-Role: ${req.user.role}`);
       } else {
         console.log(`[PROXY DEBUG] req.user is NOT set for ${req.method} ${req.originalUrl}`);
