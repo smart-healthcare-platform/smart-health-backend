@@ -1,30 +1,36 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DoctorService } from './doctor.service';
 import { DoctorController } from './doctor.controller';
+import { DoctorSeed } from './doctor.seed';
 import { Doctor } from './doctor.entity';
 import { DoctorCertificate } from '../doctor-certificates/doctor-certificates.entity';
-import { DoctorBlockTime } from '../doctor-block-time/doctor-block-time.entity';
+import { DoctorWeeklyAvailability } from '../doctor-schedule/entity/doctor-weekly-availability.entity';
+import { DoctorBlockTime } from '../doctor-schedule/entity/doctor-block-time.entity';
 import { DoctorRating } from '../doctor-rating/doctor-rating.entity';
-import { DoctorAvailability } from '../doctor-availability/doctor-availability.entity';
 import { AppointmentSlot } from '../appointment-slot/appointment-slot.entity';
-import { DoctorSeed } from './doctor.seed';
 import { AppointmentSlotModule } from '../appointment-slot/appointment-slot.module';
+import { CacheModule } from '@nestjs/cache-manager';
+import { DoctorKafkaModule } from 'src/kafka/doctor.kafka.module';
+import { DoctorSpecialAvailability } from '../doctor-schedule/entity/doctor-special-availability.entity';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
       Doctor,
       DoctorCertificate,
-      DoctorAvailability,
+      DoctorWeeklyAvailability,
+      DoctorSpecialAvailability,
       DoctorBlockTime,
       DoctorRating,
       AppointmentSlot,
     ]),
-    AppointmentSlotModule
+    AppointmentSlotModule,
+    CacheModule.register({ isGlobal: true }),
+    forwardRef(() => DoctorKafkaModule),
   ],
   controllers: [DoctorController],
-  providers: [DoctorService, DoctorSeed,],
+  providers: [DoctorService, DoctorSeed],
   exports: [DoctorService],
 })
-export class DoctorModule {}
+export class DoctorModule { }

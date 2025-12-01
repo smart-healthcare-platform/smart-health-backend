@@ -8,7 +8,6 @@ export class DoctorListDto {
   experience_years: number;
   phone:string
   bio: string;
-  active: boolean;
   degree?: string;
   display_name?: string;
 }

@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
-import { DoctorModule } from './modules/doctor/doctor.module';
-import { AppointmentSlotModule } from './modules/appointment-slot/appointment-slot.module';
-import { DoctorKafkaModule } from './kafka/doctor.kafka.module';
-import { AdminModule } from './modules/admin/admin.module';
 import { AppController } from './app.controller';
+import { DoctorModule } from './modules/doctor/doctor.module';
+import { DoctorCertificateModule } from './modules/doctor-certificates/doctor-certificates.module';
+import { AppointmentSlotModule } from './modules/appointment-slot/appointment-slot.module';
+import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
@@ -21,8 +21,8 @@ import { AppController } from './app.controller';
       synchronize: true,
     }),
     DoctorModule,
+    DoctorCertificateModule,
     AppointmentSlotModule,
-    DoctorKafkaModule,
     AdminModule,
   ],
   controllers: [AppController],

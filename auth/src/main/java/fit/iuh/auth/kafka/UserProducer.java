@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 
 import fit.iuh.auth.dto.request.UserCreatedEvent;
+import fit.iuh.auth.dto.response.DoctorUserCreatedEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -34,4 +35,15 @@ public class UserProducer {
             throw new RuntimeException("Error serializing UserCreatedEvent", e);
         }
     }
+
+    public void sendDoctorUserCreated(DoctorUserCreatedEvent event) {
+        try {
+            String message = objectMapper.writeValueAsString(event);
+            kafkaTemplate.send("doctor.user.created", message);
+            log.info("Sent doctor.user.created event: {}", message);
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("Error serializing DoctorUserCreatedEvent", e);
+        }
+    }
+
 }

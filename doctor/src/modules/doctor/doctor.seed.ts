@@ -2,18 +2,21 @@ import { Injectable, OnModuleInit } from '@nestjs/common';
 import { DoctorService } from './doctor.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+
 import { DoctorCertificate } from '../doctor-certificates/doctor-certificates.entity';
-import { DoctorAvailability } from '../doctor-availability/doctor-availability.entity';
-import { DoctorBlockTime } from '../doctor-block-time/doctor-block-time.entity';
+import { DoctorWeeklyAvailability } from '../doctor-schedule/entity/doctor-weekly-availability.entity';
+import { DoctorBlockTime } from '../doctor-schedule/entity/doctor-block-time.entity';
 import { DoctorRating } from '../doctor-rating/doctor-rating.entity';
 import { AppointmentSlot } from '../appointment-slot/appointment-slot.entity';
 import { Gender } from './enums/doctor-gender.enum';
+import { CertificateType } from '../doctor-certificates/enums/certificate-type.enum';
+import { DayOfWeek } from '../doctor-schedule/dto/create-doctor-weekly-availability.dto';
 
 function toVNDate(str: string) {
-  const [y, m, d, h = 0, mi = 0, s = 0] =
-    str.replace(/[T\-:]/g, ' ')
-      .split(' ')
-      .map(Number);
+  const [y, m, d, h = 0, mi = 0, s = 0] = str
+    .replace(/[T\-:]/g, ' ')
+    .split(' ')
+    .map(Number);
   return new Date(y, m - 1, d, h, mi, s);
 }
 
@@ -25,8 +28,8 @@ export class DoctorSeed implements OnModuleInit {
     @InjectRepository(DoctorCertificate)
     private certRepo: Repository<DoctorCertificate>,
 
-    @InjectRepository(DoctorAvailability)
-    private availRepo: Repository<DoctorAvailability>,
+    @InjectRepository(DoctorWeeklyAvailability)
+    private availRepo: Repository<DoctorWeeklyAvailability>,
 
     @InjectRepository(DoctorBlockTime)
     private blockRepo: Repository<DoctorBlockTime>,
@@ -36,335 +39,362 @@ export class DoctorSeed implements OnModuleInit {
 
     @InjectRepository(AppointmentSlot)
     private slotRepo: Repository<AppointmentSlot>,
-  ) {}
+  ) { }
 
   async onModuleInit() {
     const exists = await this.doctorService.findAllBasic();
     if (exists.data.length > 0) return;
 
-    // ================= DATA GỐC =================
     const doctorsData = [
       {
         full_name: 'Nguyễn Văn An',
-        email: 'nguyen.van.an@hospital.com',
-        phone: '0901234567',
         gender: Gender.MALE,
-        specialty: 'Tim mạch',
-        experience_years: 15,
-        bio: 'Tiến sĩ, chuyên gia tim mạch với 15 năm kinh nghiệm, từng công tác tại Viện Tim Hà Nội',
+        date_of_birth: '1980-05-12',
+        phone: '0901234567',
         avatar: 'https://randomuser.me/api/portraits/men/1.jpg',
+        experience_years: 15,
+        bio: 'Tiến sĩ, chuyên gia tim mạch với hơn 15 năm kinh nghiệm.',
+        active: true,
+        email: 'nguyen.van.an@hospital.com',
         degree: 'Tiến sĩ',
+        specialty: 'Tim mạch',
       },
       {
         full_name: 'Trần Thị Bình',
-        email: 'tran.thi.binh@hospital.com',
-        phone: '0901234568',
         gender: Gender.FEMALE,
-        specialty: 'Nhi khoa',
-        experience_years: 12,
-        bio: 'Bác sĩ chuyên khoa I, chuyên điều trị các bệnh thường gặp ở trẻ em',
+        date_of_birth: '1985-07-20',
+        phone: '0901234568',
         avatar: 'https://randomuser.me/api/portraits/women/2.jpg',
-        degree: 'Bác sĩ chuyên khoa I',
+        experience_years: 12,
+        bio: 'Tiến sĩ, chuyên gia tim mạch với hơn 12 năm kinh nghiệm.',
+        active: true,
+        email: 'tran.thi.binh@hospital.com',
+        degree: 'Tiến sĩ',
+        specialty: 'Tim mạch',
       },
       {
         full_name: 'Lê Minh Cường',
-        email: 'le.minh.cuong@hospital.com',
-        phone: '0901234569',
         gender: Gender.MALE,
-        specialty: 'Phẫu thuật thần kinh',
-        experience_years: 20,
-        bio: 'Giáo sư, Tiến sĩ, chuyên phẫu thuật não và cột sống',
+        date_of_birth: '1978-09-15',
+        phone: '0901234569',
         avatar: 'https://randomuser.me/api/portraits/men/3.jpg',
+        experience_years: 20,
+        bio: 'Tiến sĩ, chuyên gia tim mạch, phẫu thuật tim mạch.',
+        active: true,
+        email: 'le.minh.cuong@hospital.com',
         degree: 'Tiến sĩ',
+        specialty: 'Tim mạch',
       },
       {
         full_name: 'Phạm Thu Dung',
-        email: 'pham.thu.dung@hospital.com',
-        phone: '0901234570',
         gender: Gender.FEMALE,
-        specialty: 'Da liễu',
-        experience_years: 8,
-        bio: 'Thạc sĩ, chuyên điều trị các bệnh về da và thẩm mỹ da',
+        date_of_birth: '1990-02-18',
+        phone: '0901234570',
         avatar: 'https://randomuser.me/api/portraits/women/4.jpg',
-        degree: 'Thạc sĩ',
+        experience_years: 8,
+        bio: 'Tiến sĩ, chuyên gia tim mạch, điều trị bệnh tim mạch.',
+        active: true,
+        email: 'pham.thu.dung@hospital.com',
+        degree: 'Tiến sĩ',
+        specialty: 'Tim mạch',
       },
       {
         full_name: 'Hoàng Văn Em',
-        email: 'hoang.van.em@hospital.com',
-        phone: '0901234571',
         gender: Gender.MALE,
-        specialty: 'Nội tiêu hóa',
-        experience_years: 25,
-        bio: 'Phó Giáo sư, Tiến sĩ, chuyên gia hàng đầu về bệnh gan',
+        date_of_birth: '1975-03-30',
+        phone: '0901234571',
         avatar: 'https://randomuser.me/api/portraits/men/5.jpg',
+        experience_years: 25,
+        bio: 'Phó Giáo sư, Tiến sĩ tim mạch, chuyên khoa nội tim mạch.',
+        active: true,
+        email: 'hoang.van.em@hospital.com',
         degree: 'Tiến sĩ',
+        specialty: 'Tim mạch',
       },
       {
         full_name: 'Vũ Thị Giang',
-        email: 'vu.thi.giang@hospital.com',
-        phone: '0901234572',
         gender: Gender.FEMALE,
-        specialty: 'Sản phụ khoa',
-        experience_years: 14,
-        bio: 'Bác sĩ chuyên khoa II, chuyên về chăm sóc thai sản và điều trị vô sinh',
+        date_of_birth: '1984-08-10',
+        phone: '0901234572',
         avatar: 'https://randomuser.me/api/portraits/women/6.jpg',
-        degree: 'Bác sĩ chuyên khoa II',
+        experience_years: 14,
+        bio: 'Tiến sĩ, chuyên gia tim mạch, theo dõi bệnh nhân tim mạch.',
+        active: true,
+        email: 'vu.thi.giang@hospital.com',
+        degree: 'Tiến sĩ',
+        specialty: 'Tim mạch',
       },
       {
         full_name: 'Đặng Quốc Hùng',
-        email: 'dang.quoc.hung@hospital.com',
-        phone: '0901234573',
         gender: Gender.MALE,
-        specialty: 'Chấn thương chỉnh hình',
-        experience_years: 11,
-        bio: 'Bác sĩ, chuyên điều trị các bệnh lý xương khớp',
+        date_of_birth: '1987-11-02',
+        phone: '0901234573',
         avatar: 'https://randomuser.me/api/portraits/men/7.jpg',
-        degree: 'Bác sĩ',
+        experience_years: 11,
+        bio: 'Tiến sĩ, chuyên gia tim mạch can thiệp.',
+        active: true,
+        email: 'dang.quoc.hung@hospital.com',
+        degree: 'Tiến sĩ',
+        specialty: 'Tim mạch',
       },
       {
         full_name: 'Bùi Thị Lan',
-        email: 'bui.thi.lan@hospital.com',
-        phone: '0901234574',
         gender: Gender.FEMALE,
-        specialty: 'Mắt',
-        experience_years: 9,
-        bio: 'Bác sĩ chuyên khoa I, điều trị các bệnh lý về mắt và phẫu thuật mắt',
+        date_of_birth: '1989-06-21',
+        phone: '0901234574',
         avatar: 'https://randomuser.me/api/portraits/women/8.jpg',
-        degree: 'Bác sĩ chuyên khoa I',
+        experience_years: 9,
+        bio: 'Tiến sĩ, chuyên gia tim mạch nhi.',
+        active: true,
+        email: 'bui.thi.lan@hospital.com',
+        degree: 'Tiến sĩ',
+        specialty: 'Tim mạch',
       },
       {
         full_name: 'Ngô Văn Minh',
-        email: 'ngo.van.minh@hospital.com',
-        phone: '0901234575',
         gender: Gender.MALE,
-        specialty: 'Ung bướu',
-        experience_years: 18,
-        bio: 'Tiến sĩ, chuyên điều trị các loại ung thư bằng hóa trị và xạ trị',
+        date_of_birth: '1979-04-14',
+        phone: '0901234575',
         avatar: 'https://randomuser.me/api/portraits/men/9.jpg',
+        experience_years: 18,
+        bio: 'Tiến sĩ, chuyên gia tim mạch, chăm sóc bệnh nhân suy tim.',
+        active: true,
+        email: 'ngo.van.minh@hospital.com',
         degree: 'Tiến sĩ',
+        specialty: 'Tim mạch',
       },
       {
         full_name: 'Lý Thị Nga',
-        email: 'ly.thi.nga@hospital.com',
-        phone: '0901234576',
         gender: Gender.FEMALE,
-        specialty: 'Tai mũi họng',
-        experience_years: 10,
-        bio: 'Bác sĩ, điều trị các bệnh lý về đường hô hấp trên',
+        date_of_birth: '1986-12-02',
+        phone: '0901234576',
         avatar: 'https://randomuser.me/api/portraits/women/10.jpg',
-        degree: 'Bác sĩ',
+        experience_years: 10,
+        bio: 'Tiến sĩ, chuyên gia tim mạch, điều trị rối loạn nhịp tim.',
+        active: true,
+        email: 'ly.thi.nga@hospital.com',
+        degree: 'Tiến sĩ',
+        specialty: 'Tim mạch',
       },
       {
         full_name: 'Trương Văn Ơn',
-        email: 'truong.van.on@hospital.com',
-        phone: '0901234577',
         gender: Gender.MALE,
-        specialty: 'Hô hấp',
-        experience_years: 13,
-        bio: 'Bác sĩ chuyên khoa I, điều trị các bệnh phổi và đường hô hấp',
+        date_of_birth: '1982-03-11',
+        phone: '0901234577',
         avatar: 'https://randomuser.me/api/portraits/men/11.jpg',
-        degree: 'Bác sĩ chuyên khoa I',
+        experience_years: 13,
+        bio: 'Tiến sĩ, chuyên gia tim mạch, điều trị bệnh van tim.',
+        active: true,
+        email: 'truong.van.on@hospital.com',
+        degree: 'Tiến sĩ',
+        specialty: 'Tim mạch',
       },
       {
         full_name: 'Đinh Thị Phương',
-        email: 'dinh.thi.phuong@hospital.com',
-        phone: '0901234578',
         gender: Gender.FEMALE,
-        specialty: 'Thận - Tiết niệu',
-        experience_years: 16,
-        bio: 'Bác sĩ chuyên khoa II, điều trị các bệnh lý về thận và đường tiết niệu',
+        date_of_birth: '1985-09-17',
+        phone: '0901234578',
         avatar: 'https://randomuser.me/api/portraits/women/12.jpg',
-        degree: 'Bác sĩ chuyên khoa II',
+        experience_years: 16,
+        bio: 'Tiến sĩ, chuyên gia tim mạch, bệnh mạch vành.',
+        active: true,
+        email: 'dinh.thi.phuong@hospital.com',
+        degree: 'Tiến sĩ',
+        specialty: 'Tim mạch',
       },
       {
         full_name: 'Hà Minh Quang',
-        email: 'ha.minh.quang@hospital.com',
-        phone: '0901234579',
         gender: Gender.MALE,
-        specialty: 'Tâm thần',
-        experience_years: 7,
-        bio: 'Bác sĩ, chuyên điều trị các rối loạn tâm lý và tâm thần',
+        date_of_birth: '1992-01-22',
+        phone: '0901234579',
         avatar: 'https://randomuser.me/api/portraits/men/13.jpg',
-        degree: 'Bác sĩ',
+        experience_years: 7,
+        bio: 'Tiến sĩ, chuyên gia tim mạch, theo dõi bệnh nhân sau phẫu thuật tim.',
+        active: true,
+        email: 'ha.minh.quang@hospital.com',
+        degree: 'Tiến sĩ',
+        specialty: 'Tim mạch',
       },
       {
         full_name: 'Võ Thị Rụt',
-        email: 'vo.thi.rut@hospital.com',
-        phone: '0901234580',
         gender: Gender.FEMALE,
-        specialty: 'Nội tiết',
-        experience_years: 12,
-        bio: 'Thạc sĩ, điều trị tiểu đường và các rối loạn nội tiết',
+        date_of_birth: '1988-10-05',
+        phone: '0901234580',
         avatar: 'https://randomuser.me/api/portraits/women/14.jpg',
-        degree: 'Thạc sĩ',
+        experience_years: 12,
+        bio: 'Tiến sĩ, chuyên gia tim mạch, điều trị bệnh tim mạch mãn tính.',
+        active: true,
+        email: 'vo.thi.rut@hospital.com',
+        degree: 'Tiến sĩ',
+        specialty: 'Tim mạch',
       },
       {
         full_name: 'Mai Văn Sơn',
-        email: 'mai.van.son@hospital.com',
-        phone: '0901234581',
         gender: Gender.MALE,
-        specialty: 'Gây mê hồi sức',
-        experience_years: 22,
-        bio: 'Phó Giáo sư, chuyên khoa gây mê hồi sức, giàu kinh nghiệm trong các ca phẫu thuật phức tạp',
+        date_of_birth: '1973-07-19',
+        phone: '0901234581',
         avatar: 'https://randomuser.me/api/portraits/men/15.jpg',
+        experience_years: 22,
+        bio: 'Tiến sĩ, chuyên gia tim mạch, chăm sóc bệnh nhân nhồi máu cơ tim.',
+        active: true,
+        email: 'mai.van.son@hospital.com',
         degree: 'Tiến sĩ',
+        specialty: 'Tim mạch',
       },
       {
         full_name: 'Lại Thị Thu',
-        email: 'lai.thi.thu@hospital.com',
-        phone: '0901234582',
         gender: Gender.FEMALE,
-        specialty: 'Dinh dưỡng',
-        experience_years: 6,
-        bio: 'Bác sĩ, tư vấn chế độ ăn và điều trị các bệnh liên quan dinh dưỡng',
+        date_of_birth: '1993-03-10',
+        phone: '0901234582',
         avatar: 'https://randomuser.me/api/portraits/women/16.jpg',
-        degree: 'Bác sĩ',
+        experience_years: 6,
+        bio: 'Tiến sĩ, chuyên gia tim mạch, tư vấn sức khỏe tim mạch.',
+        active: true,
+        email: 'lai.thi.thu@hospital.com',
+        degree: 'Tiến sĩ',
+        specialty: 'Tim mạch',
       },
       {
         full_name: 'Phan Văn Út',
-        email: 'phan.van.ut@hospital.com',
-        phone: '0901234583',
         gender: Gender.MALE,
-        specialty: 'Cấp cứu',
-        experience_years: 14,
-        bio: 'Bác sĩ chuyên khoa I, chuyên xử lý các tình huống cấp cứu và chăm sóc tích cực',
+        date_of_birth: '1984-04-09',
+        phone: '0901234583',
         avatar: 'https://randomuser.me/api/portraits/men/17.jpg',
-        degree: 'Bác sĩ chuyên khoa I',
+        experience_years: 14,
+        bio: 'Tiến sĩ, chuyên gia tim mạch cấp cứu.',
+        active: true,
+        email: 'phan.van.ut@hospital.com',
+        degree: 'Tiến sĩ',
+        specialty: 'Tim mạch',
       },
       {
         full_name: 'Chu Thị Vân',
-        email: 'chu.thi.van@hospital.com',
-        phone: '0901234584',
         gender: Gender.FEMALE,
-        specialty: 'Phục hồi chức năng',
-        experience_years: 8,
-        bio: 'Bác sĩ, chuyên vật lý trị liệu sau chấn thương',
+        date_of_birth: '1991-09-25',
+        phone: '0901234584',
         avatar: 'https://randomuser.me/api/portraits/women/18.jpg',
-        degree: 'Bác sĩ',
+        experience_years: 8,
+        bio: 'Tiến sĩ, chuyên gia tim mạch phục hồi chức năng.',
+        active: true,
+        email: 'chu.thi.van@hospital.com',
+        degree: 'Tiến sĩ',
+        specialty: 'Tim mạch',
       },
       {
         full_name: 'Đỗ Văn Xuân',
-        email: 'do.van.xuan@hospital.com',
-        phone: '0901234585',
         gender: Gender.MALE,
-        specialty: 'Tiêu hóa',
-        experience_years: 19,
-        bio: 'Tiến sĩ, chuyên nội soi và điều trị bệnh lý đường tiêu hóa',
+        date_of_birth: '1979-11-08',
+        phone: '0901234585',
         avatar: 'https://randomuser.me/api/portraits/men/19.jpg',
+        experience_years: 19,
+        bio: 'Tiến sĩ, chuyên gia tim mạch, nội soi tim mạch.',
+        active: true,
+        email: 'do.van.xuan@hospital.com',
         degree: 'Tiến sĩ',
+        specialty: 'Tim mạch',
       },
       {
         full_name: 'Lương Thị Yến',
-        email: 'luong.thi.yen@hospital.com',
-        phone: '0901234586',
         gender: Gender.FEMALE,
-        specialty: 'Truyền nhiễm',
-        experience_years: 11,
-        bio: 'Bác sĩ chuyên khoa I, điều trị các bệnh nhiễm trùng và dịch bệnh',
+        date_of_birth: '1986-02-14',
+        phone: '0901234586',
         avatar: 'https://randomuser.me/api/portraits/women/20.jpg',
-        degree: 'Bác sĩ chuyên khoa I',
+        experience_years: 11,
+        bio: 'Tiến sĩ, chuyên gia tim mạch, truyền nhiễm tim mạch.',
+        active: true,
+        email: 'luong.thi.yen@hospital.com',
+        degree: 'Tiến sĩ',
+        specialty: 'Tim mạch',
       },
     ];
 
-    const weekDays: Record<string, number> = {
-      sun: 0,
-      mon: 1,
-      tue: 2,
-      wed: 3,
-      thu: 4,
-      fri: 5,
-      sat: 6,
-    };
 
-    // ================= LOOP SEED =================
+
+    const workDays: DayOfWeek[] = [
+      DayOfWeek.MON,
+      DayOfWeek.TUE,
+      DayOfWeek.WED,
+      DayOfWeek.THU,
+      DayOfWeek.FRI,
+      DayOfWeek.SAT,
+    ];
+
     for (const [index, d] of doctorsData.entries()) {
+      // Tạo doctor
       const doctor = await this.doctorService.create({
         full_name: d.full_name,
-        user_id: 'd54ad561-a9fb-473a-ba4f-086e2c369093',
         phone: d.phone,
         gender: d.gender,
         avatar: d.avatar,
         experience_years: d.experience_years,
         bio: d.bio,
-        active: true,
-        date_of_birth: `${1970 + Math.floor(Math.random() * 30)}-${String(
-          Math.floor(Math.random() * 12) + 1
-        ).padStart(2, '0')}-${String(
-          Math.floor(Math.random() * 28) + 1
-        ).padStart(2, '0')}`,
+        date_of_birth: d.date_of_birth,
+        email: d.email,
       });
 
-      // CERT
+      // ================= CERTIFICATES =================
       await this.certRepo.save([
         this.certRepo.create({
-          doctor_id: doctor.id,
-          type: 'degree',
+          doctor: { id: doctor.id },
+          type: CertificateType.DEGREE,
           title: d.degree,
           field: d.specialty,
-          graduation_year: toVNDate(
-            `${2005 + Math.floor(Math.random() * 15)}-06-01`
-          ),
+          graduation_year: 2010,
           certificate_file: `/uploads/certs/${doctor.id}_degree.pdf`,
         }),
         this.certRepo.create({
-          doctor_id: doctor.id,
-          type: 'license',
-          title: `Giấy phép hành nghề số ${10000 + index}`,
-          issued_date: toVNDate(
-            `${2010 + Math.floor(Math.random() * 10)}-01-01`
-          ),
-          expiry_date: toVNDate(
-            `${2030 + Math.floor(Math.random() * 5)}-01-01`
-          ),
+          doctor: { id: doctor.id },
+          type: CertificateType.LICENSE,
+          title: `Giấy phép hành nghề số ${1000 + index}`,
+          issued_date: toVNDate('2015-01-01'),
+          expiry_date: toVNDate('2030-01-01'),
           certificate_file: `/uploads/certs/${doctor.id}_license.pdf`,
         }),
       ]);
 
-      // AVAILABILITY + SLOTS
-      const workDays = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
-      const selectedDays = workDays
-        .sort(() => 0.5 - Math.random())
-        .slice(0, 3 + Math.floor(Math.random() * 3));
+      // ================= AVAILABILITY & SLOTS =================
+      const selectedDays = workDays.slice(0, 3 + Math.floor(Math.random() * 3));
 
       for (const day of selectedDays) {
-        const shifts: Array<'morning' | 'afternoon' | 'full'> = [
-          'morning',
-          'afternoon',
-          'full',
-        ];
-        const shift = shifts[Math.floor(Math.random() * shifts.length)];
-
         await this.availRepo.save(
           this.availRepo.create({
-            doctor_id: doctor.id,
+            doctor: { id: doctor.id },
             day_of_week: day,
-            shift,
+            start_time: '08:00',
+            end_time: '17:00',
           }),
         );
 
-        const startHour =
-          shift === 'morning' ? 8 : shift === 'afternoon' ? 13 : 8;
-        const endHour =
-          shift === 'morning' ? 12 : shift === 'afternoon' ? 17 : 17;
-
+        // Tạo slots theo từng ngày trong tháng 11
         const start = toVNDate('2025-11-01');
         const end = toVNDate('2025-11-30 23:59:59');
 
         for (let dt = new Date(start); dt <= end; dt.setDate(dt.getDate() + 1)) {
-          if (dt.getDay() !== weekDays[day]) continue;
+          // Check đúng thứ
+          if (dt.getDay() !== (
+            {
+              [DayOfWeek.SUN]: 0,
+              [DayOfWeek.MON]: 1,
+              [DayOfWeek.TUE]: 2,
+              [DayOfWeek.WED]: 3,
+              [DayOfWeek.THU]: 4,
+              [DayOfWeek.FRI]: 5,
+              [DayOfWeek.SAT]: 6,
+            } as Record<DayOfWeek, number>
+          )[day]) continue;
 
           let slotTime = new Date(dt);
-          slotTime.setHours(startHour, 0, 0, 0);
+          slotTime.setHours(8, 0, 0, 0);
 
-          while (slotTime.getHours() < endHour) {
+          while (slotTime.getHours() < 17) {
             const startSlot = new Date(slotTime);
             const endSlot = new Date(startSlot.getTime() + 50 * 60000);
 
-            if (endSlot.getHours() > endHour) break;
+            if (endSlot.getHours() > 17) break;
 
             await this.slotRepo.save(
               this.slotRepo.create({
-                doctor_id: doctor.id,
+                doctor: { id: doctor.id },
                 start_time: startSlot,
                 end_time: endSlot,
                 status: 'available',
@@ -376,30 +406,36 @@ export class DoctorSeed implements OnModuleInit {
         }
       }
 
-      // BLOCK
+
+      // ================= BLOCK TIME =================
       await this.blockRepo.save(
         this.blockRepo.create({
-          doctor_id: doctor.id,
-          start_time: toVNDate('2025-11-12 12:00:00'),
-          end_time: toVNDate('2025-11-12 13:00:00'),
+          doctor: doctor,
+          start_block: toVNDate('2025-11-12 12:00:00'),
+          end_block: toVNDate('2025-11-12 13:00:00'),
           reason: 'Nghỉ trưa',
-        }),
+        })
       );
 
-      // RATING
+
+      // ================= RATING =================
       const ratings = [
         { rating: 5, comment: 'Bác sĩ rất tận tâm', patient_id: `P${index}01` },
         { rating: 4, comment: 'Khám kỹ, giải thích rõ', patient_id: `P${index}02` },
-        { rating: 5, comment: 'Rất hài lòng', patient_id: `P${index}03` },
       ];
 
       await this.ratingRepo.save(
-        ratings.map((r) => this.ratingRepo.create({ ...r, doctor_id: doctor.id })),
+        ratings.map((r) =>
+          this.ratingRepo.create({
+            ...r,
+            doctor: { id: doctor.id },
+          }),
+        ),
       );
 
       console.log(`✔ Created doctor: ${d.full_name}`);
     }
 
-    console.log('🎉 DONE: Seed 20 doctors!');
+    console.log('🎉 DONE SEED!');
   }
 }

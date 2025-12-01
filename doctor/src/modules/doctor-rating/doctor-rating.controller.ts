@@ -1,7 +1,6 @@
 import { Controller, Get, Post, Body, Param } from '@nestjs/common';
 import { DoctorRatingService } from './doctor-rating.service';
 import { DoctorRating } from './doctor-rating.entity';
-import { CreateDoctorLicenseDto } from '../doctor-certificates/dto/create-doctor-certificates.dto';
 import { CreateDoctorRatingDto } from './dto/create-doctor-rating.dto';
 
 @Controller('doctor-ratings')

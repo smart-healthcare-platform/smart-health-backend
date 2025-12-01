@@ -4,11 +4,6 @@ export class DoctorStatsDto {
   @IsNumber()
   totalDoctors: number;
 
-  @IsNumber()
-  activeDoctors: number;
-
-  @IsNumber()
-  inactiveDoctors: number;
 
   @IsNumber()
   newDoctorsThisMonth: number;
