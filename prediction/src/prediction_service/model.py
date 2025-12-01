@@ -12,6 +12,7 @@ from prediction_service.config import Settings
 settings = Settings()
 logger = logging.getLogger(__name__)
 
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 # Try to import TensorFlow dependencies
 try:
     import numpy as np
