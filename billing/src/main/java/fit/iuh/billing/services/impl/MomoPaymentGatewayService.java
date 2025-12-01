@@ -335,11 +335,6 @@ public class MomoPaymentGatewayService implements PaymentGatewayService {
                     log.info("Lab test payment confirmed: {}", payment.getReferenceId());
                     break;
                     
-                case PRESCRIPTION:
-                    // KHÔNG cần thiết - hệ thống không bán thuốc
-                    log.warn("Prescription payment type is deprecated - system does not sell medicine");
-                    break;
-                    
                 case OTHER:
                 default:
                     log.info("Payment type {} completed for {}", payment.getPaymentType(), payment.getReferenceId());

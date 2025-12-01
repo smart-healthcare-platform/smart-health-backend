@@ -1,6 +1,8 @@
 package fit.iuh.billing.controller;
 
+import fit.iuh.billing.dto.BulkPaymentRequest;
 import fit.iuh.billing.dto.CreatePaymentRequest;
+import fit.iuh.billing.dto.OutstandingPaymentResponse;
 import fit.iuh.billing.dto.PaymentResponse;
 import fit.iuh.billing.services.BillingService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -21,6 +23,7 @@ import org.springframework.web.servlet.view.RedirectView;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
@@ -161,6 +164,136 @@ public class BillingController {
                  request.getPaymentType(), request.getReferenceId(), request.getAmount(), receptionistId);
         
         PaymentResponse response = billingService.createCashPayment(request, receptionistId);
+        
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "Search payments with filters", 
+               description = "Search payments by date range, status, payment method with pagination")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Payments retrieved successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid parameters")
+    })
+    @GetMapping("/search")
+    public ResponseEntity<org.springframework.data.domain.Page<PaymentResponse>> searchPayments(
+            @Parameter(description = "Start date (yyyy-MM-dd)")
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate startDate,
+            @Parameter(description = "End date (yyyy-MM-dd)")
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate endDate,
+            @Parameter(description = "Payment status filter")
+            @RequestParam(required = false) fit.iuh.billing.enums.PaymentStatus status,
+            @Parameter(description = "Payment method filter")
+            @RequestParam(required = false) fit.iuh.billing.enums.PaymentMethodType paymentMethod,
+            @Parameter(description = "Payment type filter")
+            @RequestParam(required = false) fit.iuh.billing.enums.PaymentType paymentType,
+            @Parameter(description = "Page number (0-based)")
+            @RequestParam(defaultValue = "0") int page,
+            @Parameter(description = "Page size")
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        log.info("Searching payments - startDate: {}, endDate: {}, status: {}, method: {}, type: {}, page: {}, size: {}", 
+                 startDate, endDate, status, paymentMethod, paymentType, page, size);
+        
+        org.springframework.data.domain.Page<PaymentResponse> payments = billingService.searchPayments(
+            startDate, endDate, status, paymentMethod, paymentType, page, size
+        );
+        
+        return ResponseEntity.ok(payments);
+    }
+
+    @Operation(summary = "Get today's payments", 
+               description = "Retrieve all payments created today (shortcut for receptionists)")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Today's payments retrieved successfully")
+    })
+    @GetMapping("/today")
+    public ResponseEntity<java.util.List<PaymentResponse>> getTodayPayments(
+            @Parameter(description = "Payment status filter")
+            @RequestParam(required = false) fit.iuh.billing.enums.PaymentStatus status
+    ) {
+        log.info("Fetching today's payments - status filter: {}", status);
+        
+        java.time.LocalDate today = java.time.LocalDate.now();
+        java.util.List<PaymentResponse> payments = billingService.getTodayPayments(status);
+        
+        return ResponseEntity.ok(payments);
+    }
+
+    @Operation(summary = "Get payment by appointment ID", 
+               description = "Retrieve payment associated with a specific appointment")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Payment found",
+                    content = @Content(schema = @Schema(implementation = PaymentResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Payment not found for this appointment")
+    })
+    @GetMapping("/by-appointment/{appointmentId}")
+    public ResponseEntity<PaymentResponse> getByAppointmentId(
+            @Parameter(description = "Appointment ID", required = true)
+            @PathVariable String appointmentId) {
+        log.info("Fetching payment for appointment: {}", appointmentId);
+        
+        PaymentResponse response = billingService.getByAppointmentId(appointmentId);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "Get payment by reference ID and type", 
+               description = "Retrieve payment by reference ID (appointmentId, labTestId, etc.) and payment type")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Payment found",
+                    content = @Content(schema = @Schema(implementation = PaymentResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Payment not found")
+    })
+    @GetMapping("/by-reference/{referenceId}")
+    public ResponseEntity<PaymentResponse> getByReferenceId(
+            @Parameter(description = "Reference ID (appointmentId, labTestId, etc.)", required = true)
+            @PathVariable String referenceId,
+            @Parameter(description = "Payment type")
+            @RequestParam(required = false) fit.iuh.billing.enums.PaymentType paymentType
+    ) {
+        log.info("Fetching payment for reference: {}, type: {}", referenceId, paymentType);
+        
+        PaymentResponse response = billingService.getByReferenceId(referenceId, paymentType);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "Get outstanding payments for an appointment", 
+               description = "Retrieve all payments (paid and unpaid) for an appointment including lab tests")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Outstanding payments retrieved successfully",
+                    content = @Content(schema = @Schema(implementation = OutstandingPaymentResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid reference IDs")
+    })
+    @GetMapping("/outstanding")
+    public ResponseEntity<OutstandingPaymentResponse> getOutstandingPayments(
+            @Parameter(description = "List of reference IDs (appointmentId + lab test order IDs)", required = true)
+            @RequestParam List<String> referenceIds
+    ) {
+        log.info("Fetching outstanding payments for reference IDs: {}", referenceIds);
+        
+        OutstandingPaymentResponse response = billingService.getOutstandingPayments(referenceIds);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "Process bulk payment", 
+               description = "Pay multiple payments at once (for receptionist counter payment)")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Bulk payment processed successfully"),
+            @ApiResponse(responseCode = "400", description = "Invalid request or validation failed")
+    })
+    @PostMapping("/bulk-payment")
+    public ResponseEntity<Map<String, String>> processBulkPayment(
+            @Parameter(description = "Bulk payment request with payment codes and total amount", required = true)
+            @Valid @RequestBody BulkPaymentRequest request
+    ) {
+        log.info("Processing bulk payment for {} payments, total: {}", 
+                 request.getPaymentCodes().size(), request.getTotalAmount());
+        
+        billingService.processBulkPayment(request);
+        
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "Bulk payment processed successfully");
+        response.put("paymentCount", String.valueOf(request.getPaymentCodes().size()));
+        response.put("totalAmount", request.getTotalAmount().toString());
         
         return ResponseEntity.ok(response);
     }

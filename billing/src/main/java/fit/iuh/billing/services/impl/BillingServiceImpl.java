@@ -1,23 +1,37 @@
 package fit.iuh.billing.services.impl;
 
 import fit.iuh.billing.client.AppointmentServiceClient;
+import fit.iuh.billing.dto.BulkPaymentRequest;
 import fit.iuh.billing.dto.ConfirmPaymentRequest;
 import fit.iuh.billing.dto.CreatePaymentRequest;
+import fit.iuh.billing.dto.OutstandingPaymentResponse;
+import fit.iuh.billing.dto.PaymentItemDto;
 import fit.iuh.billing.dto.PaymentResponse;
 import fit.iuh.billing.entity.Payment;
+import fit.iuh.billing.enums.PaymentMethodType;
 import fit.iuh.billing.enums.PaymentStatus;
+import fit.iuh.billing.enums.PaymentType;
 import fit.iuh.billing.repository.PaymentRepository;
 import fit.iuh.billing.services.BillingService;
 import fit.iuh.billing.services.PaymentGatewayFactory;
 import fit.iuh.billing.services.PaymentGatewayService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -218,5 +232,294 @@ public class BillingServiceImpl implements BillingService {
             log.error("Error notifying related service for cash payment {}: {}", 
                 payment.getPaymentCode(), e.getMessage());
         }
+    }
+
+    @Override
+    public Page<PaymentResponse> searchPayments(
+            LocalDate startDate,
+            LocalDate endDate,
+            PaymentStatus status,
+            PaymentMethodType paymentMethod,
+            PaymentType paymentType,
+            int page,
+            int size
+    ) {
+        log.info("Searching payments with filters - startDate: {}, endDate: {}, status: {}, method: {}, type: {}",
+                startDate, endDate, status, paymentMethod, paymentType);
+
+        // Convert LocalDate to LocalDateTime for query
+        LocalDateTime startDateTime = startDate != null ? startDate.atStartOfDay() : null;
+        LocalDateTime endDateTime = endDate != null ? endDate.atTime(LocalTime.MAX) : null;
+
+        // Create pageable with sorting by createdAt descending
+        Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+
+        // Get all payments and filter manually (in production, use Specification or custom query)
+        List<Payment> allPayments = paymentRepository.findAll();
+
+        List<Payment> filteredPayments = allPayments.stream()
+                .filter(payment -> {
+                    // Filter by date range
+                    if (startDateTime != null && payment.getCreatedAt().isBefore(startDateTime)) {
+                        return false;
+                    }
+                    if (endDateTime != null && payment.getCreatedAt().isAfter(endDateTime)) {
+                        return false;
+                    }
+                    // Filter by status
+                    if (status != null && payment.getStatus() != status) {
+                        return false;
+                    }
+                    // Filter by payment method
+                    if (paymentMethod != null && payment.getPaymentMethod() != paymentMethod) {
+                        return false;
+                    }
+                    // Filter by payment type
+                    if (paymentType != null && payment.getPaymentType() != paymentType) {
+                        return false;
+                    }
+                    return true;
+                })
+                .sorted((p1, p2) -> p2.getCreatedAt().compareTo(p1.getCreatedAt()))
+                .collect(Collectors.toList());
+
+        // Manual pagination
+        int start = page * size;
+        int end = Math.min(start + size, filteredPayments.size());
+        List<Payment> pagedPayments = filteredPayments.subList(start, end);
+
+        List<PaymentResponse> paymentResponses = pagedPayments.stream()
+                .map(this::mapToPaymentResponse)
+                .collect(Collectors.toList());
+
+        return new org.springframework.data.domain.PageImpl<>(
+                paymentResponses,
+                pageable,
+                filteredPayments.size()
+        );
+    }
+
+    @Override
+    public List<PaymentResponse> getTodayPayments(PaymentStatus status) {
+        log.info("Fetching today's payments with status filter: {}", status);
+
+        LocalDate today = LocalDate.now();
+        LocalDateTime startOfDay = today.atStartOfDay();
+        LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
+
+        List<Payment> payments;
+        
+        if (status != null) {
+            payments = paymentRepository.findByStatusAndDateRange(status, startOfDay, endOfDay);
+        } else {
+            // Get all payments created today
+            payments = paymentRepository.findByCreatedAtAfter(startOfDay).stream()
+                    .filter(p -> p.getCreatedAt().isBefore(endOfDay) || p.getCreatedAt().isEqual(endOfDay))
+                    .sorted((p1, p2) -> p2.getCreatedAt().compareTo(p1.getCreatedAt()))
+                    .collect(Collectors.toList());
+        }
+
+        return payments.stream()
+                .map(this::mapToPaymentResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Override
+    public PaymentResponse getByAppointmentId(String appointmentId) {
+        log.info("Fetching payment for appointmentId: {}", appointmentId);
+
+        // Try to find by referenceId with APPOINTMENT_FEE type
+        List<Payment> payments = paymentRepository.findByReferenceIdAndPaymentType(
+                appointmentId, 
+                PaymentType.APPOINTMENT_FEE
+        );
+
+        if (payments.isEmpty()) {
+            // Fallback: try to find by referenceId only
+            Payment payment = paymentRepository.findByReferenceId(appointmentId)
+                    .orElseThrow(() -> new RuntimeException("Payment not found for appointment ID: " + appointmentId));
+            return mapToPaymentResponse(payment);
+        }
+
+        // Return the most recent payment if multiple found
+        Payment payment = payments.stream()
+                .max((p1, p2) -> p1.getCreatedAt().compareTo(p2.getCreatedAt()))
+                .orElseThrow(() -> new RuntimeException("Payment not found for appointment ID: " + appointmentId));
+
+        return mapToPaymentResponse(payment);
+    }
+
+    @Override
+    public PaymentResponse getByReferenceId(String referenceId, PaymentType paymentType) {
+        log.info("Fetching payment for referenceId: {}, type: {}", referenceId, paymentType);
+
+        if (paymentType != null) {
+            List<Payment> payments = paymentRepository.findByReferenceIdAndPaymentType(referenceId, paymentType);
+            
+            if (payments.isEmpty()) {
+                throw new RuntimeException("Payment not found for reference ID: " + referenceId + " and type: " + paymentType);
+            }
+
+            // Return the most recent payment
+            Payment payment = payments.stream()
+                    .max((p1, p2) -> p1.getCreatedAt().compareTo(p2.getCreatedAt()))
+                    .orElseThrow(() -> new RuntimeException("Payment not found"));
+
+            return mapToPaymentResponse(payment);
+        } else {
+            // Find by referenceId only
+            Payment payment = paymentRepository.findByReferenceId(referenceId)
+                    .orElseThrow(() -> new RuntimeException("Payment not found for reference ID: " + referenceId));
+            
+            return mapToPaymentResponse(payment);
+        }
+    }
+
+    @Override
+    public OutstandingPaymentResponse getOutstandingPayments(List<String> referenceIds) {
+        log.info("Fetching outstanding payments for reference IDs: {}", referenceIds);
+
+        if (referenceIds == null || referenceIds.isEmpty()) {
+            throw new IllegalArgumentException("Reference IDs list cannot be empty");
+        }
+
+        // 1. Query tất cả payments theo referenceIds
+        List<Payment> payments = paymentRepository.findByReferenceIdIn(referenceIds);
+
+        if (payments.isEmpty()) {
+            log.warn("No payments found for reference IDs: {}", referenceIds);
+            return new OutstandingPaymentResponse(
+                referenceIds.get(0), // Use first referenceId as appointmentId
+                "",
+                BigDecimal.ZERO,
+                BigDecimal.ZERO,
+                List.of()
+            );
+        }
+
+        // 2. Tính tổng UNPAID (PENDING status)
+        BigDecimal totalUnpaid = payments.stream()
+            .filter(p -> p.getStatus() == PaymentStatus.PENDING)
+            .map(Payment::getAmount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // 3. Tính tổng PAID (COMPLETED status)
+        BigDecimal totalPaid = payments.stream()
+            .filter(p -> p.getStatus() == PaymentStatus.COMPLETED)
+            .map(Payment::getAmount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // 4. Map sang PaymentItemDto
+        List<PaymentItemDto> paymentItems = payments.stream()
+            .map(this::mapToPaymentItemDto)
+            .collect(Collectors.toList());
+
+        log.info("Found {} payments, total unpaid: {}, total paid: {}", 
+            payments.size(), totalUnpaid, totalPaid);
+
+        return new OutstandingPaymentResponse(
+            referenceIds.get(0), // Use first referenceId as appointmentId
+            "", // Patient name will be filled by frontend
+            totalUnpaid,
+            totalPaid,
+            paymentItems
+        );
+    }
+
+    @Override
+    @Transactional
+    public void processBulkPayment(BulkPaymentRequest request) {
+        log.info("Processing bulk payment for {} payments", request.getPaymentCodes().size());
+
+        // 1. Lấy tất cả payments by codes
+        List<Payment> payments = paymentRepository.findByPaymentCodeIn(request.getPaymentCodes());
+
+        // Validate: Tất cả payments phải tồn tại
+        if (payments.size() != request.getPaymentCodes().size()) {
+            log.error("Some payment codes not found. Expected: {}, Found: {}", 
+                request.getPaymentCodes().size(), payments.size());
+            throw new IllegalArgumentException(
+                String.format("Some payment codes not found. Expected %d, found %d",
+                    request.getPaymentCodes().size(), payments.size())
+            );
+        }
+
+        // 2. Validate tổng tiền khớp
+        BigDecimal calculatedTotal = payments.stream()
+            .map(Payment::getAmount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        if (calculatedTotal.compareTo(request.getTotalAmount()) != 0) {
+            log.error("Total amount mismatch. Expected: {}, Got: {}", 
+                calculatedTotal, request.getTotalAmount());
+            throw new IllegalArgumentException(
+                String.format("Total amount mismatch: expected %s, got %s",
+                    calculatedTotal, request.getTotalAmount())
+            );
+        }
+
+        // 3. Validate: Tất cả payments đều chưa thanh toán
+        boolean hasInvalidStatus = payments.stream()
+            .anyMatch(p -> p.getStatus() == PaymentStatus.COMPLETED);
+
+        if (hasInvalidStatus) {
+            log.error("Some payments are already paid");
+            throw new IllegalArgumentException("Some payments are already paid");
+        }
+
+        // 4. Update tất cả payments thành COMPLETED
+        LocalDateTime now = LocalDateTime.now();
+        payments.forEach(payment -> {
+            payment.setStatus(PaymentStatus.COMPLETED);
+            payment.setPaidAt(now);
+            payment.setPaymentMethod(request.getPaymentMethod());
+            
+            // Append notes to description
+            if (request.getNotes() != null && !request.getNotes().isEmpty()) {
+                String currentDesc = payment.getDescription() != null ? payment.getDescription() : "";
+                payment.setDescription(
+                    currentDesc.isEmpty() ? request.getNotes() : currentDesc + " | " + request.getNotes()
+                );
+            }
+        });
+
+        paymentRepository.saveAll(payments);
+        log.info("Successfully updated {} payments to COMPLETED status", payments.size());
+
+        // 5. Gọi Appointment Service để update appointment status (nếu có APPOINTMENT_FEE)
+        payments.stream()
+            .filter(p -> p.getPaymentType() == PaymentType.APPOINTMENT_FEE)
+            .forEach(p -> {
+                try {
+                    log.info("Confirming payment for appointment: {}", p.getReferenceId());
+                    ConfirmPaymentRequest confirmRequest = new ConfirmPaymentRequest(
+                        p.getPaymentCode(),
+                        p.getAmount()
+                    );
+                    appointmentServiceClient.confirmAppointmentPayment(
+                        p.getReferenceId(),
+                        confirmRequest
+                    );
+                } catch (Exception e) {
+                    log.error("Failed to confirm payment for appointment {}: {}", 
+                        p.getReferenceId(), e.getMessage());
+                    // Don't throw - payment is already updated, just log the error
+                }
+            });
+    }
+
+    /**
+     * Map Payment entity sang PaymentItemDto
+     */
+    private PaymentItemDto mapToPaymentItemDto(Payment payment) {
+        return new PaymentItemDto(
+            payment.getPaymentCode(),
+            payment.getPaymentType(),
+            payment.getAmount(),
+            payment.getStatus(),
+            payment.getDescription(),
+            payment.getCreatedAt(),
+            payment.getPaidAt()
+        );
     }
 }

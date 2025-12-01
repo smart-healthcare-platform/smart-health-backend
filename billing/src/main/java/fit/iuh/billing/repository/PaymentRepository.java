@@ -40,6 +40,22 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     List<Payment> findByReferenceIdAndPaymentType(String referenceId, PaymentType paymentType);
 
     /**
+     * Tìm payments theo danh sách payment codes
+     * Dùng cho bulk payment processing
+     * @param paymentCodes Danh sách payment codes
+     * @return Danh sách payments
+     */
+    List<Payment> findByPaymentCodeIn(List<String> paymentCodes);
+
+    /**
+     * Tìm payments theo danh sách reference IDs
+     * Dùng cho outstanding payments query
+     * @param referenceIds Danh sách reference IDs
+     * @return Danh sách payments
+     */
+    List<Payment> findByReferenceIdIn(List<String> referenceIds);
+
+    /**
      * Tìm một thanh toán dựa trên ID của đơn thuốc.
      * @deprecated Sử dụng findByReferenceId() thay thế
      * @param prescriptionId ID của đơn thuốc.
