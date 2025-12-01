@@ -9,20 +9,22 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * DTO for patient's medication history
+ * Shows previous prescriptions with full details for doctor review
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class PrescriptionDetailDto {
-    private String id;
-    private String patientId;
-    private String patientName;
-    private String doctorId;
-    private String doctorName;
+public class MedicationHistoryDto {
+    private String prescriptionId;
     private String appointmentId;
+    private LocalDateTime prescribedDate;
     private String diagnosis;
+    private String doctorName;
     private String notes;
     private PrescriptionStatus status;
-    private LocalDateTime createdAt;
     private List<PrescriptionItemDto> items;
+    private Integer totalDrugs;  // Số loại thuốc trong đơn
 }

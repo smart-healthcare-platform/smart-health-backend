@@ -1,6 +1,5 @@
 package com.smarthealth.medicine.model;
 
-import com.smarthealth.medicine.domain.enums.PrescriptionStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -9,20 +8,21 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 import java.util.List;
 
+/**
+ * DTO for prescription template response
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class PrescriptionDetailDto {
-    private String id;
-    private String patientId;
-    private String patientName;
+public class PrescriptionTemplateDto {
+    private Long id;
     private String doctorId;
-    private String doctorName;
-    private String appointmentId;
+    private String templateName;
     private String diagnosis;
     private String notes;
-    private PrescriptionStatus status;
+    private List<PrescriptionTemplateItemDto> items;
     private LocalDateTime createdAt;
-    private List<PrescriptionItemDto> items;
+    private LocalDateTime updatedAt;
+    private Integer totalDrugs;
 }
