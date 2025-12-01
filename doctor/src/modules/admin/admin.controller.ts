@@ -11,7 +11,6 @@ import { AdminService } from './admin.service';
 import { DoctorStatsDto } from './dto/doctor-stats.dto';
 import {
   TopDoctorsResponseDto,
-  DepartmentPerformanceResponseDto,
 } from './dto/top-doctors.dto';
 import { InternalGuard } from './guards/internal.guard';
 
@@ -119,44 +118,44 @@ export class AdminController {
    * GET /v1/admin/departments/performance
    * Returns performance metrics by specialty/department
    */
-  @Get('/departments/performance')
-  @HttpCode(HttpStatus.OK)
-  async getDepartmentPerformance(): Promise<{
-    success: boolean;
-    data: DepartmentPerformanceResponseDto;
-    meta: { requestId: string; responseTime: number; timestamp: string };
-  }> {
-    const startTime = Date.now();
-    const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  // @Get('/departments/performance')
+  // @HttpCode(HttpStatus.OK)
+  // async getDepartmentPerformance(): Promise<{
+  //   success: boolean;
+  //   data: DepartmentPerformanceResponseDto;
+  //   meta: { requestId: string; responseTime: number; timestamp: string };
+  // }> {
+  //   const startTime = Date.now();
+  //   const requestId = `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    this.logger.log(`[${requestId}] Fetching department performance metrics`);
+  //   this.logger.log(`[${requestId}] Fetching department performance metrics`);
 
-    try {
-      const data = await this.adminService.getDepartmentPerformance();
-      const responseTime = Date.now() - startTime;
+  //   try {
+  //     const data = await this.adminService.getDepartmentPerformance();
+  //     const responseTime = Date.now() - startTime;
 
-      this.logger.log(
-        `[${requestId}] Successfully fetched department performance in ${responseTime}ms`,
-      );
+  //     this.logger.log(
+  //       `[${requestId}] Successfully fetched department performance in ${responseTime}ms`,
+  //     );
 
-      return {
-        success: true,
-        data,
-        meta: {
-          requestId,
-          responseTime,
-          timestamp: new Date().toISOString(),
-        },
-      };
-    } catch (error) {
-      const responseTime = Date.now() - startTime;
-      this.logger.error(
-        `[${requestId}] Error fetching department performance (${responseTime}ms)`,
-        error.stack,
-      );
-      throw error;
-    }
-  }
+  //     return {
+  //       success: true,
+  //       data,
+  //       meta: {
+  //         requestId,
+  //         responseTime,
+  //         timestamp: new Date().toISOString(),
+  //       },
+  //     };
+  //   } catch (error) {
+  //     const responseTime = Date.now() - startTime;
+  //     this.logger.error(
+  //       `[${requestId}] Error fetching department performance (${responseTime}ms)`,
+  //       error.stack,
+  //     );
+  //     throw error;
+  //   }
+  // }
 
   /**
    * GET /v1/admin/doctors/health

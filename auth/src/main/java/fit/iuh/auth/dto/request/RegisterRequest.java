@@ -10,10 +10,6 @@ import java.time.LocalDate;
 @Data
 public class RegisterRequest {
 
-    @NotBlank(message = "Username không được để trống")
-    @Size(min = 3, max = 50, message = "Username phải có độ dài từ 3-50 ký tự")
-    private String username;
-
     @NotBlank(message = "Số điện thoại không được để trống")
     @Pattern(
             regexp = "^(0|\\+84)(3[2-9]|5[689]|7[06-9]|8[1-9]|9[0-9])[0-9]{7}$",
@@ -30,14 +26,11 @@ public class RegisterRequest {
     @Size(min = 6, message = "Password phải có ít nhất 6 ký tự")
     private String password;
 
-    @NotNull(message = "Role không được để trống")
-    private Role role;
-
     // ---------------- Thêm các field cho Patient ----------------
     @Size(max = 100, message = "Họ tên không quá 100 ký tự")
     private String fullName;
 
-    private LocalDate dateOfBirth;
+    private String dateOfBirth;
 
     @NotNull(message = "Giới tính không được để trống")
     private Gender gender;

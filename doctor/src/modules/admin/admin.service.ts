@@ -9,8 +9,6 @@ import { DoctorStatsDto } from './dto/doctor-stats.dto';
 import {
   TopDoctorsResponseDto,
   TopDoctorDto,
-  DepartmentPerformanceResponseDto,
-  SpecialtyPerformanceDto,
 } from './dto/top-doctors.dto';
 
 @Injectable()
@@ -26,7 +24,7 @@ export class AdminService {
     private readonly slotRepository: Repository<AppointmentSlot>,
     @InjectRepository(DoctorCertificate)
     private readonly certificateRepository: Repository<DoctorCertificate>,
-  ) {}
+  ) { }
 
   /**
    * Get overall doctor statistics
@@ -37,12 +35,6 @@ export class AdminService {
 
       // Total doctors
       const totalDoctors = await this.doctorRepository.count();
-
-      // Active/Inactive doctors
-      const activeDoctors = await this.doctorRepository.count({
-        where: { active: true },
-      });
-      const inactiveDoctors = totalDoctors - activeDoctors;
 
       // New doctors this month
       const startOfMonth = new Date();
@@ -75,7 +67,6 @@ export class AdminService {
         .innerJoin('doctor.slots', 'slot')
         .where('slot.start_time >= :today', { today })
         .andWhere('slot.start_time < :tomorrow', { tomorrow })
-        .andWhere('doctor.active = :active', { active: true })
         .select('COUNT(DISTINCT doctor.id)', 'count')
         .getRawOne();
 
@@ -100,25 +91,12 @@ export class AdminService {
         .andWhere('slot.status = :status', { status: 'booked' })
         .getCount();
 
-      // Most popular specialty
-      const specialtyStats = await this.doctorRepository
-        .createQueryBuilder('doctor')
-        .select('doctor.specialty', 'specialty')
-        .addSelect('COUNT(doctor.id)', 'count')
-        .where('doctor.active = :active', { active: true })
-        .groupBy('doctor.specialty')
-        .orderBy('count', 'DESC')
-        .limit(1)
-        .getRawOne();
 
-      const mostPopularSpecialty = specialtyStats?.specialty || null;
-      const doctorsInMostPopularSpecialty = parseInt(specialtyStats?.count) || 0;
 
       // Average experience years
       const expStats = await this.doctorRepository
         .createQueryBuilder('doctor')
         .select('AVG(doctor.experience_years)', 'avgExp')
-        .where('doctor.active = :active', { active: true })
         .getRawOne();
 
       const averageExperienceYears = parseFloat(expStats?.avgExp) || 0;
@@ -134,8 +112,6 @@ export class AdminService {
 
       return {
         totalDoctors,
-        activeDoctors,
-        inactiveDoctors,
         newDoctorsThisMonth,
         newDoctorsThisWeek,
         doctorsWorkingToday,
@@ -143,8 +119,6 @@ export class AdminService {
         totalRatings,
         totalAppointmentSlots,
         bookedSlotsThisMonth,
-        mostPopularSpecialty,
-        doctorsInMostPopularSpecialty,
         averageExperienceYears: Math.round(averageExperienceYears * 10) / 10,
         doctorsWithCertificates,
       };
@@ -169,7 +143,6 @@ export class AdminService {
         .select([
           'doctor.id as id',
           'doctor.full_name as fullName',
-          'doctor.specialty as specialty',
           'doctor.experience_years as experienceYears',
           'doctor.avatar as avatar',
           'AVG(rating.rating) as averageRating',
@@ -177,7 +150,6 @@ export class AdminService {
           'COUNT(DISTINCT slot.id) as totalAppointments',
           'SUM(CASE WHEN slot.status = "booked" THEN 1 ELSE 0 END) as completedAppointments',
         ])
-        .where('doctor.active = :active', { active: true })
         .groupBy('doctor.id')
         .having('COUNT(DISTINCT rating.id) >= 5') // At least 5 ratings
         .orderBy('averageRating', 'DESC')
@@ -193,7 +165,6 @@ export class AdminService {
         .select([
           'doctor.id as id',
           'doctor.full_name as fullName',
-          'doctor.specialty as specialty',
           'doctor.experience_years as experienceYears',
           'doctor.avatar as avatar',
           'AVG(rating.rating) as averageRating',
@@ -201,7 +172,6 @@ export class AdminService {
           'COUNT(DISTINCT slot.id) as totalAppointments',
           'SUM(CASE WHEN slot.status = "booked" THEN 1 ELSE 0 END) as completedAppointments',
         ])
-        .where('doctor.active = :active', { active: true })
         .groupBy('doctor.id')
         .orderBy('totalAppointments', 'DESC')
         .addOrderBy('completedAppointments', 'DESC')
@@ -216,7 +186,6 @@ export class AdminService {
         .select([
           'doctor.id as id',
           'doctor.full_name as fullName',
-          'doctor.specialty as specialty',
           'doctor.experience_years as experienceYears',
           'doctor.avatar as avatar',
           'AVG(rating.rating) as averageRating',
@@ -225,7 +194,6 @@ export class AdminService {
           'SUM(CASE WHEN slot.status = "booked" THEN 1 ELSE 0 END) as completedAppointments',
           'SUM(CASE WHEN slot.status = "booked" THEN 500000 ELSE 0 END) as totalRevenue',
         ])
-        .where('doctor.active = :active', { active: true })
         .groupBy('doctor.id')
         .orderBy('totalRevenue', 'DESC')
         .limit(limit)
@@ -234,7 +202,6 @@ export class AdminService {
       const mapToDto = (raw: any): TopDoctorDto => ({
         id: raw.id,
         fullName: raw.fullName,
-        specialty: raw.specialty,
         experienceYears: parseInt(raw.experienceYears) || 0,
         avatar: raw.avatar || null,
         averageRating: parseFloat(raw.averageRating) || 0,
@@ -255,51 +222,49 @@ export class AdminService {
     }
   }
 
-  /**
-   * Get performance metrics by specialty/department
-   */
-  async getDepartmentPerformance(): Promise<DepartmentPerformanceResponseDto> {
-    try {
-      this.logger.log('Fetching department performance metrics');
 
-      const specialtyStats = await this.doctorRepository
-        .createQueryBuilder('doctor')
-        .leftJoin('doctor.ratings', 'rating')
-        .leftJoin('doctor.slots', 'slot')
-        .select([
-          'doctor.specialty as specialty',
-          'COUNT(DISTINCT doctor.id) as totalDoctors',
-          'COUNT(DISTINCT CASE WHEN doctor.active = true THEN doctor.id END) as activeDoctors',
-          'AVG(rating.rating) as averageRating',
-          'COUNT(DISTINCT slot.id) as totalAppointments',
-          'SUM(CASE WHEN slot.status = "booked" THEN 500000 ELSE 0 END) as totalRevenue',
-          'AVG(doctor.experience_years) as averageExperienceYears',
-        ])
-        .groupBy('doctor.specialty')
-        .orderBy('totalAppointments', 'DESC')
-        .getRawMany();
+  // async getDepartmentPerformance(): Promise<DepartmentPerformanceResponseDto> {
+  //   try {
+  //     this.logger.log('Fetching department performance metrics');
 
-      const specialties: SpecialtyPerformanceDto[] = specialtyStats.map((stat) => ({
-        specialty: stat.specialty,
-        totalDoctors: parseInt(stat.totalDoctors) || 0,
-        activeDoctors: parseInt(stat.activeDoctors) || 0,
-        averageRating: parseFloat(stat.averageRating) || 0,
-        totalAppointments: parseInt(stat.totalAppointments) || 0,
-        totalRevenue: parseFloat(stat.totalRevenue) || 0,
-        averageExperienceYears: parseFloat(stat.averageExperienceYears) || 0,
-      }));
+  //     const specialtyStats = await this.doctorRepository
+  //       .createQueryBuilder('doctor')
+  //       .leftJoin('doctor.ratings', 'rating')
+  //       .leftJoin('doctor.slots', 'slot')
+  //       .select([
+  //         'doctor.specialty as specialty',
+  //         'COUNT(DISTINCT doctor.id) as totalDoctors',
+  //         'COUNT(DISTINCT CASE WHEN doctor.active = true THEN doctor.id END) as activeDoctors',
+  //         'AVG(rating.rating) as averageRating',
+  //         'COUNT(DISTINCT slot.id) as totalAppointments',
+  //         'SUM(CASE WHEN slot.status = "booked" THEN 500000 ELSE 0 END) as totalRevenue',
+  //         'AVG(doctor.experience_years) as averageExperienceYears',
+  //       ])
+  //       .groupBy('doctor.specialty')
+  //       .orderBy('totalAppointments', 'DESC')
+  //       .getRawMany();
 
-      const topSpecialty = specialties.length > 0 ? specialties[0].specialty : 'N/A';
-      const totalSpecialties = specialties.length;
+  //     const specialties: SpecialtyPerformanceDto[] = specialtyStats.map((stat) => ({
+  //       specialty: stat.specialty,
+  //       totalDoctors: parseInt(stat.totalDoctors) || 0,
+  //       activeDoctors: parseInt(stat.activeDoctors) || 0,
+  //       averageRating: parseFloat(stat.averageRating) || 0,
+  //       totalAppointments: parseInt(stat.totalAppointments) || 0,
+  //       totalRevenue: parseFloat(stat.totalRevenue) || 0,
+  //       averageExperienceYears: parseFloat(stat.averageExperienceYears) || 0,
+  //     }));
 
-      return {
-        specialties,
-        topSpecialty,
-        totalSpecialties,
-      };
-    } catch (error) {
-      this.logger.error('Error fetching department performance', error.stack);
-      throw error;
-    }
-  }
+  //     const topSpecialty = specialties.length > 0 ? specialties[0].specialty : 'N/A';
+  //     const totalSpecialties = specialties.length;
+
+  //     return {
+  //       specialties,
+  //       topSpecialty,
+  //       totalSpecialties,
+  //     };
+  //   } catch (error) {
+  //     this.logger.error('Error fetching department performance', error.stack);
+  //     throw error;
+  //   }
+  // }
 }

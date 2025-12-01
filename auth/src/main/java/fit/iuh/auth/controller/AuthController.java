@@ -35,12 +35,12 @@ public class AuthController {
             @Valid @RequestBody RegisterRequest request,
             HttpServletResponse response) {
         try {
-            log.info("Registration request for username: {}", request.getUsername());
+            log.info("Registration request for email: {}", request.getEmail());
             AuthResponse authResponse = authService.register(request, response);
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(ApiResponse.success("Đăng ký thành công", authResponse));
         } catch (Exception e) {
-            log.error("Registration failed for username: {}", request.getUsername(), e);
+            log.error("Registration failed for email: {}", request.getEmail(), e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(ApiResponse.error(e.getMessage(), HttpStatus.BAD_REQUEST.value()));
         }
