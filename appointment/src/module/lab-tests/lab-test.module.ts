@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { HttpModule } from '@nestjs/axios';
 
 import { Appointment } from '../appointment/appointment.entity';
 import { LabTest } from './lab-test.entity';
@@ -12,6 +13,7 @@ import { LabTestOrdersController } from './controllers/lab-test-orders.controlle
 import { LabTestOrdersService } from './services/lab-test-order.service';
 import { LabTestResultsService } from './services/lab-test-result.service';
 import { LabTestResultsController } from './controllers/lab-test-result.controller';
+import { BillingClient } from '@/common/clients/billing.client';
 
 @Module({
     imports: [
@@ -21,9 +23,10 @@ import { LabTestResultsController } from './controllers/lab-test-result.controll
             Appointment,
             LabTestOrder
         ]),
+        HttpModule,
     ],
     controllers: [LabTestsController, LabTestOrdersController, LabTestResultsController],
-    providers: [LabTestsService, LabTestSeed, LabTestOrdersService, LabTestResultsService],
+    providers: [LabTestsService, LabTestSeed, LabTestOrdersService, LabTestResultsService, BillingClient],
     exports: [LabTestsService, LabTestOrdersService, LabTestResultsService],
 })
 export class LabTestsModule { }

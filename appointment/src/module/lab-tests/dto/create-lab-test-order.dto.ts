@@ -18,4 +18,8 @@ export class CreateLabTestOrderDto {
     @IsOptional()
     @IsString()
     orderedBy?: string;
+
+    @IsOptional()
+    @IsUUID()
+    labTestId?: string; // Optional: Direct reference to LabTest for price lookup
 }

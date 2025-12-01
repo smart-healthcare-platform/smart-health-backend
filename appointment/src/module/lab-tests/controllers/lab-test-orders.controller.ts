@@ -26,6 +26,11 @@ export class LabTestOrdersController {
         return this.labTestOrdersService.create(dto);
     }
 
+    @Post('with-payment')
+    createWithPayment(@Body() dto: CreateLabTestOrderDto) {
+        return this.labTestOrdersService.createWithPayment(dto);
+    }
+
     @Get()
     findAll() {
         return this.labTestOrdersService.findAll();
