@@ -50,23 +50,34 @@ export class BillingClient {
   async createPayment(request: CreatePaymentRequest): Promise<PaymentResponse> {
     try {
       this.logger.log(
-        `Creating payment: ${request.paymentType} for ${request.referenceId}, amount: ${request.amount}`,
+        `🌐 [BILLING CLIENT] Sending payment request to: ${this.billingServiceUrl}/api/v1/billings`,
       );
+      this.logger.debug(`   Request body:`, JSON.stringify(request, null, 2));
 
       const response = await firstValueFrom(
         this.http.post(`${this.billingServiceUrl}/api/v1/billings`, request),
       );
 
       this.logger.log(
-        `Payment created successfully: ${response.data.paymentCode}`,
+        `✅ [BILLING CLIENT] Payment created successfully: ${response.data.paymentCode}`,
       );
+      this.logger.debug(`   Response data:`, JSON.stringify(response.data, null, 2));
 
       return response.data;
     } catch (error) {
       this.logger.error(
-        `Failed to create payment for ${request.referenceId}: ${error.message}`,
-        error.stack,
+        `❌ [BILLING CLIENT] Failed to create payment for ${request.referenceId}`,
       );
+      this.logger.error(`   Error message: ${error.message}`);
+      this.logger.error(`   Billing service URL: ${this.billingServiceUrl}`);
+      if (error.code) {
+        this.logger.error(`   Error code: ${error.code}`);
+      }
+      if (error.response) {
+        this.logger.error(`   Response status: ${error.response?.status}`);
+        this.logger.error(`   Response data:`, JSON.stringify(error.response?.data, null, 2));
+      }
+      this.logger.error(`   Stack trace:`, error.stack);
 
       // Fallback strategy: Return offline payment code if billing service is down
       // This prevents blocking the doctor's workflow

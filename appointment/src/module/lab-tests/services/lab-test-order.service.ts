@@ -94,8 +94,9 @@ export class LabTestOrdersService {
      */
     async createWithPayment(dto: CreateLabTestOrderDto): Promise<LabTestOrder> {
         this.logger.log(
-            `Creating lab test order with payment for appointment ${dto.appointmentId}`,
+            `🔵 [START] Creating lab test order with payment for appointment ${dto.appointmentId}`,
         );
+        this.logger.debug(`📝 DTO received:`, JSON.stringify(dto, null, 2));
 
         // 1. Create lab test order first
         const order = this.labTestOrderRepo.create({
@@ -103,24 +104,33 @@ export class LabTestOrdersService {
             status: dto.status ?? LabTestOrderStatus.ORDERED,
         });
         const savedOrder = await this.labTestOrderRepo.save(order);
+        this.logger.log(`✅ Lab test order created with ID: ${savedOrder.id}`);
 
         // 2. Lookup lab test info for price
         let labTest: LabTest | null = null;
         try {
+            this.logger.log(`🔍 Looking up lab test info...`);
             if (dto.labTestId) {
-                // If labTestId provided in DTO, use it directly
+                this.logger.log(`   Using provided labTestId: ${dto.labTestId}`);
                 labTest = await this.labTestsService.findOne(dto.labTestId);
                 savedOrder.labTestId = dto.labTestId;
             } else {
-                // Fallback: Find by type
+                this.logger.log(`   No labTestId provided, searching by type: ${dto.type}`);
                 labTest = await this.labTestsService.findByType(dto.type);
                 if (labTest) {
                     savedOrder.labTestId = labTest.id;
                 }
             }
+            
+            if (labTest) {
+                this.logger.log(`✅ Found lab test: ${labTest.name} - Price: ${labTest.price}đ`);
+            } else {
+                this.logger.warn(`⚠️  No lab test found for type: ${dto.type}`);
+            }
         } catch (error) {
-            this.logger.warn(
-                `Could not find lab test info for order ${savedOrder.id}: ${error.message}`,
+            this.logger.error(
+                `❌ Error finding lab test info for order ${savedOrder.id}: ${error.message}`,
+                error.stack,
             );
         }
 
@@ -135,35 +145,54 @@ export class LabTestOrdersService {
                 };
 
                 this.logger.log(
-                    `Creating payment for lab test ${labTest.name}: ${labTest.price}đ`,
+                    `💳 Creating payment for lab test "${labTest.name}": ${labTest.price}đ`,
                 );
+                this.logger.debug(`   Payment request:`, JSON.stringify(paymentRequest, null, 2));
 
                 const payment = await this.billingClient.createPayment(
                     paymentRequest,
                 );
+                
+                this.logger.log(`✅ Payment created successfully:`, JSON.stringify({
+                    paymentCode: payment.paymentCode,
+                    amount: payment.amount,
+                    status: payment.status,
+                }, null, 2));
 
                 // 4. Save paymentId to lab test order
                 savedOrder.paymentId = payment.paymentCode;
                 await this.labTestOrderRepo.save(savedOrder);
 
                 this.logger.log(
-                    `✅ Payment ${payment.paymentCode} created for lab test order ${savedOrder.id}`,
+                    `✅ Payment ${payment.paymentCode} linked to lab test order ${savedOrder.id}`,
                 );
+                this.logger.log(`🔵 [END] Lab test order with payment completed successfully`);
             } catch (error) {
                 // Log error but DON'T throw - we don't want to block doctor workflow
                 this.logger.error(
-                    `❌ Failed to create payment for lab test order ${savedOrder.id}: ${error.message}`,
-                    error.stack,
+                    `❌ Failed to create payment for lab test order ${savedOrder.id}`,
                 );
+                this.logger.error(`   Error message: ${error.message}`);
+                this.logger.error(`   Error stack:`, error.stack);
+                if (error.response) {
+                    this.logger.error(`   Response status: ${error.response?.status}`);
+                    this.logger.error(`   Response data:`, JSON.stringify(error.response?.data, null, 2));
+                }
                 // Receptionist will need to create payment manually later
                 this.logger.warn(
                     `⚠️  Lab test order ${savedOrder.id} created WITHOUT payment - manual payment creation required`,
                 );
             }
         } else {
-            this.logger.warn(
-                `No price found for lab test type ${dto.type} - skipping payment creation`,
-            );
+            if (!labTest) {
+                this.logger.warn(
+                    `⚠️  No lab test found for type ${dto.type} - skipping payment creation`,
+                );
+            } else if (labTest.price <= 0) {
+                this.logger.warn(
+                    `⚠️  Lab test "${labTest.name}" has price ${labTest.price} - skipping payment creation`,
+                );
+            }
         }
 
         return savedOrder;
