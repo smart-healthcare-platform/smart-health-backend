@@ -301,27 +301,51 @@ public class BillingServiceImpl implements BillingService {
 
     @Override
     public List<PaymentResponse> getTodayPayments(PaymentStatus status) {
-        log.info("Fetching today's payments with status filter: {}", status);
+        log.info("🔍 [SERVICE] Fetching today's payments with status filter: {}", status);
 
         LocalDate today = LocalDate.now();
         LocalDateTime startOfDay = today.atStartOfDay();
         LocalDateTime endOfDay = today.atTime(LocalTime.MAX);
+        
+        log.debug("   Date range: {} to {}", startOfDay, endOfDay);
 
         List<Payment> payments;
         
         if (status != null) {
+            log.info("   Using status filter: {}", status);
             payments = paymentRepository.findByStatusAndDateRange(status, startOfDay, endOfDay);
+            log.info("   Found {} payments with status {}", payments.size(), status);
         } else {
+            log.info("   No status filter - fetching ALL payments created today");
             // Get all payments created today
-            payments = paymentRepository.findByCreatedAtAfter(startOfDay).stream()
+            List<Payment> allPayments = paymentRepository.findByCreatedAtAfter(startOfDay);
+            log.info("   Found {} payments created after {}", allPayments.size(), startOfDay);
+            
+            payments = allPayments.stream()
                     .filter(p -> p.getCreatedAt().isBefore(endOfDay) || p.getCreatedAt().isEqual(endOfDay))
                     .sorted((p1, p2) -> p2.getCreatedAt().compareTo(p1.getCreatedAt()))
                     .collect(Collectors.toList());
+            
+            log.info("   After filtering by end of day: {} payments", payments.size());
+        }
+        
+        if (!payments.isEmpty()) {
+            log.debug("   Payment entities: {}", payments);
+            // Log each payment for debugging
+            payments.forEach(p -> {
+                log.debug("     - Payment {}: Type={}, Status={}, Amount={}, RefId={}, CreatedAt={}",
+                    p.getPaymentCode(), p.getPaymentType(), p.getStatus(), 
+                    p.getAmount(), p.getReferenceId(), p.getCreatedAt());
+            });
         }
 
-        return payments.stream()
+        List<PaymentResponse> responses = payments.stream()
                 .map(this::mapToPaymentResponse)
                 .collect(Collectors.toList());
+        
+        log.info("✅ [SERVICE] Returning {} payment responses", responses.size());
+        
+        return responses;
     }
 
     @Override

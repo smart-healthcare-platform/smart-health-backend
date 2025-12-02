@@ -25,6 +25,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @RestController
@@ -211,10 +212,22 @@ public class BillingController {
             @Parameter(description = "Payment status filter")
             @RequestParam(required = false) fit.iuh.billing.enums.PaymentStatus status
     ) {
-        log.info("Fetching today's payments - status filter: {}", status);
+        log.info("🔵 [CONTROLLER] Fetching today's payments - status filter: {}", status);
         
         java.time.LocalDate today = java.time.LocalDate.now();
         java.util.List<PaymentResponse> payments = billingService.getTodayPayments(status);
+        
+        log.info("✅ [CONTROLLER] Returning {} payments to frontend", payments.size());
+        if (!payments.isEmpty()) {
+            log.debug("   Payments: {}", payments);
+            // Log breakdown by type and status
+            java.util.Map<String, Long> breakdown = payments.stream()
+                .collect(java.util.stream.Collectors.groupingBy(
+                    p -> p.getPaymentType() + " - " + p.getStatus(),
+                    java.util.stream.Collectors.counting()
+                ));
+            log.info("   Breakdown: {}", breakdown);
+        }
         
         return ResponseEntity.ok(payments);
     }
