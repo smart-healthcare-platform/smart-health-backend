@@ -421,9 +421,9 @@ public class BillingServiceImpl implements BillingService {
             );
         }
 
-        // 2. Tính tổng UNPAID (PENDING status)
+        // 2. Tính tổng UNPAID (PENDING or PROCESSING status)
         BigDecimal totalUnpaid = payments.stream()
-            .filter(p -> p.getStatus() == PaymentStatus.PENDING)
+            .filter(p -> p.getStatus() == PaymentStatus.PENDING || p.getStatus() == PaymentStatus.PROCESSING)
             .map(Payment::getAmount)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
