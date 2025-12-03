@@ -644,6 +644,7 @@ export class AppointmentService {
 
     const queryBuilder = this.appointmentRepo
       .createQueryBuilder('appointment')
+      .leftJoinAndSelect('appointment.labTestOrders', 'labTestOrders')
       .where('appointment.startAt >= :today', { today })
       .andWhere('appointment.startAt < :tomorrow', { tomorrow })
       .orderBy('appointment.startAt', 'ASC');
@@ -677,6 +678,7 @@ export class AppointmentService {
 
     return this.appointmentRepo
       .createQueryBuilder('appointment')
+      .leftJoinAndSelect('appointment.labTestOrders', 'labTestOrders')
       .where('appointment.startAt >= :today', { today })
       .andWhere(
         '(appointment.id LIKE :keyword OR appointment.patientName LIKE :keyword OR appointment.patientId LIKE :keyword)',
