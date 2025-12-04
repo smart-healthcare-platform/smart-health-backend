@@ -17,6 +17,7 @@ export class DoctorConsumer implements OnModuleInit, OnModuleDestroy {
     private readonly producerService: DoctorProducerService,
     private readonly doctorService: DoctorService,
     private readonly configService: ConfigService,
+
   ) { }
 
   async onModuleInit() {
@@ -32,6 +33,7 @@ export class DoctorConsumer implements OnModuleInit, OnModuleDestroy {
 
     await this.consumer.subscribe({ topic: 'appointment.book.requested' });
     await this.consumer.subscribe({ topic: 'doctor.batch.get' });
+    await this.consumer.subscribe({ topic: 'doctor.user.created' });
 
     await this.consumer.run({
       eachMessage: async ({ topic, message }) => {
@@ -45,6 +47,9 @@ export class DoctorConsumer implements OnModuleInit, OnModuleDestroy {
               break;
             case 'doctor.batch.get':
               await this.processDoctorInfoRequest(rawValue);
+              break;
+            case 'doctor.user.created':
+              await this.processDoctorUserCreated(rawValue);
               break;
             default:
               this.logger.warn(`Unhandled topic: ${topic}`);
@@ -88,6 +93,24 @@ export class DoctorConsumer implements OnModuleInit, OnModuleDestroy {
       replyTopic,
     });
   }
+
+  private async processDoctorUserCreated(rawValue: string) {
+    const data = JSON.parse(rawValue);
+    const { doctorId, userId, correlationId } = data;
+
+    this.logger.log(`Doctor user created reply: ${JSON.stringify(data)}`);
+
+    // Lấy doctorId từ correlationId nếu có
+    const storedDoctorId = await this.doctorService.getDoctorIdFromCorrelation(correlationId);
+    const finalDoctorId = storedDoctorId ?? doctorId;
+
+    await this.doctorService.updateDoctorUserId(finalDoctorId, userId);
+
+    await this.doctorService.deleteCorrelation(correlationId);
+
+    this.logger.log(`Updated doctor ${finalDoctorId} with userId ${userId}`);
+  }
+
 
   async onModuleDestroy() {
     if (this.consumer) await this.consumer.disconnect();

@@ -115,7 +115,6 @@ services:
       - "8083:8083"
     volumes:
       - ./doctor:/app
-      - /app/node_modules
     environment:
       DB_HOST: host.docker.internal
       DB_PORT: 3306

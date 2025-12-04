@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { DoctorProducerService } from 'src/kafka/doctor-producer.service';
@@ -9,22 +9,18 @@ import { createKafkaConfig } from './kafka.config';
 
 @Module({
   imports: [
+    forwardRef(() => DoctorModule),
     AppointmentSlotModule,
-    DoctorModule,
     ClientsModule.registerAsync([
       {
         name: 'KAFKA_SERVICE',
         inject: [ConfigService],
         useFactory: (configService: ConfigService) => {
           const { broker, clientId } = createKafkaConfig(configService);
-
           return {
             transport: Transport.KAFKA,
             options: {
-              client: {
-                clientId,
-                brokers: [broker],
-              },
+              client: { clientId, brokers: [broker] },
             },
           };
         },
@@ -32,5 +28,6 @@ import { createKafkaConfig } from './kafka.config';
     ]),
   ],
   providers: [DoctorProducerService, DoctorConsumer],
+  exports: [DoctorProducerService],
 })
 export class DoctorKafkaModule {}

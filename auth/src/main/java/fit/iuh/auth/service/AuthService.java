@@ -10,6 +10,7 @@ import fit.iuh.auth.enums.Role;
 import fit.iuh.auth.kafka.UserProducer;
 import fit.iuh.auth.repository.RefreshTokenRepository;
 import fit.iuh.auth.repository.UserRepository;
+import fit.iuh.auth.util.UsernameGenerator;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.transaction.Transactional;
@@ -41,18 +42,25 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final RefreshTokenRepository refreshTokenRepository;
     private final UserProducer userProducer;
+
     public AuthResponse register(RegisterRequest request, HttpServletResponse response) {
-        log.info("Attempting to register user: {}", request.getUsername());
 
-        if (userRepository.existsByEmail(request.getUsername())) {
-            throw new RuntimeException("Username đã tồn tại: " + request.getUsername());
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new RuntimeException("Username đã tồn tại: " + request.getEmail());
         }
+        String generatedUsername = UsernameGenerator.generateUsername(request.getFullName(), request.getDateOfBirth());
 
+        String finalUsername = generatedUsername;
+        int counter = 1;
+        while (userRepository.existsByUsername(finalUsername)) {
+            finalUsername = generatedUsername + "_" + counter;
+            counter++;
+        }
         User user = new User();
-        user.setUsername(request.getUsername());
+        user.setUsername(finalUsername);
         user.setEmail(request.getEmail());
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-        user.setRole(request.getRole());
+        user.setRole(Role.PATIENT);
         user.setIsActive(true);
 
 
@@ -83,6 +91,7 @@ public class AuthService {
 
         return AuthResponse.builder()
                 .token(jwtToken)
+                .refreshToken(refreshToken)
                 .user(AuthResponse.UserInfo.builder()
                         .id(savedUser.getId())
                         .username(savedUser.getUsername())

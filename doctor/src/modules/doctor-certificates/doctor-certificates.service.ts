@@ -1,29 +1,47 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DoctorCertificate } from './doctor-certificates.entity';
-import { CreateDoctorLicenseDto } from './dto/create-doctor-certificates.dto';
+import { CreateDoctorCertificateDto } from './dto/create-doctor-certificates.dto';
 import { UpdateDoctorLicenseDto } from './dto/update-doctor-certificates.dto';
+import { CertificateType } from './enums/certificate-type.enum';
+import { Doctor } from '../doctor/doctor.entity';
 
 @Injectable()
 export class DoctorCertificateService {
   constructor(
     @InjectRepository(DoctorCertificate)
     private licenseRepo: Repository<DoctorCertificate>,
-  ) {}
 
-  async create(dto: CreateDoctorLicenseDto): Promise<DoctorCertificate> {
-    const license = this.licenseRepo.create(dto);
-    return this.licenseRepo.save(license);
+    @InjectRepository(Doctor)
+    private doctorRepo: Repository<Doctor>, 
+  ) { }
+
+  async create(dto: CreateDoctorCertificateDto): Promise<DoctorCertificate> {
+    const { doctor_id, ...rest } = dto;
+
+    const doctor = await this.doctorRepo.findOne({
+      where: { id: doctor_id },
+    });
+
+    if (!doctor) {
+      throw new NotFoundException(`Doctor with id ${doctor_id} not found`);
+    }
+
+    const certificate = this.licenseRepo.create({
+      doctor,
+      ...rest,
+    });
+    return await this.licenseRepo.save(certificate);
   }
+
+
+
 
   async findAll(): Promise<DoctorCertificate[]> {
     return this.licenseRepo.find({ relations: ['doctor'] });
   }
 
-  async findByDoctor(doctor_id: string): Promise<DoctorCertificate[]> {
-    return this.licenseRepo.find({ where: { doctor_id } });
-  }
 
   async findOne(id: string): Promise<DoctorCertificate> {
     const license = await this.licenseRepo.findOne({ where: { id }, relations: ['doctor'] });

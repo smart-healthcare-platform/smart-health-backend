@@ -1,35 +1,32 @@
-import { Controller, Get, Post, Put, Delete, Body, Param } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseInterceptors } from '@nestjs/common';
 import { DoctorCertificateService } from './doctor-certificates.service';
-import { CreateDoctorLicenseDto } from './dto/create-doctor-certificates.dto';
+import { CreateDoctorCertificateDto } from './dto/create-doctor-certificates.dto';
 import { UpdateDoctorLicenseDto } from './dto/update-doctor-certificates.dto';
 import { DoctorCertificate } from './doctor-certificates.entity';
-
-@Controller('doctor-licenses')
+import { ResponseInterceptor } from 'src/common/interceptors/response.interceptor';
+@UseInterceptors(ResponseInterceptor)
+@Controller('api/doctors/certificates')
 export class DoctorCertificateController {
-  constructor(private readonly licenseService: DoctorCertificateService) {}
+  constructor(private readonly certificateService: DoctorCertificateService) { }
 
   @Post()
-  async create(@Body() dto: CreateDoctorLicenseDto): Promise<DoctorCertificate> {
-    return this.licenseService.create(dto);
+  async create(@Body() dto: CreateDoctorCertificateDto): Promise<DoctorCertificate> {
+    return this.certificateService.create(dto);
   }
 
   @Get()
   async findAll(): Promise<DoctorCertificate[]> {
-    return this.licenseService.findAll();
+    return this.certificateService.findAll();
   }
 
-  @Get('doctor/:doctorId')
-  async findByDoctor(@Param('doctorId') doctorId: string): Promise<DoctorCertificate[]> {
-    return this.licenseService.findByDoctor(doctorId);
-  }
 
   @Put(':id')
   async update(@Param('id') id: string, @Body() dto: UpdateDoctorLicenseDto): Promise<DoctorCertificate> {
-    return this.licenseService.update(id, dto);
+    return this.certificateService.update(id, dto);
   }
 
   @Delete(':id')
   async remove(@Param('id') id: string): Promise<void> {
-    return this.licenseService.remove(id);
+    return this.certificateService.remove(id);
   }
 }

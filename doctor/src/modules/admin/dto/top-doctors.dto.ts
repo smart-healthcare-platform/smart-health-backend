@@ -8,9 +8,6 @@ export class TopDoctorDto {
   @IsString()
   fullName: string;
 
-  @IsString()
-  specialty: string;
-
   @IsNumber()
   experienceYears: number;
 
@@ -46,36 +43,36 @@ export class TopDoctorsResponseDto {
   topByRevenue: TopDoctorDto[];
 }
 
-export class SpecialtyPerformanceDto {
-  @IsString()
-  specialty: string;
+// export class SpecialtyPerformanceDto {
+//   @IsString()
+//   specialty: string;
 
-  @IsNumber()
-  totalDoctors: number;
+//   @IsNumber()
+//   totalDoctors: number;
 
-  @IsNumber()
-  activeDoctors: number;
+//   @IsNumber()
+//   activeDoctors: number;
 
-  @IsNumber()
-  averageRating: number;
+//   @IsNumber()
+//   averageRating: number;
 
-  @IsNumber()
-  totalAppointments: number;
+//   @IsNumber()
+//   totalAppointments: number;
 
-  @IsNumber()
-  totalRevenue: number;
+//   @IsNumber()
+//   totalRevenue: number;
 
-  @IsNumber()
-  averageExperienceYears: number;
-}
+//   @IsNumber()
+//   averageExperienceYears: number;
+// }
 
-export class DepartmentPerformanceResponseDto {
-  @Type(() => SpecialtyPerformanceDto)
-  specialties: SpecialtyPerformanceDto[];
+// export class DepartmentPerformanceResponseDto {
+//   @Type(() => SpecialtyPerformanceDto)
+//   specialties: SpecialtyPerformanceDto[];
 
-  @IsString()
-  topSpecialty: string;
+//   @IsString()
+//   topSpecialty: string;
 
-  @IsNumber()
-  totalSpecialties: number;
-}
+//   @IsNumber()
+//   totalSpecialties: number;
+// }

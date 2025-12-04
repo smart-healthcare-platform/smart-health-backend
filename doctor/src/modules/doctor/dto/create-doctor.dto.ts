@@ -3,18 +3,13 @@ import { Gender } from '../enums/doctor-gender.enum';
 
 export class CreateDoctorDto {
   @IsString()
-  user_id: string;
-
-  @IsString()
   full_name: string;
 
-  @IsOptional()
   @IsEnum(Gender, { message: 'gender must be one of: male, female, other' })
   gender: Gender;
 
-  @IsOptional()
   @IsDateString()
-  date_of_birth?: string;
+  date_of_birth: string;
 
   @IsOptional()
   @IsString()
@@ -33,9 +28,9 @@ export class CreateDoctorDto {
   @IsString()
   bio?: string;
 
-  @IsOptional()
-  @IsBoolean()
-  active?: boolean;
-
+  // Create account
+  @IsString()
+  @IsEmail()
+  email: string;
 
 }
