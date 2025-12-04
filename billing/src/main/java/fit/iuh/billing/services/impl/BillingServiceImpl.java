@@ -1,7 +1,11 @@
 package fit.iuh.billing.services.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import fit.iuh.billing.client.AppointmentServiceClient;
 import fit.iuh.billing.dto.BulkPaymentRequest;
+import fit.iuh.billing.dto.CompositePaymentRequest;
+import fit.iuh.billing.dto.CompositePaymentResponse;
 import fit.iuh.billing.dto.ConfirmPaymentRequest;
 import fit.iuh.billing.dto.CreatePaymentRequest;
 import fit.iuh.billing.dto.OutstandingPaymentResponse;
@@ -28,6 +32,8 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -41,6 +47,7 @@ public class BillingServiceImpl implements BillingService {
     private final PaymentRepository paymentRepository;
     private final PaymentGatewayFactory paymentGatewayFactory;
     private final AppointmentServiceClient appointmentServiceClient;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
     public PaymentResponse createPayment(CreatePaymentRequest request) {
@@ -545,5 +552,131 @@ public class BillingServiceImpl implements BillingService {
             payment.getCreatedAt(),
             payment.getPaidAt()
         );
+    }
+
+    @Override
+    @Transactional
+    public CompositePaymentResponse createCompositePayment(CompositePaymentRequest request) {
+        log.info("Creating composite payment for appointment: {}, method: {}", 
+                 request.getAppointmentId(), request.getPaymentMethod());
+
+        // Validate payment method - chỉ hỗ trợ online payment
+        if (request.getPaymentMethod() == PaymentMethodType.CASH) {
+            throw new IllegalArgumentException("Composite payment only supports online payment methods (MOMO, VNPAY)");
+        }
+
+        // 1. Tìm tất cả payments chưa thanh toán liên quan đến appointment
+        // Frontend gửi đầy đủ referenceIds (appointmentId + labTestOrderIds)
+        List<String> referenceIds = request.getReferenceIds();
+        
+        if (referenceIds == null || referenceIds.isEmpty()) {
+            throw new IllegalArgumentException("Reference IDs are required");
+        }
+        
+        log.info("Searching for outstanding payments with referenceIds: {}", referenceIds);
+        
+        // Query outstanding payments với status PENDING hoặc PROCESSING và chưa có parent
+        List<PaymentStatus> unpaidStatuses = List.of(PaymentStatus.PENDING, PaymentStatus.PROCESSING);
+        List<Payment> outstandingPayments = paymentRepository.findOutstandingPaymentsForComposite(
+            referenceIds, 
+            unpaidStatuses
+        );
+        
+        log.info("Found {} outstanding payments", outstandingPayments.size());
+
+        if (outstandingPayments.isEmpty()) {
+            throw new IllegalArgumentException("No outstanding payments found for appointment: " + request.getAppointmentId());
+        }
+
+        // 2. Tính tổng số tiền
+        BigDecimal totalAmount = outstandingPayments.stream()
+            .map(Payment::getAmount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        log.info("Found {} outstanding payments, total amount: {}", outstandingPayments.size(), totalAmount);
+
+        // 3. Tạo composite payment (payment cha)
+        Payment compositePayment = new Payment();
+        compositePayment.setPaymentCode("COMP-" + UUID.randomUUID().toString());
+        compositePayment.setPaymentType(PaymentType.COMPOSITE_PAYMENT);
+        compositePayment.setReferenceId(request.getAppointmentId());
+        compositePayment.setAmount(totalAmount);
+        compositePayment.setPaymentMethod(request.getPaymentMethod());
+        compositePayment.setStatus(PaymentStatus.PENDING);
+        compositePayment.setCreatedAt(LocalDateTime.now());
+        compositePayment.setExpiredAt(LocalDateTime.now().plusMinutes(15));
+        
+        String description = request.getDescription() != null ? 
+            request.getDescription() : 
+            "Thanh toán tổng hợp cho appointment " + request.getAppointmentId();
+        compositePayment.setDescription(description);
+
+        // 4. Tạo metadata chứa breakdown
+        List<Map<String, Object>> breakdownList = outstandingPayments.stream()
+            .map(p -> {
+                Map<String, Object> item = new HashMap<>();
+                item.put("paymentId", p.getId());
+                item.put("paymentCode", p.getPaymentCode());
+                item.put("paymentType", p.getPaymentType().toString());
+                item.put("referenceId", p.getReferenceId());
+                item.put("amount", p.getAmount());
+                item.put("description", p.getDescription());
+                return item;
+            })
+            .collect(Collectors.toList());
+
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("breakdown", breakdownList);
+        metadata.put("itemCount", outstandingPayments.size());
+
+        try {
+            compositePayment.setMetadata(objectMapper.writeValueAsString(metadata));
+        } catch (JsonProcessingException e) {
+            log.error("Error serializing metadata", e);
+            compositePayment.setMetadata("{}");
+        }
+
+        // 5. Lưu composite payment
+        compositePayment = paymentRepository.save(compositePayment);
+        log.info("Created composite payment: {}", compositePayment.getPaymentCode());
+
+        // 6. Tạo payment URL từ gateway
+        PaymentGatewayService gatewayService = paymentGatewayFactory.getGatewayService(request.getPaymentMethod());
+        String paymentUrl = gatewayService.createPaymentUrl(compositePayment);
+        compositePayment.setPaymentUrl(paymentUrl);
+        compositePayment.setStatus(PaymentStatus.PROCESSING);
+        compositePayment = paymentRepository.save(compositePayment);
+
+        // 7. Link các child payments với composite payment
+        Payment finalCompositePayment = compositePayment;
+        outstandingPayments.forEach(childPayment -> {
+            childPayment.setParentPayment(finalCompositePayment);
+            childPayment.setStatus(PaymentStatus.PROCESSING); // Đồng bộ status
+        });
+        paymentRepository.saveAll(outstandingPayments);
+
+        log.info("Linked {} child payments to composite payment", outstandingPayments.size());
+
+        // 8. Build response
+        List<CompositePaymentResponse.PaymentBreakdownItem> breakdownItems = outstandingPayments.stream()
+            .map(p -> CompositePaymentResponse.PaymentBreakdownItem.builder()
+                .paymentId(p.getId())
+                .paymentCode(p.getPaymentCode())
+                .paymentType(p.getPaymentType().toString())
+                .referenceId(p.getReferenceId())
+                .amount(p.getAmount())
+                .description(p.getDescription())
+                .build())
+            .collect(Collectors.toList());
+
+        return CompositePaymentResponse.builder()
+            .paymentId(compositePayment.getId())
+            .paymentCode(compositePayment.getPaymentCode())
+            .paymentUrl(paymentUrl)
+            .totalAmount(totalAmount)
+            .paymentMethod(request.getPaymentMethod().toString())
+            .breakdown(breakdownItems)
+            .expiredAt(compositePayment.getExpiredAt().toString())
+            .build();
     }
 }

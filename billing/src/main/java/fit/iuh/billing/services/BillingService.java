@@ -2,6 +2,8 @@ package fit.iuh.billing.services;
 
 import fit.iuh.billing.dto.BulkPaymentRequest;
 import fit.iuh.billing.dto.CashPaymentRequest;
+import fit.iuh.billing.dto.CompositePaymentRequest;
+import fit.iuh.billing.dto.CompositePaymentResponse;
 import fit.iuh.billing.dto.CreatePaymentRequest;
 import fit.iuh.billing.dto.OutstandingPaymentResponse;
 import fit.iuh.billing.dto.PaymentResponse;
@@ -119,4 +121,16 @@ public interface BillingService {
      * @param request Bulk payment request với danh sách payment codes
      */
     void processBulkPayment(BulkPaymentRequest request);
+
+    /**
+     * Tạo thanh toán tổng hợp (composite payment) cho một appointment.
+     * Tìm tất cả payments chưa thanh toán (APPOINTMENT_FEE + LAB_TEST),
+     * tạo một payment cha với tổng số tiền và URL thanh toán duy nhất.
+     * Các payment con sẽ được liên kết với payment cha và tự động cập nhật
+     * khi payment cha được thanh toán thành công.
+     * 
+     * @param request Composite payment request với appointmentId và paymentMethod
+     * @return Composite payment response với paymentUrl và breakdown
+     */
+    CompositePaymentResponse createCompositePayment(CompositePaymentRequest request);
 }

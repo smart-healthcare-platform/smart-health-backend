@@ -1,6 +1,8 @@
 package fit.iuh.billing.controller;
 
 import fit.iuh.billing.dto.BulkPaymentRequest;
+import fit.iuh.billing.dto.CompositePaymentRequest;
+import fit.iuh.billing.dto.CompositePaymentResponse;
 import fit.iuh.billing.dto.CreatePaymentRequest;
 import fit.iuh.billing.dto.OutstandingPaymentResponse;
 import fit.iuh.billing.dto.PaymentResponse;
@@ -288,14 +290,13 @@ public class BillingController {
     }
 
     @Operation(summary = "Process bulk payment", 
-               description = "Pay multiple payments at once (for receptionist counter payment)")
+               description = "Process multiple payments in one transaction (CASH only)")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "Bulk payment processed successfully"),
             @ApiResponse(responseCode = "400", description = "Invalid request or validation failed")
     })
     @PostMapping("/bulk-payment")
     public ResponseEntity<Map<String, String>> processBulkPayment(
-            @Parameter(description = "Bulk payment request with payment codes and total amount", required = true)
             @Valid @RequestBody BulkPaymentRequest request
     ) {
         log.info("Processing bulk payment for {} payments, total: {}", 
@@ -309,5 +310,35 @@ public class BillingController {
         response.put("totalAmount", request.getTotalAmount().toString());
         
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/composite-payment")
+    @Operation(summary = "Create composite payment", 
+               description = "Create a single payment URL for all outstanding fees (appointment fee + lab tests) for online payment methods (MOMO, VNPAY)")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Composite payment created successfully",
+                    content = @Content(schema = @Schema(implementation = CompositePaymentResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Invalid request or no outstanding payments found"),
+            @ApiResponse(responseCode = "500", description = "Error creating composite payment")
+    })
+    public ResponseEntity<CompositePaymentResponse> createCompositePayment(
+            @Parameter(description = "Composite payment request with appointmentId and payment method", required = true)
+            @Valid @RequestBody CompositePaymentRequest request
+    ) {
+        log.info("Creating composite payment for appointment: {}, method: {}", 
+                 request.getAppointmentId(), request.getPaymentMethod());
+        
+        try {
+            CompositePaymentResponse response = billingService.createCompositePayment(request);
+            log.info("Composite payment created successfully: {}, total: {}", 
+                     response.getPaymentCode(), response.getTotalAmount());
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid composite payment request: {}", e.getMessage());
+            return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            log.error("Error creating composite payment", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 }

@@ -11,6 +11,7 @@ import lombok.Setter;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "payments")
@@ -70,4 +71,18 @@ public class Payment {
     private LocalDateTime expiredAt;
 
     private LocalDateTime paidAt; // Thời gian thanh toán thành công
+
+    // Composite Payment Support
+    // Dùng cho thanh toán tổng hợp: một payment cha có thể chứa nhiều payment con
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_payment_id")
+    private Payment parentPayment;
+
+    @OneToMany(mappedBy = "parentPayment", cascade = CascadeType.ALL)
+    private List<Payment> childPayments;
+
+    // Metadata chứa thông tin chi tiết (JSON format)
+    // VD: breakdown của composite payment, thông tin bổ sung
+    @Column(columnDefinition = "TEXT")
+    private String metadata;
 }

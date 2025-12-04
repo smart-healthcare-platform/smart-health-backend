@@ -56,6 +56,15 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     List<Payment> findByReferenceIdIn(List<String> referenceIds);
 
     /**
+     * Tìm outstanding payments cho composite payment
+     * @param referenceIds Danh sách reference IDs (appointmentId + labTestOrderIds)
+     * @param statuses Danh sách statuses (PENDING, PROCESSING)
+     * @return Danh sách payments chưa thanh toán và chưa được link vào composite
+     */
+    @Query("SELECT p FROM Payment p WHERE p.referenceId IN :referenceIds AND p.status IN :statuses AND p.parentPayment IS NULL")
+    List<Payment> findOutstandingPaymentsForComposite(@Param("referenceIds") List<String> referenceIds, @Param("statuses") List<PaymentStatus> statuses);
+
+    /**
      * Tìm một thanh toán dựa trên ID của đơn thuốc.
      * @deprecated Sử dụng findByReferenceId() thay thế
      * @param prescriptionId ID của đơn thuốc.
