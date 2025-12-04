@@ -96,7 +96,7 @@ export class LabTestOrdersService {
         this.logger.log(
             `🔵 [START] Creating lab test order with payment for appointment ${dto.appointmentId}`,
         );
-        this.logger.debug(`📝 DTO received:`, JSON.stringify(dto, null, 2));
+        this.logger.log(`📝 DTO received:`, JSON.stringify(dto, null, 2));
 
         // 1. Create lab test order first
         const order = this.labTestOrderRepo.create({
@@ -145,55 +145,74 @@ export class LabTestOrdersService {
                 };
 
                 this.logger.log(
-                    `💳 Creating payment for lab test "${labTest.name}": ${labTest.price}đ`,
+                    `💳 [PAYMENT] Creating payment for lab test "${labTest.name}": ${labTest.price}đ`,
                 );
-                this.logger.debug(`   Payment request:`, JSON.stringify(paymentRequest, null, 2));
+                this.logger.log(`💳 [PAYMENT] Payment request:`, JSON.stringify(paymentRequest, null, 2));
+                this.logger.log(`💳 [PAYMENT] Calling BillingClient.createPayment()...`);
 
                 const payment = await this.billingClient.createPayment(
                     paymentRequest,
                 );
                 
-                this.logger.log(`✅ Payment created successfully:`, JSON.stringify({
-                    paymentCode: payment.paymentCode,
-                    amount: payment.amount,
-                    status: payment.status,
-                }, null, 2));
+                this.logger.log(`✅ [PAYMENT] Payment created successfully!`);
+                this.logger.log(`💰 [PAYMENT] Payment Code: ${payment.paymentCode}`);
+                this.logger.log(`💰 [PAYMENT] Amount: ${payment.amount}`);
+                this.logger.log(`💰 [PAYMENT] Status: ${payment.status}`);
+                this.logger.log(`💰 [PAYMENT] Full response:`, JSON.stringify(payment, null, 2));
 
                 // 4. Save paymentId to lab test order
                 savedOrder.paymentId = payment.paymentCode;
                 await this.labTestOrderRepo.save(savedOrder);
 
                 this.logger.log(
-                    `✅ Payment ${payment.paymentCode} linked to lab test order ${savedOrder.id}`,
+                    `✅ [LINK] Payment ${payment.paymentCode} linked to lab test order ${savedOrder.id}`,
                 );
-                this.logger.log(`🔵 [END] Lab test order with payment completed successfully`);
+                this.logger.log(`🟢 [SUCCESS] Lab test order with payment completed successfully`);
+                this.logger.log(`📊 [SUMMARY] Order ID: ${savedOrder.id} | Payment ID: ${payment.paymentCode} | Amount: ${labTest.price}đ`);
             } catch (error) {
                 // Log error but DON'T throw - we don't want to block doctor workflow
                 this.logger.error(
-                    `❌ Failed to create payment for lab test order ${savedOrder.id}`,
+                    `❌❌❌ [PAYMENT FAILED] Failed to create payment for lab test order ${savedOrder.id}`,
                 );
-                this.logger.error(`   Error message: ${error.message}`);
-                this.logger.error(`   Error stack:`, error.stack);
+                this.logger.error(`🔴 [ERROR] Error type: ${error.constructor.name}`);
+                this.logger.error(`🔴 [ERROR] Error message: ${error.message}`);
+                this.logger.error(`🔴 [ERROR] Error stack:`, error.stack);
                 if (error.response) {
-                    this.logger.error(`   Response status: ${error.response?.status}`);
-                    this.logger.error(`   Response data:`, JSON.stringify(error.response?.data, null, 2));
+                    this.logger.error(`🔴 [ERROR] HTTP status: ${error.response?.status}`);
+                    this.logger.error(`🔴 [ERROR] Response headers:`, JSON.stringify(error.response?.headers, null, 2));
+                    this.logger.error(`🔴 [ERROR] Response data:`, JSON.stringify(error.response?.data, null, 2));
+                }
+                if (error.config) {
+                    this.logger.error(`🔴 [ERROR] Request URL: ${error.config?.url}`);
+                    this.logger.error(`🔴 [ERROR] Request method: ${error.config?.method}`);
+                    this.logger.error(`🔴 [ERROR] Request data:`, JSON.stringify(error.config?.data, null, 2));
                 }
                 // Receptionist will need to create payment manually later
                 this.logger.warn(
-                    `⚠️  Lab test order ${savedOrder.id} created WITHOUT payment - manual payment creation required`,
+                    `⚠️⚠️⚠️ [WARNING] Lab test order ${savedOrder.id} created WITHOUT payment - manual payment creation required`,
                 );
             }
         } else {
             if (!labTest) {
                 this.logger.warn(
-                    `⚠️  No lab test found for type ${dto.type} - skipping payment creation`,
+                    `⚠️ [SKIP PAYMENT] No lab test found for type ${dto.type} - skipping payment creation`,
                 );
             } else if (labTest.price <= 0) {
                 this.logger.warn(
-                    `⚠️  Lab test "${labTest.name}" has price ${labTest.price} - skipping payment creation`,
+                    `⚠️ [SKIP PAYMENT] Lab test "${labTest.name}" has price ${labTest.price} - skipping payment creation`,
                 );
             }
+            this.logger.log(`🔵 [END] Lab test order created WITHOUT payment (no valid price)`);
         }
+
+        this.logger.log(`🏁 [RETURN] Returning lab test order:`, JSON.stringify({
+            id: savedOrder.id,
+            appointmentId: savedOrder.appointmentId,
+            type: savedOrder.type,
+            labTestId: savedOrder.labTestId,
+            paymentId: savedOrder.paymentId,
+            status: savedOrder.status,
+        }, null, 2));
 
         return savedOrder;
     }
