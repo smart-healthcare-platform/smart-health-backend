@@ -32,7 +32,11 @@ public class Prescription {
 
     private String patientId;
 
+    private String patientName;
+
     private String doctorId;
+
+    private String doctorName;
 
     private String appointmentId;
 

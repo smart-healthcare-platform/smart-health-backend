@@ -260,13 +260,24 @@ public class MomoPaymentGatewayService implements PaymentGatewayService {
 
             if (isSuccessful) {
                 payment.setStatus(PaymentStatus.COMPLETED);
+                payment.setPaidAt(LocalDateTime.now());
                 log.info("Payment {} COMPLETED via MOMO IPN.", paymentCode);
                 
-                // Thông báo cho service tương ứng dựa trên loại thanh toán
-                notifyRelatedService(payment);
+                // Nếu là composite payment, cascade status updates sang child payments
+                if (payment.getPaymentType() == PaymentType.COMPOSITE_PAYMENT) {
+                    cascadeCompositePaymentStatus(payment, momoTransactionId);
+                } else {
+                    // Thông báo cho service tương ứng dựa trên loại thanh toán
+                    notifyRelatedService(payment);
+                }
             } else {
                 payment.setStatus(PaymentStatus.FAILED);
                 log.warn("Payment {} FAILED via MOMO IPN. Response code: {}", paymentCode, momoResponseCode);
+                
+                // Nếu là composite payment, cascade failed status sang child payments
+                if (payment.getPaymentType() == PaymentType.COMPOSITE_PAYMENT) {
+                    cascadeCompositePaymentFailure(payment);
+                }
             }
 
             paymentRepository.save(payment);
@@ -301,6 +312,60 @@ public class MomoPaymentGatewayService implements PaymentGatewayService {
     }
     
     /**
+     * Cascade status updates từ composite payment sang tất cả child payments
+     * Khi composite payment thành công, tất cả child payments cũng được đánh dấu COMPLETED
+     */
+    private void cascadeCompositePaymentStatus(Payment compositePayment, String transactionId) {
+        log.info("Cascading COMPLETED status from composite payment {} to child payments", 
+                 compositePayment.getPaymentCode());
+        
+        if (compositePayment.getChildPayments() == null || compositePayment.getChildPayments().isEmpty()) {
+            log.warn("Composite payment {} has no child payments", compositePayment.getPaymentCode());
+            return;
+        }
+        
+        LocalDateTime paidAt = LocalDateTime.now();
+        
+        for (Payment childPayment : compositePayment.getChildPayments()) {
+            childPayment.setStatus(PaymentStatus.COMPLETED);
+            childPayment.setTransactionId(transactionId); // Cùng transaction ID
+            childPayment.setPaidAt(paidAt); // Cùng thời gian thanh toán
+            childPayment.setUpdatedAt(paidAt);
+            
+            log.info("Updated child payment {} to COMPLETED", childPayment.getPaymentCode());
+            
+            // Thông báo cho service liên quan
+            notifyRelatedService(childPayment);
+        }
+        
+        // Lưu tất cả child payments
+        paymentRepository.saveAll(compositePayment.getChildPayments());
+        log.info("Successfully cascaded status to {} child payments", compositePayment.getChildPayments().size());
+    }
+    
+    /**
+     * Cascade FAILED status từ composite payment sang child payments
+     */
+    private void cascadeCompositePaymentFailure(Payment compositePayment) {
+        log.info("Cascading FAILED status from composite payment {} to child payments", 
+                 compositePayment.getPaymentCode());
+        
+        if (compositePayment.getChildPayments() == null || compositePayment.getChildPayments().isEmpty()) {
+            log.warn("Composite payment {} has no child payments", compositePayment.getPaymentCode());
+            return;
+        }
+        
+        for (Payment childPayment : compositePayment.getChildPayments()) {
+            childPayment.setStatus(PaymentStatus.FAILED);
+            childPayment.setUpdatedAt(LocalDateTime.now());
+            log.info("Updated child payment {} to FAILED", childPayment.getPaymentCode());
+        }
+        
+        paymentRepository.saveAll(compositePayment.getChildPayments());
+        log.info("Successfully cascaded FAILED status to {} child payments", compositePayment.getChildPayments().size());
+    }
+
+    /**
      * Thông báo cho service liên quan khi thanh toán thành công
      */
     private void notifyRelatedService(Payment payment) {
@@ -333,11 +398,6 @@ public class MomoPaymentGatewayService implements PaymentGatewayService {
                 case LAB_TEST:
                     // TODO: Implement LabTestServiceClient when needed
                     log.info("Lab test payment confirmed: {}", payment.getReferenceId());
-                    break;
-                    
-                case PRESCRIPTION:
-                    // KHÔNG cần thiết - hệ thống không bán thuốc
-                    log.warn("Prescription payment type is deprecated - system does not sell medicine");
                     break;
                     
                 case OTHER:

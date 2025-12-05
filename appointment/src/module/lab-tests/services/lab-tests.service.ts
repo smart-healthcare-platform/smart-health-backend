@@ -2,15 +2,19 @@ import {
     Injectable,
     NotFoundException,
     ConflictException,
+    Logger,
   } from '@nestjs/common';
   import { InjectRepository } from '@nestjs/typeorm';
   import { Repository } from 'typeorm';
   import { LabTest } from '../lab-test.entity';
   import { CreateLabTestDto } from '../dto/create-lab-test.dto';
   import { UpdateLabTestDto } from '../dto/update-lab-test.dto';
+  import { LabTestType } from '../enums/lab-test-type.enum';
   
   @Injectable()
   export class LabTestsService {
+    private readonly logger = new Logger(LabTestsService.name);
+
     constructor(
       @InjectRepository(LabTest)
       private readonly labTestRepo: Repository<LabTest>,
@@ -71,6 +75,23 @@ import {
       if (result.affected === 0) {
         throw new NotFoundException(`Lab test with ID ${id} not found.`);
       }
+    }
+
+    /**
+     * Tìm xét nghiệm theo loại (type)
+     * Dùng để lookup price khi tạo lab test order
+     */
+    async findByType(type: LabTestType): Promise<LabTest | null> {
+      const test = await this.labTestRepo.findOne({
+        where: { type, isActive: true },
+      });
+      
+      if (!test) {
+        this.logger.warn(`No active lab test found for type: ${type}`);
+        return null;
+      }
+      
+      return test;
     }
   }
   

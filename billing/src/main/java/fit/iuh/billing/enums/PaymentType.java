@@ -22,6 +22,14 @@ public enum PaymentType {
     PRESCRIPTION,
 
     /**
+     * Thanh toán tổng hợp (composite payment)
+     * Dùng khi receptionist thu phí tổng hợp cho nhiều loại thanh toán cùng lúc
+     * VD: phí khám + xét nghiệm trong một lần thanh toán
+     * Payment này sẽ có các childPayments liên kết
+     */
+    COMPOSITE_PAYMENT,
+
+    /**
      * Các khoản phí khác (phí dịch vụ, phí giường, v.v.)
      */
     OTHER

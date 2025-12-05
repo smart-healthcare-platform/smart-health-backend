@@ -7,14 +7,15 @@ import { ReceptionistAppointmentController } from './controllers/receptionist-ap
 import { Appointment } from './appointment.entity';
 import { HttpModule } from '@nestjs/axios';
 import { KafkaModule } from 'src/kafka/kafka.module';
+import { BillingClient } from '@/common/clients/billing.client';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Appointment]),
-    HttpModule.register({ timeout: 30000 }),
+    HttpModule,
     forwardRef(() => KafkaModule),
   ],
-  providers: [AppointmentService],
+  providers: [AppointmentService, BillingClient],
   controllers: [
     AppointmentController,
     InternalAppointmentController,

@@ -101,18 +101,13 @@ const createServiceProxy = (serviceName) => {
         // /v1/medicine/drugs -> /api/v1/drugs
         cleanPath = path.replace(new RegExp(`^/v1/${serviceName}`), "");
       }
-      // Xử lý riêng cho các webhook của billing để tránh lặp lại đường dẫn
-      else if (serviceName === 'billing' && (path.includes('/billings/return') || path.includes('/billings/ipn'))) {
-        // Đường dẫn nhận được là '/billing/billings/return' hoặc '/billing/billings/ipn/momo'
-        // Chúng ta cần chuyển thành '/billings/return' hoặc '/billings/ipn/momo'
-        const billingsIndex = path.indexOf('/billings/');
-        if (billingsIndex !== -1) {
-          cleanPath = path.substring(billingsIndex);
-          logger.debug(`[PATH_REWRITE] Billing webhook detected. Extracted cleanPath: ${cleanPath}`);
-        } else {
-          logger.error(`[PATH_REWRITE] Could not find /billings/ in path: ${path}`);
-          cleanPath = path.replace(new RegExp(`^/v1/${serviceName}`), "");
-        }
+      // Xử lý cho billing service (hỗ trợ cả /billing và /billings)
+      else if (serviceName === 'billing') {
+        // /v1/billings/today -> /billings/today
+        // /v1/billing/today -> /billing/today (backward compatibility)
+        // Chỉ remove /v1, giữ lại /billings hoặc /billing
+        cleanPath = path.replace(/^\/v1/, "");
+        logger.debug(`[PATH_REWRITE] Billing service. cleanPath: ${cleanPath}`);
       }
       // Handle plural service names (e.g., /v1/notifications -> /device/register)
       else if (serviceName === 'notification' && path.startsWith('/v1/notifications')) {
@@ -162,6 +157,12 @@ const createServiceProxy = (serviceName) => {
           "X-User-Authorities",
           JSON.stringify(req.user.authorities)
         );
+        
+        // Forward doctor-specific headers for medicine and other services
+        if (req.user.role === 'DOCTOR') {
+          proxyReq.setHeader("X-Doctor-Id", req.user.id);
+        }
+        
         console.log(`[PROXY DEBUG] Forwarding X-User-ID: ${req.user.id}, X-User-Role: ${req.user.role}`);
       } else {
         console.log(`[PROXY DEBUG] req.user is NOT set for ${req.method} ${req.originalUrl}`);

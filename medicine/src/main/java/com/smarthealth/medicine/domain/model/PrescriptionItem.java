@@ -40,4 +40,8 @@ public class PrescriptionItem {
     private String timing;
 
     private Integer durationDays;
+
+    private Integer quantity; // Số lượng thuốc
+
+    private String notes; // Ghi chú thêm
 }

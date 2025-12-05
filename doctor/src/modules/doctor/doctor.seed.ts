@@ -365,9 +365,13 @@ export class DoctorSeed implements OnModuleInit {
           }),
         );
 
-        // Tạo slots theo từng ngày trong tháng 11
-        const start = toVNDate('2025-11-01');
-        const end = toVNDate('2025-11-30 23:59:59');
+        const startHour =
+          shift === 'morning' ? 8 : shift === 'afternoon' ? 13 : 8;
+        const endHour =
+          shift === 'morning' ? 12 : shift === 'afternoon' ? 17 : 17;
+
+        const start = toVNDate('2025-12-01');
+        const end = toVNDate('2025-12-31 23:59:59');
 
         for (let dt = new Date(start); dt <= end; dt.setDate(dt.getDate() + 1)) {
           // Check đúng thứ
@@ -410,9 +414,9 @@ export class DoctorSeed implements OnModuleInit {
       // ================= BLOCK TIME =================
       await this.blockRepo.save(
         this.blockRepo.create({
-          doctor: doctor,
-          start_block: toVNDate('2025-11-12 12:00:00'),
-          end_block: toVNDate('2025-11-12 13:00:00'),
+          doctor_id: doctor.id,
+          start_time: toVNDate('2025-12-12 12:00:00'),
+          end_time: toVNDate('2025-12-12 13:00:00'),
           reason: 'Nghỉ trưa',
         })
       );

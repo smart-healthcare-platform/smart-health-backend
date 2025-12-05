@@ -13,8 +13,12 @@ public class CreatePrescriptionRequest {
     @NotNull
     private String patientId;
     
+    private String patientName;
+    
     @NotNull
     private String doctorId;
+
+    private String doctorName;
 
     private String appointmentId;
 

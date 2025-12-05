@@ -15,7 +15,13 @@ public class PrescriptionItemDto {
     @NotNull
     private Long drugId;
 
+    private String drugName;
+
     private String dosage;
+
+    private String quantity;
+
+    private String instructions;
 
     private String frequency;
 
@@ -24,4 +30,6 @@ public class PrescriptionItemDto {
     private String timing;
 
     private Integer durationDays;
+
+    private String notes;
 }

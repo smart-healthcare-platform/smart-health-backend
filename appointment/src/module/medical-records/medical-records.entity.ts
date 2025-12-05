@@ -30,6 +30,9 @@ export class MedicalRecord {
   @Column({ type: 'text', nullable: true })
   prescription?: string;
 
+  @Column({ type: 'uuid', nullable: true })
+  prescriptionId?: string;
+
   @OneToOne(() => Appointment, (appointment) => appointment.medicalRecord, {
     onDelete: 'CASCADE',
   })
