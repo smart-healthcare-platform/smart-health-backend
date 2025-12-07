@@ -96,6 +96,7 @@ export class PatientConsumerService implements OnModuleInit, OnModuleDestroy {
                     gender: patient.gender,
                     dateOfBirth: patient.date_of_birth,
                     address: patient.address,
+                    phone: patient.phone
                   },
                 });
 

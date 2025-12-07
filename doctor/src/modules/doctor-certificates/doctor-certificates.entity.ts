@@ -1,5 +1,3 @@
-// src/modules/doctor-certificates/doctor-certificates.entity.ts
-
 import {
   Entity,
   Column,
@@ -11,6 +9,7 @@ import {
 } from 'typeorm';
 import { Doctor } from '../doctor/doctor.entity';
 import { CertificateType } from './enums/certificate-type.enum';
+import { AcademicDegree } from './enums/academic_degree.enum';
 
 @Entity('doctor_certificates')
 export class DoctorCertificate {
@@ -29,17 +28,23 @@ export class DoctorCertificate {
   })
   type: CertificateType;
 
-  @Column({ length: 150 })
-  title: string;
+  // DEGREE
+  @Column({
+    type: 'enum',
+    enum: AcademicDegree,
+    nullable: true
+  })
+  academic_degree: AcademicDegree;
 
   @Column({ length: 150, nullable: true })
   field: string;
 
-  @Column({ length: 50, nullable: true })
-  certificate_number: string;
-
   @Column({ type: 'year', nullable: true })
   graduation_year: number;
+
+  // LICENSE
+  @Column({ length: 100, nullable: true })
+  license_number: string;
 
   @Column({ type: 'date', nullable: true })
   issued_date: Date;
