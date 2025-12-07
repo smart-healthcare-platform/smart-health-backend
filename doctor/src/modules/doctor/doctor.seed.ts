@@ -127,7 +127,6 @@ export class DoctorSeed implements OnModuleInit {
         const end = toVNDate('2025-12-31 23:59:59');
 
         for (let dt = new Date(start); dt <= end; dt.setDate(dt.getDate() + 1)) {
-          // Check đúng thứ
           if (dt.getDay() !== (
             {
               [DayOfWeek.SUN]: 0,
@@ -164,15 +163,7 @@ export class DoctorSeed implements OnModuleInit {
       }
 
 
-      // ================= BLOCK TIME =================
-      await this.blockRepo.save(
-        this.blockRepo.create({
-          doctor: doctor,
-          start_block: toVNDate('2025-12-12 12:00:00'),
-          end_block: toVNDate('2025-12-12 13:00:00'),
-          reason: 'Nghỉ trưa',
-        })
-      );
+
 
 
       // ================= RATING =================

@@ -19,6 +19,7 @@ import { CheckInDto } from './dto/check-in.dto';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import { FollowUpSuggestion } from '../follow-up-suggestion/follow-up-suggestion.entity';
+import { BillingClient, PaymentType } from '@/common/clients/billing.client';
 
 @Injectable()
 export class AppointmentService {
@@ -28,6 +29,7 @@ export class AppointmentService {
     @InjectRepository(Appointment)
     private readonly appointmentRepo: Repository<Appointment>,
     private readonly producer: AppointmentProducerService,
+    private readonly billingClient: BillingClient,
     private readonly http: HttpService,
     private readonly configService: ConfigService,
   ) {}
@@ -512,6 +514,39 @@ export class AppointmentService {
 
     await this.appointmentRepo.save(appointment);
 
+    // 6. 💰 TẠO APPOINTMENT_FEE PAYMENT nếu chưa có (cho luồng thanh toán offline)
+    if (appointment.paymentStatus !== PaymentStatus.PAID) {
+      try {
+        this.logger.log(`💳 Creating APPOINTMENT_FEE payment for appointment ${appointmentId}...`);
+        
+        // Giá khám bệnh mặc định 200,000đ
+        const appointmentFee = 200000;
+        
+        const paymentRequest = {
+          paymentType: 'APPOINTMENT_FEE' as PaymentType,
+          referenceId: appointmentId,
+          amount: appointmentFee,
+          paymentMethod: 'CASH' as const, // Default CASH - receptionist will collect
+        };
+
+        const payment = await this.billingClient.createPayment(paymentRequest);
+        
+        this.logger.log(`✅ APPOINTMENT_FEE payment created: ${payment.paymentCode}`);
+        this.logger.log(`   Amount: ${appointmentFee}đ, Status: ${payment.status}`);
+      } catch (error) {
+        // Log error but DON'T throw - we don't want to block check-in
+        this.logger.error(
+          `❌ Failed to create APPOINTMENT_FEE payment for ${appointmentId}: ${error.message}`,
+          error.stack,
+        );
+        this.logger.warn(
+          `⚠️  Check-in successful but payment creation failed - receptionist will need to create payment manually`,
+        );
+      }
+    } else {
+      this.logger.log(`✅ Appointment ${appointmentId} already paid - no need to create payment`);
+    }
+
     // ✅ Verify sau khi save
     const savedAppointment = await this.appointmentRepo.findOne({
       where: { id: appointmentId },
@@ -608,6 +643,7 @@ export class AppointmentService {
 
     const queryBuilder = this.appointmentRepo
       .createQueryBuilder('appointment')
+      .leftJoinAndSelect('appointment.labTestOrders', 'labTestOrders')
       .where('appointment.startAt >= :today', { today })
       .andWhere('appointment.startAt < :tomorrow', { tomorrow })
       .orderBy('appointment.startAt', 'ASC');
@@ -641,6 +677,7 @@ export class AppointmentService {
 
     return this.appointmentRepo
       .createQueryBuilder('appointment')
+      .leftJoinAndSelect('appointment.labTestOrders', 'labTestOrders')
       .where('appointment.startAt >= :today', { today })
       .andWhere(
         '(appointment.id LIKE :keyword OR appointment.patientName LIKE :keyword OR appointment.patientId LIKE :keyword)',

@@ -277,7 +277,7 @@ try {
  * Billing Service Routes
  * Authenticated users can access their own billing information.
  */
-router.use('/billing', requireAnyRole, (req, res, next) => {
+router.use('/billings', requireAnyRole, (req, res, next) => {
   logger.info('Billing service access (protected)', {
     userId: req.user.id,
     role: req.user.role,
@@ -290,10 +290,10 @@ router.use('/billing', requireAnyRole, (req, res, next) => {
 // Configure billing service proxy
 try {
   const billingProxy = getServiceProxy('billing');
-  router.use('/billing', billingProxy);
+  router.use('/billings', billingProxy);
 } catch (error) {
   logger.error('Failed to configure billing service proxy', { error: error.message });
-  router.use('/billing', (req, res) => {
+  router.use('/billings', (req, res) => {
     res.status(503).json({
       success: false,
       message: 'Billing service is temporarily unavailable',

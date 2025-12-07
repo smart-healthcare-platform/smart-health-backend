@@ -27,4 +27,8 @@ export class CreateMedicalRecordDto {
     @IsOptional()
     prescription?: string;
 
+    @IsUUID()
+    @IsOptional()
+    prescriptionId?: string;
+
 }

@@ -14,6 +14,7 @@ import { LabTestType } from './enums/lab-test-type.enum';
 import { LabTestOrderStatus } from './enums/lab-test-order-status.enum';
 import { LabTestResult } from './lab-test-results.entity';
 import { VitalSign } from '../vital-signs/vital-signs.entity';
+import { LabTest } from './lab-test.entity';
 
 @Entity('lab_test_orders')
 export class LabTestOrder {
@@ -37,6 +38,18 @@ export class LabTestOrder {
 
   @Column({ nullable: true })
   orderedBy?: string;
+
+  // Payment tracking - links to Payment in Billing Service
+  @Column({ name: 'payment_id', nullable: true })
+  paymentId?: string;
+
+  // Link to LabTest master data for price lookup
+  @ManyToOne(() => LabTest, { nullable: true })
+  @JoinColumn({ name: 'lab_test_id' })
+  labTest?: LabTest;
+
+  @Column({ name: 'lab_test_id', nullable: true })
+  labTestId?: string;
 
   @OneToOne(() => LabTestResult, { cascade: true })
   @JoinColumn({ name: 'result_id' })
