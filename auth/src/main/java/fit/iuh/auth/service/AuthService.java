@@ -216,4 +216,44 @@ public class AuthService {
         cookie.setMaxAge(0);
         response.addCookie(cookie);
     }
+
+    //Seeder data
+    public User registerUser(RegisterRequest request) {
+
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new RuntimeException("Email đã tồn tại: " + request.getEmail());
+        }
+
+        String generatedUsername = UsernameGenerator.generateUsername(request.getFullName(), request.getDateOfBirth());
+        String finalUsername = generatedUsername;
+        int counter = 1;
+        while (userRepository.existsByUsername(finalUsername)) {
+            finalUsername = generatedUsername + "_" + counter;
+            counter++;
+        }
+
+        User user = new User();
+        user.setUsername(finalUsername);
+        user.setEmail(request.getEmail());
+        user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        user.setRole(Role.PATIENT);
+        user.setIsActive(true);
+
+        User savedUser = userRepository.save(user);
+
+        if (savedUser.getRole() == Role.PATIENT) {
+            UserCreatedEvent event = new UserCreatedEvent(
+                    savedUser.getId().toString(),
+                    request.getFullName(),
+                    request.getDateOfBirth(),
+                    request.getGender(),
+                    request.getAddress(),
+                    request.getPhone()
+            );
+            userProducer.sendUserCreated(event);
+        }
+
+        return savedUser;
+    }
+
 }

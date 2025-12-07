@@ -14,7 +14,7 @@ export class AppointmentProducerService implements OnModuleInit {
     this.logger.log('Kafka producer connected');
   }
 
-  async requestBooking(data: { id: string; doctorId: string; slotId: string; patientId: string}) {
+  async requestBooking(data: { id: string; doctorId: string; slotId: string; patientId: string }) {
     const correlationId = randomUUID();
 
     const payload = {
@@ -44,28 +44,26 @@ export class AppointmentProducerService implements OnModuleInit {
   }
 
   // appointment-producer.service.ts
-async requestPatientDetail(patientId: string): Promise<any> {
-  const correlationId = randomUUID()
+  async requestPatientDetail(patientId: string): Promise<any> {
+    const correlationId = randomUUID()
 
-  const payload = {
-    patientId,
-    correlationId,
+    const payload = {
+      patientId,
+      correlationId,
+    }
+
+    this.logger.log(`Publishing patient detail request: ${JSON.stringify(payload)}`)
+    this.kafka.emit('patient.detail.requested', payload)
+    return new Promise((resolve) => {
+      this.pending.set(correlationId, resolve)
+
+      setTimeout(() => {
+        if (this.pending.has(correlationId)) {
+          this.pending.delete(correlationId)
+          resolve(null)
+        }
+      }, 5000)
+    })
   }
-
-  this.logger.log(`Publishing patient detail request: ${JSON.stringify(payload)}`)
-  this.kafka.emit('patient.detail.requested', payload)
-
-  // Tạo promise chờ phản hồi
-  return new Promise((resolve) => {
-    this.pending.set(correlationId, resolve)
-
-    setTimeout(() => {
-      if (this.pending.has(correlationId)) {
-        this.pending.delete(correlationId)
-        resolve(null)
-      }
-    }, 5000)
-  })
-}
 
 }

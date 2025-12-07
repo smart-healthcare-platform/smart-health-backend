@@ -13,6 +13,7 @@ import { AppointmentSlotModule } from '../appointment-slot/appointment-slot.modu
 import { CacheModule } from '@nestjs/cache-manager';
 import { DoctorKafkaModule } from 'src/kafka/doctor.kafka.module';
 import { DoctorSpecialAvailability } from '../doctor-schedule/entity/doctor-special-availability.entity';
+import { DoctorCertificateModule } from '../doctor-certificates/doctor-certificates.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { DoctorSpecialAvailability } from '../doctor-schedule/entity/doctor-spec
       AppointmentSlot,
     ]),
     AppointmentSlotModule,
+    DoctorCertificateModule,
     CacheModule.register({ isGlobal: true }),
     forwardRef(() => DoctorKafkaModule),
   ],

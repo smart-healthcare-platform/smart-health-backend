@@ -209,7 +209,6 @@ export class AppointmentService {
 
     const [appointments, total] = await qb.getManyAndCount();
 
-    // Populate patient info for each appointment
     const appointmentsWithPatient = await Promise.all(
       appointments.map(async (appointment) => {
         let patientInfo = null;

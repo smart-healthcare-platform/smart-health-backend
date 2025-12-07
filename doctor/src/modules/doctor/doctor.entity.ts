@@ -25,6 +25,9 @@ export class Doctor {
   @Column({ length: 100 })
   full_name: string;
 
+  @Column({ length: 100, nullable: true })
+  display_name: string;
+
   @Column({ length: 36, nullable: true })
   user_id: string;
 
