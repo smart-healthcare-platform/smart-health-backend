@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xác nhận lịch hẹn khám bệnh Smart Health</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 20px auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-top: 5px solid #007bff;
+        }
+        h1 {
+            color: #007bff;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        p {
+            margin-bottom: 15px;
+        }
+        .highlight {
+            font-weight: bold;
+            color: #007bff;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            font-size: 0.9em;
+            color: #777;
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+        }
+        .button {
+            display: block;
+            width: 200px;
+            margin: 20px auto;
+            padding: 10px 15px;
+            background-color: #28a745;
+            color: #ffffff;
+            text-align: center;
+            border-radius: 5px;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Xác nhận lịch hẹn khám bệnh</h1>
+        <p>Kính gửi <span class="highlight">{{patientName}}</span>,</p>
+        <p>Chúng tôi xin thông báo rằng lịch hẹn khám bệnh của bạn đã được xác nhận thành công.</p>
+        <p>Thông tin chi tiết lịch hẹn:</p>
+        <ul>
+            <li><strong>Bác sĩ:</strong> <span class="highlight">{{doctorName}}</span></li>
+            <li><strong>Thời gian:</strong> <span class="highlight">{{appointmentTime}}</span></li>
+        </ul>
+        <p>Vui lòng đến đúng giờ để đảm bảo quá trình thăm khám diễn ra thuận lợi.</p>
+        <a href="#" class="button">Xem chi tiết lịch hẹn</a>
+        <p>Trân trọng,<br>Đội ngũ Smart Health</p>
+        <div class="footer">
+            <p>Đây là email tự động, vui lòng không trả lời email này.</p>
+            <p>&copy; 2025 Smart Health. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>

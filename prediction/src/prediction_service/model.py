@@ -12,6 +12,7 @@ from prediction_service.config import Settings
 settings = Settings()
 logger = logging.getLogger(__name__)
 
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 # Try to import TensorFlow dependencies
 try:
     import numpy as np
@@ -58,7 +59,7 @@ class ModelLoader:
             logger.warning("scikit-learn not available. Skipping scaler loading.")
             return
             
-        scaler_path = "standard_scaler.pkl"
+        scaler_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "standard_scaler.pkl")
         if os.path.exists(scaler_path):
             try:
                 self._scaler = joblib.load(scaler_path)

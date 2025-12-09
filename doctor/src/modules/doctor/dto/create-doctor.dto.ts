@@ -1,30 +1,23 @@
 import { IsString, IsEmail, IsEnum, IsOptional, IsDateString, IsInt, Min, Max, IsBoolean } from 'class-validator';
+import { Gender } from '../enums/doctor-gender.enum';
 
 export class CreateDoctorDto {
   @IsString()
   full_name: string;
 
-  @IsEmail()
-  email: string;
+  @IsEnum(Gender, { message: 'gender must be one of: male, female, other' })
+  gender: Gender;
 
-  @IsOptional()
-  @IsString()
-  phone?: string;
-
-  @IsOptional()
-  @IsEnum(['male','female','other'])
-  gender?: string;
-
-  @IsOptional()
   @IsDateString()
-  date_of_birth?: string;
+  date_of_birth: string;
 
   @IsOptional()
   @IsString()
   avatar?: string;
 
+  @IsOptional()
   @IsString()
-  specialty: string;
+  phone: string;
 
   @IsOptional()
   @IsInt()
@@ -35,7 +28,9 @@ export class CreateDoctorDto {
   @IsString()
   bio?: string;
 
-  @IsOptional()
-  @IsBoolean()
-  active?: boolean;
+  // Create account
+  @IsString()
+  @IsEmail()
+  email: string;
+
 }

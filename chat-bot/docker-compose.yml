@@ -24,7 +24,7 @@ services:
     image: chromadb/chroma:latest
     container_name: chromadb
     ports:
-      - "8002:8000" # Expose on host port 8002 to avoid conflicts
+      - "8000:8000"
     volumes:
       - chroma_data:/data # Persist ChromaDB data
     networks:
@@ -57,7 +57,7 @@ services:
     build: .
     container_name: chatbot_app
     ports:
-      - "8003:8000" # Expose on host port 8003 to avoid conflicts
+      - "8087:8087" 
     volumes:
       - ./src:/app/src
       - ./knowledge_base:/app/knowledge_base

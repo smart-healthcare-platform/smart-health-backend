@@ -1,0 +1,43 @@
+services:
+  # ChromaDB service for the vector store
+  chromadb:
+    image: chromadb/chroma:latest
+    container_name: chromadb
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma_data:/data # Persist ChromaDB data
+    networks:
+      - chatbot-net
+    command: ["run", "--host", "0.0.0.0", "--port", "8000", "--path", "/data"]
+
+  # Data ingestion service to populate ChromaDB
+  ingestor:
+    build: .
+    container_name: chatbot_ingestor
+    depends_on:
+      chromadb:
+        condition: service_started
+    networks:
+      - chatbot-net
+    environment:
+      - CHROMA_HOST=chromadb
+      - CHROMA_PORT=8000
+    # This command runs the ingestion script and then the container exits.
+    command:
+      [
+        "python",
+        "-c",
+        "from src.rag_pipeline import ingest_data; ingest_data()",
+      ]
+    restart: "no" # Ensure it only runs once
+
+  # Main application service
+
+volumes:
+  chroma_data:
+    driver: local
+
+networks:
+  chatbot-net:
+    driver: bridge

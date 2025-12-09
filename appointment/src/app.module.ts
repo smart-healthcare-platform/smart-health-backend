@@ -1,22 +1,40 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ConfigModule } from '@nestjs/config';
-import { AppointmentsModule } from './module/appointment/appointments.module';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { AppointmentModule } from './module/appointment/appointment.module';
+import { MedicalRecordsModule } from './module/medical-records/medical-records.module';
+import { VitalSignsModule } from './module/vital-signs/vital-signs.module';
+import { LabTestsModule } from './module/lab-tests/lab-test.module';
+import { FollowUpSuggestionModule } from './module/follow-up-suggestion/follow-up-suggestion.module';
+import { KafkaModule } from './kafka/kafka.module';
+import { AdminModule } from './module/admin/admin.module';
+import { AppController } from './app.controller';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
-    TypeOrmModule.forRoot({
-      type: 'mysql',
-      host: process.env.DB_HOST,
-      port: parseInt(process.env.DB_PORT!, 10),
-      username: process.env.DB_USERNAME,
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME,
-      autoLoadEntities: true,
-      synchronize: true, 
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        type: 'mysql',
+        host: config.get<string>('DB_HOST'),
+        port: config.get<number>('DB_PORT'),
+        username: config.get<string>('DB_USERNAME'),
+        password: config.get<string>('DB_PASSWORD'),
+        database: config.get<string>('DB_NAME'),
+        autoLoadEntities: true,
+        synchronize: true,
+      }),
     }),
-    AppointmentsModule,
+    AppointmentModule,
+    MedicalRecordsModule,
+    VitalSignsModule,
+    LabTestsModule,
+    FollowUpSuggestionModule,
+    KafkaModule,
+    AdminModule,
   ],
+  controllers: [AppController],
 })
-export class AppModule {}
+export class AppModule { }

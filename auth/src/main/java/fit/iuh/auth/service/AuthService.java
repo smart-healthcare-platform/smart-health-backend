@@ -2,17 +2,24 @@ package fit.iuh.auth.service;
 
 import fit.iuh.auth.dto.request.LoginRequest;
 import fit.iuh.auth.dto.request.RegisterRequest;
+import fit.iuh.auth.dto.request.UserCreatedEvent;
 import fit.iuh.auth.dto.response.AuthResponse;
 import fit.iuh.auth.entity.RefreshToken;
 import fit.iuh.auth.entity.User;
+import fit.iuh.auth.enums.Role;
+import fit.iuh.auth.kafka.UserProducer;
 import fit.iuh.auth.repository.RefreshTokenRepository;
+import fit.iuh.auth.repository.UserRepository;
+import fit.iuh.auth.util.UsernameGenerator;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.juli.logging.Log;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -26,33 +33,55 @@ import java.util.Map;
 @Transactional
 public class AuthService {
 
-    private final UserService userService;
+    @Value("${server.ssl.enabled:false}")
+    private boolean sslEnabled;
+
+    private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
     private final RefreshTokenRepository refreshTokenRepository;
+    private final UserProducer userProducer;
 
     public AuthResponse register(RegisterRequest request, HttpServletResponse response) {
-        log.info("Attempting to register user: {}", request.getUsername());
 
-        if (userService.existsByEmail(request.getUsername())) {
-            throw new RuntimeException("Username đã tồn tại: " + request.getUsername());
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new RuntimeException("Username đã tồn tại: " + request.getEmail());
         }
+        String generatedUsername = UsernameGenerator.generateUsername(request.getFullName(), request.getDateOfBirth());
 
+        String finalUsername = generatedUsername;
+        int counter = 1;
+        while (userRepository.existsByUsername(finalUsername)) {
+            finalUsername = generatedUsername + "_" + counter;
+            counter++;
+        }
         User user = new User();
-        user.setUsername(request.getUsername());
+        user.setUsername(finalUsername);
         user.setEmail(request.getEmail());
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
-        user.setRole(request.getRole());
+        user.setRole(Role.PATIENT);
         user.setIsActive(true);
 
-        User savedUser = userService.save(user);
-        log.info("User registered successfully: {}", savedUser.getUsername());
 
+        User savedUser = userRepository.save(user);
+        log.info("User registered successfully: {}", savedUser.getUsername());
+        if (savedUser.getRole() == Role.PATIENT) {
+            UserCreatedEvent event = new UserCreatedEvent(
+                    savedUser.getId().toString(),
+                    request.getFullName(),
+                    request.getDateOfBirth().toString(),
+                    request.getGender(),
+                    request.getAddress(),
+                    request.getPhone()
+            );
+            userProducer.sendUserCreated(event);
+        }
         // Tạo payload chứa role & authorities
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", savedUser.getRole());
         claims.put("authorities", savedUser.getAuthorities());
+        claims.put("id", savedUser.getId());
 
         String jwtToken = jwtService.generateToken(claims, savedUser);
         String refreshToken = jwtService.generateRefreshToken(savedUser);
@@ -62,6 +91,7 @@ public class AuthService {
 
         return AuthResponse.builder()
                 .token(jwtToken)
+                .refreshToken(refreshToken)
                 .user(AuthResponse.UserInfo.builder()
                         .id(savedUser.getId())
                         .username(savedUser.getUsername())
@@ -78,7 +108,7 @@ public class AuthService {
                 new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
         );
 
-        User user = userService.findByEmail(request.getEmail())
+        User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         if (!user.getIsActive()) {
@@ -90,6 +120,7 @@ public class AuthService {
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", user.getRole());
         claims.put("authorities", user.getAuthorities());
+        claims.put("id", user.getId());
 
         String jwtToken = jwtService.generateToken(claims, user);
         String refreshToken = jwtService.generateRefreshToken(user);
@@ -100,10 +131,12 @@ public class AuthService {
 
         return AuthResponse.builder()
                 .token(jwtToken)
+                .refreshToken(refreshToken)
                 .user(AuthResponse.UserInfo.builder()
                         .id(user.getId())
                         .username(user.getUsername())
                         .role(user.getRole())
+                        .email(user.getEmail())
                         .createdAt(user.getCreatedAt())
                         .build())
                 .build();
@@ -113,16 +146,25 @@ public class AuthService {
         log.info("Attempting to refresh token");
 
         String username = jwtService.extractUsername(refreshToken);
-        User user = userService.findByUserName(username)
+        User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         if (!jwtService.isTokenValid(refreshToken, user)) {
             throw new RuntimeException("Invalid refresh token");
         }
 
+        // Check if refresh token exists in database and is not expired
+        RefreshToken storedToken = refreshTokenRepository.findByToken(refreshToken)
+                .orElseThrow(() -> new RuntimeException("Invalid refresh token"));
+        if (storedToken.getExpiryDate().isBefore(LocalDateTime.now())) {
+            refreshTokenRepository.delete(storedToken);
+            throw new RuntimeException("Refresh token expired");
+        }
+
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", user.getRole());
         claims.put("authorities", user.getAuthorities());
+        claims.put("id", user.getId());
 
         String newJwtToken = jwtService.generateToken(claims, user);
         String newRefreshToken = jwtService.generateRefreshToken(user);
@@ -133,10 +175,12 @@ public class AuthService {
 
         return AuthResponse.builder()
                 .token(newJwtToken)
+                .refreshToken(newRefreshToken)
                 .user(AuthResponse.UserInfo.builder()
                         .id(user.getId())
                         .username(user.getUsername())
                         .role(user.getRole())
+                        .email(user.getEmail())
                         .createdAt(user.getCreatedAt())
                         .build())
                 .build();
@@ -153,9 +197,10 @@ public class AuthService {
     private void setRefreshTokenCookie(HttpServletResponse response, String refreshToken) {
         Cookie cookie = new Cookie("refreshToken", refreshToken);
         cookie.setHttpOnly(true);
-        cookie.setSecure(true);
+        cookie.setSecure(sslEnabled);
+        cookie.setDomain("localhost");
         cookie.setPath("/");
-        cookie.setMaxAge(7 * 24 * 60 * 60); // 7 ngày
+        cookie.setMaxAge(7 * 24 * 60 * 60);
         response.addCookie(cookie);
     }
 
@@ -165,9 +210,50 @@ public class AuthService {
 
         Cookie cookie = new Cookie("refreshToken", null);
         cookie.setHttpOnly(true);
-        cookie.setSecure(true);
+        cookie.setSecure(sslEnabled);
+        cookie.setDomain("localhost");
         cookie.setPath("/");
         cookie.setMaxAge(0);
         response.addCookie(cookie);
     }
+
+    //Seeder data
+    public User registerUser(RegisterRequest request) {
+
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new RuntimeException("Email đã tồn tại: " + request.getEmail());
+        }
+
+        String generatedUsername = UsernameGenerator.generateUsername(request.getFullName(), request.getDateOfBirth());
+        String finalUsername = generatedUsername;
+        int counter = 1;
+        while (userRepository.existsByUsername(finalUsername)) {
+            finalUsername = generatedUsername + "_" + counter;
+            counter++;
+        }
+
+        User user = new User();
+        user.setUsername(finalUsername);
+        user.setEmail(request.getEmail());
+        user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
+        user.setRole(Role.PATIENT);
+        user.setIsActive(true);
+
+        User savedUser = userRepository.save(user);
+
+        if (savedUser.getRole() == Role.PATIENT) {
+            UserCreatedEvent event = new UserCreatedEvent(
+                    savedUser.getId().toString(),
+                    request.getFullName(),
+                    request.getDateOfBirth(),
+                    request.getGender(),
+                    request.getAddress(),
+                    request.getPhone()
+            );
+            userProducer.sendUserCreated(event);
+        }
+
+        return savedUser;
+    }
+
 }

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: Arial, sans-serif; }
+    .card {
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      padding: 20px;
+      max-width: 500px;
+      margin: auto;
+      background: #f9f9f9;
+    }
+    h2 { color: #2b6cb0; }
+    .footer {
+      margin-top: 20px;
+      font-size: 12px;
+      color: #777;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Xin chào {{patientName}},</h2>
+    <p>Lịch hẹn của bạn đã được xác nhận.</p>
+    <p><strong>Bác sĩ:</strong> {{doctorName}}</p>
+    <p><strong>Thời gian:</strong> {{appointmentTime}}</p>
+    <p>Vui lòng đến đúng giờ và mang theo giấy tờ cần thiết.</p>
+    <hr/>
+    <small>Email này được gửi từ hệ thống Smart Health</small>
+  </div>
+  
+</body>
+</html>

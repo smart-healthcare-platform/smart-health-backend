@@ -86,6 +86,7 @@ const createServiceProxy = (serviceName) => {
   return createProxyMiddleware({
     target: service.url,
     changeOrigin: true,
+    ws: service.websocket || false,
 
     pathRewrite: (path, req) => {
       let cleanPath = path;
@@ -96,13 +97,32 @@ const createServiceProxy = (serviceName) => {
       } else if (path.startsWith(`/v1/public/${serviceName}`)) {
         // /v1/public/doctors or /v1/public/doctors/:id -> /doctors or /doctors/:id
         return `${service.basePath}${path.replace(`/v1/public/${serviceName}`, '')}`;
-      } else {
-        // /v1/doctors/123 -> /123
+      } else if (serviceName === "medicine") {
+        // /v1/medicine/drugs -> /api/v1/drugs
         cleanPath = path.replace(new RegExp(`^/v1/${serviceName}`), "");
       }
+      // Xử lý cho billing service (hỗ trợ cả /billing và /billings)
+      else if (serviceName === 'billing') {
+        // /v1/billings/today -> /billings/today
+        // /v1/billing/today -> /billing/today (backward compatibility)
+        // Chỉ remove /v1, giữ lại /billings hoặc /billing
+        cleanPath = path.replace(/^\/v1/, "");
+        logger.debug(`[PATH_REWRITE] Billing service. cleanPath: ${cleanPath}`);
+      }
+      // Handle plural service names (e.g., /v1/notifications -> /device/register)
+      else if (serviceName === 'notification' && path.startsWith('/v1/notifications')) {
+        // /v1/notifications/device/register -> /device/register
+        cleanPath = path.replace(/^\/v1\/notifications/, "");
+      }
+      else {
+        // /v1/doctors/123 -> /123
+        // Use word boundary to avoid partial matches (e.g., notification vs notifications)
+        cleanPath = path.replace(new RegExp(`^/v1/${serviceName}`), "");
+      }
+      logger.debug(`[PATH_REWRITE] serviceName: ${serviceName}, originalPath: ${path}, cleanPath (before basePath): ${cleanPath}`);
 
       const newPath = `${service.basePath}${cleanPath}`;
-      console.log(`[DEBUG] Proxy target: ${service.url}${newPath}`);
+      logger.debug(`[PATH_REWRITE] newPath (to target service): ${newPath}`);
       logger.serviceLog(serviceName, "Proxy request", {
         originalPath: path,
         cleanPath,
@@ -122,6 +142,7 @@ const createServiceProxy = (serviceName) => {
       console.log(
         `[PROXY DEBUG] Starting proxy request to ${service.url}${proxyReq.path}`
       );
+      console.log(`[PROXY DEBUG] Original request path: ${req.path}, originalUrl: ${req.originalUrl}`);
 
       // Add gateway headers
       proxyReq.setHeader("X-Gateway-Name", config.gatewayName);
@@ -136,19 +157,28 @@ const createServiceProxy = (serviceName) => {
           "X-User-Authorities",
           JSON.stringify(req.user.authorities)
         );
+        
+        // Forward doctor-specific headers for medicine and other services
+        if (req.user.role === 'DOCTOR') {
+          proxyReq.setHeader("X-Doctor-Id", req.user.id);
+        }
+        
+        console.log(`[PROXY DEBUG] Forwarding X-User-ID: ${req.user.id}, X-User-Role: ${req.user.role}`);
+      } else {
+        console.log(`[PROXY DEBUG] req.user is NOT set for ${req.method} ${req.originalUrl}`);
       }
 
-      // Handle POST body manually
-      if (req.body && req.method === "POST") {
+      // Handle POST/PUT/PATCH body manually (important for IPN webhooks)
+      if (req.body && (req.method === "POST" || req.method === "PUT" || req.method === "PATCH")) {
         const bodyData = JSON.stringify(req.body);
         proxyReq.setHeader("Content-Type", "application/json");
         proxyReq.setHeader("Content-Length", Buffer.byteLength(bodyData));
         proxyReq.write(bodyData);
-        console.log(`[PROXY DEBUG] Wrote body: ${bodyData}`);
+        console.log(`[PROXY DEBUG] Wrote body for ${req.method}: ${bodyData}`);
       }
 
       logger.debug(
-        `Proxying ${req.method} ${req.originalUrl} to ${service.url}`
+        `Proxying ${req.method} ${req.originalUrl} to ${service.url}${proxyReq.path}`
       );
     },
 
@@ -172,9 +202,24 @@ const createServiceProxy = (serviceName) => {
     // Error handler
     onError: (err, req, res) => {
       logger.error(`Proxy error for service ${serviceName}:`, err);
-
-      // Mark service as unhealthy
       serviceRegistry.markServiceUnhealthy(serviceName, err);
+
+      // For WebSocket errors, the 'res' object is a socket, not an HTTP response.
+      // We can't send a JSON response, so we just log and end the connection.
+      if (res.writeHead === undefined) {
+        logger.error(`WebSocket proxy error for ${serviceName}. Destroying socket.`, {
+          error: err.message,
+          code: err.code,
+        });
+        if (res.destroy) {
+          res.destroy();
+        }
+        return;
+      }
+
+      if (res.headersSent) {
+        return;
+      }
 
       let error;
 
@@ -237,7 +282,7 @@ const healthCheckService = async (serviceName) => {
 
   try {
     const axios = require("axios");
-    const response = await axios.get(`${service.url}/actuator/health`, {
+    const response = await axios.get(`${service.url}/health`, {
       timeout: service.timeout,
       validateStatus: (status) => status < 500,
     });
