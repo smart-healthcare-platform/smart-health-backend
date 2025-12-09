@@ -1,6 +1,7 @@
 package fit.iuh.billing.services;
 
 import fit.iuh.billing.dto.BulkPaymentRequest;
+import fit.iuh.billing.dto.BulkPaymentResponse;
 import fit.iuh.billing.dto.CashPaymentRequest;
 import fit.iuh.billing.dto.CompositePaymentRequest;
 import fit.iuh.billing.dto.CompositePaymentResponse;
@@ -119,8 +120,9 @@ public interface BillingService {
      * Dùng cho receptionist khi thu tiền tổng hợp.
      * 
      * @param request Bulk payment request với danh sách payment codes
+     * @return BulkPaymentResponse với thông tin chi tiết về payments đã xử lý
      */
-    void processBulkPayment(BulkPaymentRequest request);
+    BulkPaymentResponse processBulkPayment(BulkPaymentRequest request);
 
     /**
      * Tạo thanh toán tổng hợp (composite payment) cho một appointment.

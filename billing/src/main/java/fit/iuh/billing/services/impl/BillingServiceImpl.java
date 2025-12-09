@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import fit.iuh.billing.client.AppointmentServiceClient;
 import fit.iuh.billing.dto.BulkPaymentRequest;
+import fit.iuh.billing.dto.BulkPaymentResponse;
 import fit.iuh.billing.dto.CompositePaymentRequest;
 import fit.iuh.billing.dto.CompositePaymentResponse;
 import fit.iuh.billing.dto.ConfirmPaymentRequest;
@@ -56,13 +57,104 @@ public class BillingServiceImpl implements BillingService {
             throw new IllegalArgumentException("Payment type is required");
         }
         
-        // Tạo Payment entity
+        log.info("Creating payment - Type: {}, ReferenceId: {}, AppointmentId: {}, Amount: {}", 
+            request.getPaymentType(), request.getReferenceId(), request.getAppointmentId(), request.getAmount());
+        
+        // ✅ CHECK DUPLICATE: APPOINTMENT_FEE must be unique per appointment
+        if (request.getPaymentType() == PaymentType.APPOINTMENT_FEE) {
+            String appointmentId = request.getAppointmentId() != null 
+                ? request.getAppointmentId() 
+                : request.getReferenceId();
+            
+            log.debug("Checking for existing APPOINTMENT_FEE payment for appointmentId: {}", appointmentId);
+            
+            // Find all payments for this appointment
+            List<Payment> appointmentPayments = paymentRepository.findByAppointmentId(appointmentId);
+            
+            // Filter for APPOINTMENT_FEE type
+            List<Payment> existingAppointmentFees = appointmentPayments.stream()
+                .filter(p -> p.getPaymentType() == PaymentType.APPOINTMENT_FEE)
+                .collect(Collectors.toList());
+            
+            if (!existingAppointmentFees.isEmpty()) {
+                Payment existing = existingAppointmentFees.get(0);
+                log.warn("APPOINTMENT_FEE payment already exists for appointmentId: {}. PaymentCode: {}, Status: {}", 
+                    appointmentId, existing.getPaymentCode(), existing.getStatus());
+                
+                // If already COMPLETED → throw error
+                if (existing.getStatus() == PaymentStatus.COMPLETED) {
+                    throw new IllegalArgumentException(
+                        String.format("APPOINTMENT_FEE already paid for appointment: %s. Payment code: %s", 
+                            appointmentId, existing.getPaymentCode())
+                    );
+                }
+                
+                // If PENDING or PROCESSING → return existing payment
+                if (existing.getStatus() == PaymentStatus.PENDING || 
+                    existing.getStatus() == PaymentStatus.PROCESSING) {
+                    log.info("Returning existing APPOINTMENT_FEE payment: {}", existing.getPaymentCode());
+                    return mapToPaymentResponse(existing);
+                }
+                
+                // If FAILED → allow creating new payment (fall through)
+                log.info("Previous payment FAILED, allowing new payment creation");
+            }
+        }
+        // ✅ CHECK DUPLICATE: LAB_TEST/PRESCRIPTION by referenceId + paymentType
+        else if (request.getPaymentType() == PaymentType.LAB_TEST || 
+                 request.getPaymentType() == PaymentType.PRESCRIPTION) {
+            log.debug("Checking for existing {} payment for referenceId: {}", 
+                request.getPaymentType(), request.getReferenceId());
+            
+            List<Payment> existingPayments = paymentRepository.findByReferenceIdAndPaymentType(
+                request.getReferenceId(), 
+                request.getPaymentType()
+            );
+            
+            if (!existingPayments.isEmpty()) {
+                Payment existing = existingPayments.get(0);
+                log.warn("{} payment already exists for referenceId: {}. PaymentCode: {}, Status: {}", 
+                    request.getPaymentType(), request.getReferenceId(), 
+                    existing.getPaymentCode(), existing.getStatus());
+                
+                // If already COMPLETED → throw error
+                if (existing.getStatus() == PaymentStatus.COMPLETED) {
+                    throw new IllegalArgumentException(
+                        String.format("%s already paid for reference: %s. Payment code: %s", 
+                            request.getPaymentType(), request.getReferenceId(), existing.getPaymentCode())
+                    );
+                }
+                
+                // If PENDING or PROCESSING → return existing payment
+                if (existing.getStatus() == PaymentStatus.PENDING || 
+                    existing.getStatus() == PaymentStatus.PROCESSING) {
+                    log.info("Returning existing {} payment: {}", request.getPaymentType(), existing.getPaymentCode());
+                    return mapToPaymentResponse(existing);
+                }
+                
+                // If FAILED → allow creating new payment (fall through)
+                log.info("Previous payment FAILED, allowing new payment creation");
+            }
+        }
+        
+        log.info("No existing payment found or previous payment failed, creating new payment...");
+        
+        // Tạo Payment entity MỚI
         Payment payment = new Payment();
         payment.setPaymentCode(UUID.randomUUID().toString()); // Mã thanh toán duy nhất
         
         // Set new fields
         payment.setPaymentType(request.getPaymentType());
         payment.setReferenceId(request.getReferenceId());
+        
+        // Set appointmentId for grouping payments
+        // For APPOINTMENT_FEE: appointmentId = referenceId
+        // For LAB_TEST/PRESCRIPTION: appointmentId from request (parent appointment)
+        if (request.getAppointmentId() != null) {
+            payment.setAppointmentId(request.getAppointmentId());
+        } else if (request.getPaymentType().equals(fit.iuh.billing.enums.PaymentType.APPOINTMENT_FEE)) {
+            payment.setAppointmentId(request.getReferenceId());
+        }
         
         // DEPRECATED: Set prescriptionId cho backward compatibility
         if (request.getPaymentType().equals(fit.iuh.billing.enums.PaymentType.PRESCRIPTION)) {
@@ -127,6 +219,7 @@ public class BillingServiceImpl implements BillingService {
         // New fields
         response.setPaymentType(payment.getPaymentType());
         response.setReferenceId(payment.getReferenceId());
+        response.setAppointmentId(payment.getAppointmentId()); // For grouping payments
         
         // Deprecated field - giữ lại để tương thích
         response.setPrescriptionId(payment.getPrescriptionId());
@@ -171,9 +264,68 @@ public class BillingServiceImpl implements BillingService {
             throw new IllegalArgumentException("Payment type is required");
         }
         
-        log.info("Validation passed, creating payment entity...");
+        log.info("Validation passed, checking for existing payment...");
 
-        // Tạo Payment entity
+        // ✅ CHECK: Payment đã tồn tại chưa?
+        List<Payment> existingPayments = paymentRepository.findByReferenceIdAndPaymentType(
+            request.getReferenceId(), 
+            request.getPaymentType()
+        );
+        
+        if (!existingPayments.isEmpty()) {
+            Payment existing = existingPayments.get(0);
+            log.info("Found existing payment: code={}, status={}", existing.getPaymentCode(), existing.getStatus());
+            
+            // Nếu đã thanh toán → throw error
+            if (existing.getStatus() == PaymentStatus.COMPLETED) {
+                log.error("Payment already completed for {} with referenceId: {}", 
+                    request.getPaymentType(), request.getReferenceId());
+                throw new IllegalArgumentException(
+                    String.format("Payment already completed for %s: %s. Payment code: %s", 
+                        request.getPaymentType(), 
+                        request.getReferenceId(),
+                        existing.getPaymentCode())
+                );
+            }
+            
+            // Nếu đang pending/processing → update thành COMPLETED
+            if (existing.getStatus() == PaymentStatus.PENDING || 
+                existing.getStatus() == PaymentStatus.PROCESSING) {
+                log.info("Updating existing payment from {} to COMPLETED", existing.getStatus());
+                existing.setStatus(PaymentStatus.COMPLETED);
+                existing.setPaidAt(LocalDateTime.now());
+                existing.setPaymentMethod(PaymentMethodType.CASH);
+                
+                // Update notes
+                if (request.getNotes() != null) {
+                    String currentDesc = existing.getDescription() != null ? existing.getDescription() : "";
+                    existing.setDescription(
+                        currentDesc.isEmpty() 
+                            ? request.getNotes() + " | Collected by: " + receptionistId
+                            : currentDesc + " | " + request.getNotes() + " | Collected by: " + receptionistId
+                    );
+                } else {
+                    String currentDesc = existing.getDescription() != null ? existing.getDescription() : "";
+                    existing.setDescription(
+                        currentDesc.isEmpty() 
+                            ? "Cash payment collected by receptionist: " + receptionistId
+                            : currentDesc + " | Cash payment collected by receptionist: " + receptionistId
+                    );
+                }
+                
+                existing = paymentRepository.save(existing);
+                log.info("Successfully updated existing payment to COMPLETED");
+                
+                // Thông báo cho service liên quan
+                notifyRelatedServiceForCashPayment(existing);
+                
+                return mapToPaymentResponse(existing);
+            }
+        }
+        
+        log.info("No existing payment found, creating new payment entity...");
+
+        // Tạo Payment entity MỚI
         Payment payment = new Payment();
         payment.setPaymentCode("CASH-" + UUID.randomUUID().toString());
         payment.setPaymentType(request.getPaymentType());
@@ -183,6 +335,15 @@ public class BillingServiceImpl implements BillingService {
         payment.setStatus(PaymentStatus.COMPLETED); // Thanh toán tiền mặt hoàn thành ngay
         payment.setCreatedAt(LocalDateTime.now());
         payment.setPaidAt(LocalDateTime.now()); // Set thời gian thanh toán
+        
+        // Set appointmentId for grouping payments
+        // For APPOINTMENT_FEE: appointmentId = referenceId
+        // For LAB_TEST/PRESCRIPTION: appointmentId from request (parent appointment)
+        if (request.getAppointmentId() != null) {
+            payment.setAppointmentId(request.getAppointmentId());
+        } else if (request.getPaymentType().equals(fit.iuh.billing.enums.PaymentType.APPOINTMENT_FEE)) {
+            payment.setAppointmentId(request.getReferenceId());
+        }
         
         // Lưu thông tin người thu tiền (có thể thêm field receptionistId vào entity sau)
         if (request.getNotes() != null) {
@@ -414,13 +575,17 @@ public class BillingServiceImpl implements BillingService {
             throw new IllegalArgumentException("Reference IDs list cannot be empty");
         }
 
-        // 1. Query tất cả payments theo referenceIds
-        List<Payment> payments = paymentRepository.findByReferenceIdIn(referenceIds);
+        // 1. Query tất cả payments theo appointmentId
+        // This will include appointment fee + lab tests + prescriptions for the appointment
+        String appointmentId = referenceIds.get(0);
+        List<Payment> payments = paymentRepository.findByAppointmentId(appointmentId);
+        
+        log.info("Found {} payments for appointmentId: {}", payments.size(), appointmentId);
 
         if (payments.isEmpty()) {
-            log.warn("No payments found for reference IDs: {}", referenceIds);
+            log.warn("No payments found for appointmentId: {}", appointmentId);
             return new OutstandingPaymentResponse(
-                referenceIds.get(0), // Use first referenceId as appointmentId
+                appointmentId,
                 "",
                 BigDecimal.ZERO,
                 BigDecimal.ZERO,
@@ -445,11 +610,11 @@ public class BillingServiceImpl implements BillingService {
             .map(this::mapToPaymentItemDto)
             .collect(Collectors.toList());
 
-        log.info("Found {} payments, total unpaid: {}, total paid: {}", 
-            payments.size(), totalUnpaid, totalPaid);
+        log.info("Found {} payments for appointmentId {}, total unpaid: {}, total paid: {}", 
+            payments.size(), appointmentId, totalUnpaid, totalPaid);
 
         return new OutstandingPaymentResponse(
-            referenceIds.get(0), // Use first referenceId as appointmentId
+            appointmentId,
             "", // Patient name will be filled by frontend
             totalUnpaid,
             totalPaid,
@@ -459,7 +624,7 @@ public class BillingServiceImpl implements BillingService {
 
     @Override
     @Transactional
-    public void processBulkPayment(BulkPaymentRequest request) {
+    public BulkPaymentResponse processBulkPayment(BulkPaymentRequest request) {
         log.info("Processing bulk payment for {} payments", request.getPaymentCodes().size());
 
         // 1. Lấy tất cả payments by codes
@@ -475,32 +640,67 @@ public class BillingServiceImpl implements BillingService {
             );
         }
 
-        // 2. Validate tổng tiền khớp
-        BigDecimal calculatedTotal = payments.stream()
+        // 2. Phân loại payments: chưa thanh toán vs đã thanh toán
+        List<Payment> unpaidPayments = payments.stream()
+            .filter(p -> p.getStatus() == PaymentStatus.PENDING || p.getStatus() == PaymentStatus.PROCESSING)
+            .collect(Collectors.toList());
+        
+        List<Payment> alreadyPaidPayments = payments.stream()
+            .filter(p -> p.getStatus() == PaymentStatus.COMPLETED)
+            .collect(Collectors.toList());
+
+        log.info("Found {} unpaid payments and {} already paid payments", 
+            unpaidPayments.size(), alreadyPaidPayments.size());
+
+        // 3. Validate: Phải có ít nhất 1 payment chưa thanh toán
+        if (unpaidPayments.isEmpty()) {
+            log.warn("All {} payments are already completed", payments.size());
+            
+            BigDecimal alreadyPaidAmount = alreadyPaidPayments.stream()
+                .map(Payment::getAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+            
+            return BulkPaymentResponse.builder()
+                .totalRequested(request.getPaymentCodes().size())
+                .successfullyProcessed(0)
+                .alreadyCompleted(alreadyPaidPayments.size())
+                .amountProcessed(BigDecimal.ZERO)
+                .amountAlreadyPaid(alreadyPaidAmount)
+                .message("All payments are already completed. No action needed.")
+                .processedPaymentCodes(List.of())
+                .skippedPaymentCodes(alreadyPaidPayments.stream()
+                    .map(Payment::getPaymentCode)
+                    .collect(Collectors.toList()))
+                .paymentMethod(request.getPaymentMethod().toString())
+                .build();
+        }
+
+        // 4. Tính tổng tiền cần thanh toán (chỉ unpaid)
+        BigDecimal unpaidTotal = unpaidPayments.stream()
+            .map(Payment::getAmount)
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+        
+        BigDecimal alreadyPaidTotal = alreadyPaidPayments.stream()
             .map(Payment::getAmount)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        if (calculatedTotal.compareTo(request.getTotalAmount()) != 0) {
+        log.info("Unpaid amount: {}, Already paid amount: {}, Total requested: {}", 
+            unpaidTotal, alreadyPaidTotal, request.getTotalAmount());
+
+        // 5. Validate tổng tiền: chỉ cần khớp với tổng của TẤT CẢ payments (để frontend gửi đúng)
+        BigDecimal grandTotal = unpaidTotal.add(alreadyPaidTotal);
+        if (grandTotal.compareTo(request.getTotalAmount()) != 0) {
             log.error("Total amount mismatch. Expected: {}, Got: {}", 
-                calculatedTotal, request.getTotalAmount());
+                grandTotal, request.getTotalAmount());
             throw new IllegalArgumentException(
                 String.format("Total amount mismatch: expected %s, got %s",
-                    calculatedTotal, request.getTotalAmount())
+                    grandTotal, request.getTotalAmount())
             );
         }
 
-        // 3. Validate: Tất cả payments đều chưa thanh toán
-        boolean hasInvalidStatus = payments.stream()
-            .anyMatch(p -> p.getStatus() == PaymentStatus.COMPLETED);
-
-        if (hasInvalidStatus) {
-            log.error("Some payments are already paid");
-            throw new IllegalArgumentException("Some payments are already paid");
-        }
-
-        // 4. Update tất cả payments thành COMPLETED
+        // 6. Update chỉ unpaid payments thành COMPLETED
         LocalDateTime now = LocalDateTime.now();
-        payments.forEach(payment -> {
+        unpaidPayments.forEach(payment -> {
             payment.setStatus(PaymentStatus.COMPLETED);
             payment.setPaidAt(now);
             payment.setPaymentMethod(request.getPaymentMethod());
@@ -514,11 +714,11 @@ public class BillingServiceImpl implements BillingService {
             }
         });
 
-        paymentRepository.saveAll(payments);
-        log.info("Successfully updated {} payments to COMPLETED status", payments.size());
+        paymentRepository.saveAll(unpaidPayments);
+        log.info("Successfully updated {} payments to COMPLETED status", unpaidPayments.size());
 
-        // 5. Gọi Appointment Service để update appointment status (nếu có APPOINTMENT_FEE)
-        payments.stream()
+        // 7. Gọi Appointment Service để update appointment status (nếu có APPOINTMENT_FEE)
+        unpaidPayments.stream()
             .filter(p -> p.getPaymentType() == PaymentType.APPOINTMENT_FEE)
             .forEach(p -> {
                 try {
@@ -537,6 +737,31 @@ public class BillingServiceImpl implements BillingService {
                     // Don't throw - payment is already updated, just log the error
                 }
             });
+
+        // 8. Build response
+        String message;
+        if (alreadyPaidPayments.isEmpty()) {
+            message = String.format("Successfully processed %d payment(s)", unpaidPayments.size());
+        } else {
+            message = String.format("Successfully processed %d payment(s). %d payment(s) were already completed and skipped.", 
+                unpaidPayments.size(), alreadyPaidPayments.size());
+        }
+
+        return BulkPaymentResponse.builder()
+            .totalRequested(request.getPaymentCodes().size())
+            .successfullyProcessed(unpaidPayments.size())
+            .alreadyCompleted(alreadyPaidPayments.size())
+            .amountProcessed(unpaidTotal)
+            .amountAlreadyPaid(alreadyPaidTotal)
+            .message(message)
+            .processedPaymentCodes(unpaidPayments.stream()
+                .map(Payment::getPaymentCode)
+                .collect(Collectors.toList()))
+            .skippedPaymentCodes(alreadyPaidPayments.stream()
+                .map(Payment::getPaymentCode)
+                .collect(Collectors.toList()))
+            .paymentMethod(request.getPaymentMethod().toString())
+            .build();
     }
 
     /**

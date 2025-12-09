@@ -28,12 +28,21 @@ public class CreatePaymentRequest {
     /**
      * ID tham chiếu tùy thuộc vào paymentType:
      * - Nếu paymentType = APPOINTMENT_FEE → appointmentId
-     * - Nếu paymentType = LAB_TEST → labTestId
+     * - Nếu paymentType = LAB_TEST → labTestOrderId
      * - Nếu paymentType = PRESCRIPTION → prescriptionId
      * - Nếu paymentType = OTHER → referenceId tương ứng
      */
     @NotNull(message = "Reference ID is required")
     private String referenceId;
+    
+    /**
+     * Appointment ID for grouping payments
+     * - For APPOINTMENT_FEE: same as referenceId
+     * - For LAB_TEST: the parent appointment ID
+     * - For PRESCRIPTION: the parent appointment ID
+     * Optional field - if not provided, will be set from referenceId for APPOINTMENT_FEE
+     */
+    private String appointmentId;
     
     /**
      * Số tiền cần thanh toán

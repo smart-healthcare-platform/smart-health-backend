@@ -20,6 +20,7 @@ public class PaymentResponse {
     // New fields
     private PaymentType paymentType;
     private String referenceId;
+    private String appointmentId; // For grouping payments by appointment
     
     // Deprecated field - giữ lại để tương thích
     @Deprecated

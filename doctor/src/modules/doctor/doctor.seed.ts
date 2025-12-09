@@ -123,47 +123,63 @@ export class DoctorSeed implements OnModuleInit {
           }),
         );
 
-        const start = toVNDate('2025-12-01');
-        const end = toVNDate('2025-12-31 23:59:59');
+        for (const shift of ['morning', 'afternoon']) {
+          const startHour =
+            shift === 'morning' ? 8 : shift === 'afternoon' ? 13 : 8;
+          const endHour =
+            shift === 'morning' ? 12 : shift === 'afternoon' ? 17 : 17;
 
-        for (let dt = new Date(start); dt <= end; dt.setDate(dt.getDate() + 1)) {
-          if (dt.getDay() !== (
-            {
-              [DayOfWeek.SUN]: 0,
-              [DayOfWeek.MON]: 1,
-              [DayOfWeek.TUE]: 2,
-              [DayOfWeek.WED]: 3,
-              [DayOfWeek.THU]: 4,
-              [DayOfWeek.FRI]: 5,
-              [DayOfWeek.SAT]: 6,
-            } as Record<DayOfWeek, number>
-          )[day]) continue;
+          const start = toVNDate('2025-12-01');
+          const end = toVNDate('2025-12-31 23:59:59');
 
-          let slotTime = new Date(dt);
-          slotTime.setHours(8, 0, 0, 0);
+          for (let dt = new Date(start); dt <= end; dt.setDate(dt.getDate() + 1)) {
+            // Check đúng thứ
+            if (dt.getDay() !== (
+              {
+                [DayOfWeek.SUN]: 0,
+                [DayOfWeek.MON]: 1,
+                [DayOfWeek.TUE]: 2,
+                [DayOfWeek.WED]: 3,
+                [DayOfWeek.THU]: 4,
+                [DayOfWeek.FRI]: 5,
+                [DayOfWeek.SAT]: 6,
+              } as Record<DayOfWeek, number>
+            )[day]) continue;
 
-          while (slotTime.getHours() < 17) {
-            const startSlot = new Date(slotTime);
-            const endSlot = new Date(startSlot.getTime() + 50 * 60000);
+            let slotTime = new Date(dt);
+            slotTime.setHours(startHour, 0, 0, 0);
 
-            if (endSlot.getHours() > 17) break;
+            while (slotTime.getHours() < endHour) {
+              const startSlot = new Date(slotTime);
+              const endSlot = new Date(startSlot.getTime() + 50 * 60000);
 
-            await this.slotRepo.save(
-              this.slotRepo.create({
-                doctor: { id: doctor.id },
-                start_time: startSlot,
-                end_time: endSlot,
-                status: 'available',
-              }),
-            );
+              if (endSlot.getHours() > endHour) break;
 
-            slotTime = new Date(startSlot.getTime() + 60 * 60000);
+              await this.slotRepo.save(
+                this.slotRepo.create({
+                  doctor: { id: doctor.id },
+                  start_time: startSlot,
+                  end_time: endSlot,
+                  status: 'available',
+                }),
+              );
+
+              slotTime = new Date(startSlot.getTime() + 60 * 60000);
+            }
           }
         }
       }
 
 
-
+      // ================= BLOCK TIME =================
+      await this.blockRepo.save(
+        this.blockRepo.create({
+          doctor: { id: doctor.id },
+          start_block: toVNDate('2025-12-12 12:00:00'),
+          end_block: toVNDate('2025-12-12 13:00:00'),
+          reason: 'Nghỉ trưa',
+        })
+      );
 
 
       // ================= RATING =================

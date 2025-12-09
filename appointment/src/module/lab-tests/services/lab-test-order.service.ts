@@ -140,6 +140,7 @@ export class LabTestOrdersService {
                 const paymentRequest: CreatePaymentRequest = {
                     paymentType: 'LAB_TEST',
                     referenceId: savedOrder.id,
+                    appointmentId: savedOrder.appointmentId, // Link to parent appointment for grouping
                     amount: labTest.price,
                     paymentMethod: 'CASH', // Default CASH - receptionist will collect
                 };
