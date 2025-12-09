@@ -12,6 +12,7 @@ import type { Cache } from 'cache-manager';
 import { CertificateType } from '../doctor-certificates/enums/certificate-type.enum';
 import { DoctorWeeklyAvailability } from '../doctor-schedule/entity/doctor-weekly-availability.entity';
 import { UpsertDoctorWeeklyAvailabilityDto } from '../doctor-schedule/dto/create-doctor-weekly-availability.dto';
+import { AcademicDegree } from '../doctor-certificates/enums/academic_degree.enum';
 @Injectable()
 export class DoctorService {
   constructor(
@@ -70,43 +71,8 @@ export class DoctorService {
   async findByIds(ids: string[]): Promise<Doctor[]> {
     return this.doctorRepo.find({ where: { id: In(ids) } });
   }
-  private buildDisplayDoctor(d: Doctor) {
-    const mapDegreeToPrefix = (title: string): string => {
-      if (!title) return '';
-      if (title.includes('Giáo sư')) return 'GS.';
-      if (title.includes('Phó giáo sư')) return 'PGS.';
-      if (title.includes('Tiến sĩ')) return 'TS.';
-      if (title.includes('Thạc sĩ')) return 'ThS.';
-      if (title.includes('Cử nhân')) return 'CN.';
-      if (title.includes('Bác sĩ chuyên khoa II')) return 'BSCKII.';
-      if (title.includes('Bác sĩ chuyên khoa I')) return 'BSCKI.';
-      if (title.includes('Bác sĩ')) return 'BS.';
-      return title;
-    };
 
-    const priority = [
-      'Giáo sư',
-      'Phó giáo sư',
-      'Tiến sĩ',
-      'Thạc sĩ',
-      'Cử nhân',
-    ];
 
-    const degrees = d.certificates?.filter((c) => c.type === CertificateType.DEGREE) || [];
-    const sorted = degrees.sort(
-      (a, b) => priority.indexOf(a.title) - priority.indexOf(b.title),
-    );
-    const mainDegree = sorted[0]?.title;
-
-    const prefix = mainDegree ? mapDegreeToPrefix(mainDegree) : '';
-    const display_name = prefix ? `${prefix} ${d.full_name}` : d.full_name;
-
-    return {
-      ...d,
-      degree: mainDegree,
-      display_name,
-    };
-  }
 
   async findByUserId(userId: string): Promise<Doctor> {
     const doctor = await this.doctorRepo.findOne({
@@ -139,7 +105,8 @@ export class DoctorService {
         'doctor.bio',
         'doctor.phone',
         'doctor.date_of_birth',
-        'doctor.user_id'
+        'doctor.user_id',
+        'doctor.display_name'
       ])
       .orderBy('doctor.full_name', 'ASC')
       .skip((page - 1) * limit)
@@ -152,7 +119,7 @@ export class DoctorService {
     const [doctors, total] = await qb.getManyAndCount();
 
     return {
-      data: doctors.map((d) => this.buildDisplayDoctor(d)),
+      data: doctors,
       total,
       page,
       limit,
@@ -176,7 +143,7 @@ export class DoctorService {
       throw new NotFoundException(`Doctor with id ${id} not found`);
     }
 
-    return this.buildDisplayDoctor(doctor);
+    return doctor;
   }
 
 
@@ -326,5 +293,7 @@ export class DoctorService {
       },
     };
   }
+
+
 
 }
