@@ -9,6 +9,7 @@ export type PaymentMethodType = 'MOMO' | 'VNPAY' | 'CASH' | 'COD';
 export interface CreatePaymentRequest {
   paymentType: PaymentType;
   referenceId: string;
+  appointmentId?: string; // Optional: for grouping lab tests and prescriptions to parent appointment
   amount: number;
   paymentMethod: PaymentMethodType;
 }
