@@ -7,9 +7,11 @@ import {
   IsDateString,
   Length,
   IsUUID,
-  IsBoolean
+  IsBoolean,
 } from 'class-validator';
+
 import { CertificateType } from '../enums/certificate-type.enum';
+import { AcademicDegree } from '../enums/academic_degree.enum';
 
 export class CreateDoctorCertificateDto {
   @IsNotEmpty({ message: 'ID bác sĩ là bắt buộc' })
@@ -20,10 +22,10 @@ export class CreateDoctorCertificateDto {
   @IsEnum(CertificateType, { message: 'Loại chứng chỉ không hợp lệ' })
   type: CertificateType;
 
-  @IsNotEmpty({ message: 'Tiêu đề chứng chỉ là bắt buộc' })
-  @IsString({ message: 'Tiêu đề phải là chuỗi' })
-  @Length(1, 150, { message: 'Tiêu đề không được quá 150 ký tự' })
-  title: string;
+  // DEGREE ONLY
+  @IsOptional()
+  @IsEnum(AcademicDegree, { message: 'Học vị không hợp lệ' })
+  academic_degree?: AcademicDegree;
 
   @IsOptional()
   @IsString({ message: 'Lĩnh vực phải là chuỗi' })
@@ -31,20 +33,21 @@ export class CreateDoctorCertificateDto {
   field?: string;
 
   @IsOptional()
-  @IsString({ message: 'Số chứng chỉ phải là chuỗi' })
-  @Length(1, 50, { message: 'Số chứng chỉ không được quá 50 ký tự' })
-  certificate_number?: string;
-
-  @IsOptional()
   @IsInt({ message: 'Năm tốt nghiệp phải là số nguyên' })
   graduation_year?: number;
 
+  // LICENSE ONLY
   @IsOptional()
-  @IsDateString({}, { message: 'Ngày cấp không hợp lệ (cần định dạng ISO 8601)' })
+  @IsString({ message: 'Số giấy phép phải là chuỗi' })
+  @Length(1, 100, { message: 'Số giấy phép không được quá 100 ký tự' })
+  license_number?: string;
+
+  @IsOptional()
+  @IsDateString({}, { message: 'Ngày cấp không hợp lệ (ISO 8601)' })
   issued_date?: Date;
 
   @IsOptional()
-  @IsDateString({}, { message: 'Ngày hết hạn không hợp lệ (cần định dạng ISO 8601)' })
+  @IsDateString({}, { message: 'Ngày hết hạn không hợp lệ (ISO 8601)' })
   expiry_date?: Date;
 
   @IsOptional()
