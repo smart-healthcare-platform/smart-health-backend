@@ -56,6 +56,15 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     List<Payment> findByReferenceIdIn(List<String> referenceIds);
 
     /**
+     * Tìm tất cả payments liên quan đến một appointment
+     * Bao gồm: appointment fee, lab test fees, prescription fees
+     * Dùng cho receptionist checkout - lấy tất cả khoản phí cần thu
+     * @param appointmentId ID của appointment
+     * @return Danh sách tất cả payments liên quan
+     */
+    List<Payment> findByAppointmentId(String appointmentId);
+
+    /**
      * Tìm outstanding payments cho composite payment
      * @param referenceIds Danh sách reference IDs (appointmentId + labTestOrderIds)
      * @param statuses Danh sách statuses (PENDING, PROCESSING)

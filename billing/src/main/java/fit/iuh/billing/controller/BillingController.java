@@ -1,6 +1,7 @@
 package fit.iuh.billing.controller;
 
 import fit.iuh.billing.dto.BulkPaymentRequest;
+import fit.iuh.billing.dto.BulkPaymentResponse;
 import fit.iuh.billing.dto.CompositePaymentRequest;
 import fit.iuh.billing.dto.CompositePaymentResponse;
 import fit.iuh.billing.dto.CreatePaymentRequest;
@@ -290,24 +291,25 @@ public class BillingController {
     }
 
     @Operation(summary = "Process bulk payment", 
-               description = "Process multiple payments in one transaction (CASH only)")
+               description = "Process multiple payments in one transaction. Automatically skips already completed payments.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Bulk payment processed successfully"),
+            @ApiResponse(responseCode = "200", description = "Bulk payment processed successfully",
+                    content = @Content(schema = @Schema(implementation = BulkPaymentResponse.class))),
             @ApiResponse(responseCode = "400", description = "Invalid request or validation failed")
     })
     @PostMapping("/bulk-payment")
-    public ResponseEntity<Map<String, String>> processBulkPayment(
+    public ResponseEntity<BulkPaymentResponse> processBulkPayment(
             @Valid @RequestBody BulkPaymentRequest request
     ) {
         log.info("Processing bulk payment for {} payments, total: {}", 
                  request.getPaymentCodes().size(), request.getTotalAmount());
         
-        billingService.processBulkPayment(request);
+        BulkPaymentResponse response = billingService.processBulkPayment(request);
         
-        Map<String, String> response = new HashMap<>();
-        response.put("message", "Bulk payment processed successfully");
-        response.put("paymentCount", String.valueOf(request.getPaymentCodes().size()));
-        response.put("totalAmount", request.getTotalAmount().toString());
+        log.info("Bulk payment result: {} successful, {} skipped, amount processed: {}", 
+                 response.getSuccessfullyProcessed(), 
+                 response.getAlreadyCompleted(),
+                 response.getAmountProcessed());
         
         return ResponseEntity.ok(response);
     }

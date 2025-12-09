@@ -18,10 +18,16 @@ import lombok.NoArgsConstructor;
 public class CashPaymentRequest {
     
     /**
-     * ID tham chiếu (VD: appointmentId cho APPOINTMENT_FEE)
+     * ID tham chiếu (VD: appointmentId cho APPOINTMENT_FEE, labTestOrderId cho LAB_TEST)
      */
     @NotNull(message = "Reference ID is required")
     private String referenceId;
+    
+    /**
+     * Appointment ID for grouping payments
+     * Optional - if not provided, will be set from referenceId for APPOINTMENT_FEE
+     */
+    private String appointmentId;
     
     /**
      * Số tiền thanh toán (VNĐ)
