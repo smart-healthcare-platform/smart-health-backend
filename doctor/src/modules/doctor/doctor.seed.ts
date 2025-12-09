@@ -365,47 +365,49 @@ export class DoctorSeed implements OnModuleInit {
           }),
         );
 
-        const startHour =
-          shift === 'morning' ? 8 : shift === 'afternoon' ? 13 : 8;
-        const endHour =
-          shift === 'morning' ? 12 : shift === 'afternoon' ? 17 : 17;
+        for (const shift of ['morning', 'afternoon']) {
+          const startHour =
+            shift === 'morning' ? 8 : shift === 'afternoon' ? 13 : 8;
+          const endHour =
+            shift === 'morning' ? 12 : shift === 'afternoon' ? 17 : 17;
 
-        const start = toVNDate('2025-12-01');
-        const end = toVNDate('2025-12-31 23:59:59');
+          const start = toVNDate('2025-12-01');
+          const end = toVNDate('2025-12-31 23:59:59');
 
-        for (let dt = new Date(start); dt <= end; dt.setDate(dt.getDate() + 1)) {
-          // Check đúng thứ
-          if (dt.getDay() !== (
-            {
-              [DayOfWeek.SUN]: 0,
-              [DayOfWeek.MON]: 1,
-              [DayOfWeek.TUE]: 2,
-              [DayOfWeek.WED]: 3,
-              [DayOfWeek.THU]: 4,
-              [DayOfWeek.FRI]: 5,
-              [DayOfWeek.SAT]: 6,
-            } as Record<DayOfWeek, number>
-          )[day]) continue;
+          for (let dt = new Date(start); dt <= end; dt.setDate(dt.getDate() + 1)) {
+            // Check đúng thứ
+            if (dt.getDay() !== (
+              {
+                [DayOfWeek.SUN]: 0,
+                [DayOfWeek.MON]: 1,
+                [DayOfWeek.TUE]: 2,
+                [DayOfWeek.WED]: 3,
+                [DayOfWeek.THU]: 4,
+                [DayOfWeek.FRI]: 5,
+                [DayOfWeek.SAT]: 6,
+              } as Record<DayOfWeek, number>
+            )[day]) continue;
 
-          let slotTime = new Date(dt);
-          slotTime.setHours(8, 0, 0, 0);
+            let slotTime = new Date(dt);
+            slotTime.setHours(startHour, 0, 0, 0);
 
-          while (slotTime.getHours() < 17) {
-            const startSlot = new Date(slotTime);
-            const endSlot = new Date(startSlot.getTime() + 50 * 60000);
+            while (slotTime.getHours() < endHour) {
+              const startSlot = new Date(slotTime);
+              const endSlot = new Date(startSlot.getTime() + 50 * 60000);
 
-            if (endSlot.getHours() > 17) break;
+              if (endSlot.getHours() > endHour) break;
 
-            await this.slotRepo.save(
-              this.slotRepo.create({
-                doctor: { id: doctor.id },
-                start_time: startSlot,
-                end_time: endSlot,
-                status: 'available',
-              }),
-            );
+              await this.slotRepo.save(
+                this.slotRepo.create({
+                  doctor: { id: doctor.id },
+                  start_time: startSlot,
+                  end_time: endSlot,
+                  status: 'available',
+                }),
+              );
 
-            slotTime = new Date(startSlot.getTime() + 60 * 60000);
+              slotTime = new Date(startSlot.getTime() + 60 * 60000);
+            }
           }
         }
       }
@@ -414,9 +416,9 @@ export class DoctorSeed implements OnModuleInit {
       // ================= BLOCK TIME =================
       await this.blockRepo.save(
         this.blockRepo.create({
-          doctor_id: doctor.id,
-          start_time: toVNDate('2025-12-12 12:00:00'),
-          end_time: toVNDate('2025-12-12 13:00:00'),
+          doctor: { id: doctor.id },
+          start_block: toVNDate('2025-12-12 12:00:00'),
+          end_block: toVNDate('2025-12-12 13:00:00'),
           reason: 'Nghỉ trưa',
         })
       );
