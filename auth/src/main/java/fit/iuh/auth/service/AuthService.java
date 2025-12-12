@@ -36,6 +36,15 @@ public class AuthService {
     @Value("${server.ssl.enabled:false}")
     private boolean sslEnabled;
 
+    @Value("${cookie.secure:true}")
+    private boolean cookieSecure;
+
+    @Value("${cookie.domain:}")
+    private String cookieDomain;
+
+    @Value("${cookie.same-site:None}")
+    private String cookieSameSite;
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
@@ -197,24 +206,54 @@ public class AuthService {
     private void setRefreshTokenCookie(HttpServletResponse response, String refreshToken) {
         Cookie cookie = new Cookie("refreshToken", refreshToken);
         cookie.setHttpOnly(true);
-        cookie.setSecure(sslEnabled);
-        cookie.setDomain("localhost");
+        cookie.setSecure(cookieSecure);
+        
+        // Only set domain if explicitly configured (empty means current domain)
+        if (cookieDomain != null && !cookieDomain.isEmpty()) {
+            cookie.setDomain(cookieDomain);
+        }
+        
         cookie.setPath("/");
         cookie.setMaxAge(7 * 24 * 60 * 60);
-        response.addCookie(cookie);
+        
+        // Add SameSite attribute via Set-Cookie header
+        String cookieValue = String.format(
+            "%s=%s; Path=/; Max-Age=%d; HttpOnly; %s SameSite=%s",
+            cookie.getName(),
+            cookie.getValue(),
+            cookie.getMaxAge(),
+            cookieSecure ? "Secure;" : "",
+            cookieSameSite
+        );
+        
+        response.setHeader("Set-Cookie", cookieValue);
     }
 
     public void logout(HttpServletResponse response, String refreshToken) {
         log.info("Logging out user with refreshToken: {}", refreshToken);
         refreshTokenRepository.deleteByToken(refreshToken);
 
-        Cookie cookie = new Cookie("refreshToken", null);
+        Cookie cookie = new Cookie("refreshToken", "");
         cookie.setHttpOnly(true);
-        cookie.setSecure(sslEnabled);
-        cookie.setDomain("localhost");
+        cookie.setSecure(cookieSecure);
+        
+        // Only set domain if explicitly configured
+        if (cookieDomain != null && !cookieDomain.isEmpty()) {
+            cookie.setDomain(cookieDomain);
+        }
+        
         cookie.setPath("/");
         cookie.setMaxAge(0);
-        response.addCookie(cookie);
+        
+        // Add SameSite attribute via Set-Cookie header
+        String cookieValue = String.format(
+            "%s=; Path=/; Max-Age=0; HttpOnly; %s SameSite=%s",
+            cookie.getName(),
+            cookieSecure ? "Secure;" : "",
+            cookieSameSite
+        );
+        
+        response.setHeader("Set-Cookie", cookieValue);
     }
 
     //Seeder data
