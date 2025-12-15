@@ -640,6 +640,22 @@ public class BillingServiceImpl implements BillingService {
             );
         }
 
+        // Validate: Không được bulk pay các online payments (MOMO, VNPAY)
+        List<String> onlinePaymentCodes = payments.stream()
+            .filter(p -> p.getPaymentMethod() == PaymentMethodType.MOMO || 
+                         p.getPaymentMethod() == PaymentMethodType.VNPAY)
+            .map(Payment::getPaymentCode)
+            .collect(Collectors.toList());
+        
+        if (!onlinePaymentCodes.isEmpty()) {
+            log.error("Cannot process bulk payment for online payments: {}", onlinePaymentCodes);
+            throw new IllegalArgumentException(
+                String.format("Cannot process bulk payment for online payments: %s. " +
+                    "These payments must be completed online or cancelled first.",
+                    String.join(", ", onlinePaymentCodes))
+            );
+        }
+
         // 2. Phân loại payments: chưa thanh toán vs đã thanh toán
         List<Payment> unpaidPayments = payments.stream()
             .filter(p -> p.getStatus() == PaymentStatus.PENDING || p.getStatus() == PaymentStatus.PROCESSING)
@@ -775,7 +791,8 @@ public class BillingServiceImpl implements BillingService {
             payment.getStatus(),
             payment.getDescription(),
             payment.getCreatedAt(),
-            payment.getPaidAt()
+            payment.getPaidAt(),
+            payment.getPaymentMethod()
         );
     }
 
@@ -903,5 +920,66 @@ public class BillingServiceImpl implements BillingService {
             .breakdown(breakdownItems)
             .expiredAt(compositePayment.getExpiredAt().toString())
             .build();
+    }
+
+    @Override
+    @Transactional
+    public PaymentResponse cancelPayment(String paymentCode) {
+        log.info("Cancelling payment with code: {}", paymentCode);
+
+        // 1. Tìm payment theo paymentCode
+        Payment payment = paymentRepository.findByPaymentCode(paymentCode)
+            .orElseThrow(() -> {
+                log.error("Payment not found with code: {}", paymentCode);
+                return new IllegalArgumentException("Payment not found: " + paymentCode);
+            });
+
+        // 2. Validate: chỉ có thể cancel payment ở trạng thái PENDING hoặc PROCESSING
+        if (payment.getStatus() != PaymentStatus.PENDING && payment.getStatus() != PaymentStatus.PROCESSING) {
+            log.error("Cannot cancel payment {} with status: {}", paymentCode, payment.getStatus());
+            throw new IllegalArgumentException(
+                String.format("Cannot cancel payment with status %s. Only PENDING or PROCESSING payments can be cancelled.",
+                    payment.getStatus())
+            );
+        }
+
+        // 3. Validate: không cancel payment đã có parent (composite payment child)
+        if (payment.getParentPayment() != null) {
+            log.error("Cannot cancel child payment {} that belongs to composite payment", paymentCode);
+            throw new IllegalArgumentException(
+                "Cannot cancel a child payment that belongs to a composite payment. Cancel the parent payment instead."
+            );
+        }
+
+        // 4. Update status to CANCELLED
+        payment.setStatus(PaymentStatus.CANCELLED);
+        payment.setUpdatedAt(LocalDateTime.now());
+        
+        // Append cancellation note to description
+        String cancelNote = " | Cancelled at " + LocalDateTime.now();
+        String currentDesc = payment.getDescription() != null ? payment.getDescription() : "";
+        payment.setDescription(currentDesc + cancelNote);
+
+        paymentRepository.save(payment);
+        log.info("Successfully cancelled payment: {}", paymentCode);
+
+        // 5. Nếu là composite payment (parent), cần cancel tất cả child payments
+        if (payment.getPaymentType() == PaymentType.APPOINTMENT_FEE && payment.getReferenceId() != null) {
+            List<Payment> childPayments = paymentRepository.findByParentPaymentId(payment.getId());
+            if (!childPayments.isEmpty()) {
+                log.info("Cancelling {} child payments of composite payment {}", childPayments.size(), paymentCode);
+                childPayments.forEach(child -> {
+                    child.setStatus(PaymentStatus.CANCELLED);
+                    child.setUpdatedAt(LocalDateTime.now());
+                    String childCancelNote = " | Cancelled (parent cancelled) at " + LocalDateTime.now();
+                    String childDesc = child.getDescription() != null ? child.getDescription() : "";
+                    child.setDescription(childDesc + childCancelNote);
+                });
+                paymentRepository.saveAll(childPayments);
+                log.info("Successfully cancelled all child payments");
+            }
+        }
+
+        return mapToPaymentResponse(payment);
     }
 }

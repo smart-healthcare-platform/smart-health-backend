@@ -135,4 +135,14 @@ public interface BillingService {
      * @return Composite payment response với paymentUrl và breakdown
      */
     CompositePaymentResponse createCompositePayment(CompositePaymentRequest request);
+
+    /**
+     * Hủy một payment (chỉ áp dụng cho payments ở trạng thái PENDING hoặc PROCESSING).
+     * Thường dùng để hủy các online payments (MOMO/VNPAY) đã expired hoặc không hoàn tất,
+     * trước khi tạo payment tiền mặt mới.
+     * 
+     * @param paymentCode Mã payment cần hủy
+     * @return Payment response sau khi hủy (status = CANCELLED)
+     */
+    PaymentResponse cancelPayment(String paymentCode);
 }
