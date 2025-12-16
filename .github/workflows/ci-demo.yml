@@ -55,9 +55,9 @@ jobs:
             context: ./prediction
             image_name: smart-health-prediction
             
-          - service: chat-bot
-            context: ./chat-bot
-            image_name: smart-health-chatbot
+          # - service: chat-bot
+          #   context: ./chat-bot
+          #   image_name: smart-health-chatbot
 
     steps:
       - name: Checkout code
