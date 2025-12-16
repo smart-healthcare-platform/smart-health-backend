@@ -3,9 +3,9 @@ spring:
     name: auth
 
   datasource:
-    url: jdbc:mysql://host.docker.internal:3306/smart_health_auth
+    url: jdbc:mysql://localhost:3306/smart_health_auth
     username: root
-    password: 123456
+    password: 1111
     driver-class-name: com.mysql.cj.jdbc.Driver
 
   jpa:
@@ -18,7 +18,7 @@ spring:
         format_sql: true
 
   kafka:
-    bootstrap-servers: kafka:9092
+    bootstrap-servers: localhost:9092
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
@@ -41,6 +41,12 @@ server:
     # key-store-password: your-password
     # key-store-type: PKCS12
     # key-alias: your-alias
+
+# Cookie Configuration for Production
+cookie:
+  secure: true  # Set to true for HTTPS (Cloudflare tunnel)
+  domain: ""  # Leave empty to use current domain (recommended for Cloudflare)
+  same-site: None  # Options: None, Lax, Strict (None required for cross-site with Secure=true)
 
 logging:
   level:
