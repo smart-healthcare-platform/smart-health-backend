@@ -43,6 +43,10 @@ export class CreateAppointmentDto {
   @IsString()
   notes?: string;
 
+  @IsOptional()
+  @IsString()
+  roomNumber?: string;
+
   /** 
    * Nếu cuộc hẹn này được tạo từ đề xuất tái khám (FollowUpSuggestion)
    * → followUpId tương ứng 
@@ -53,7 +57,7 @@ export class CreateAppointmentDto {
 
   @IsOptional()
   @IsDate()
-  @Type(() => Date)   
+  @Type(() => Date)
   startAt: Date;
 
   @IsOptional()

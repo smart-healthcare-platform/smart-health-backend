@@ -106,7 +106,8 @@ export class DoctorService {
         'doctor.phone',
         'doctor.date_of_birth',
         'doctor.user_id',
-        'doctor.display_name'
+        'doctor.display_name',
+        'doctor.room_number'
       ])
       .orderBy('doctor.full_name', 'ASC')
       .skip((page - 1) * limit)
@@ -148,14 +149,14 @@ export class DoctorService {
 
 
   async update(id: string, dto: UpdateDoctorDto): Promise<any> {
-    await this.findOne(id); // kiểm tra tồn tại
+    await this.findOne(id); 
     await this.doctorRepo.update(id, dto);
     const updated = await this.findOne(id);
     return updated;
   }
 
   async remove(id: string): Promise<void> {
-    await this.findOne(id); // kiểm tra tồn tại
+    await this.findOne(id); 
     await this.doctorRepo.delete(id);
   }
 
