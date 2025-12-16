@@ -40,6 +40,14 @@ public class Payment {
     @Column(nullable = false)
     private String referenceId;
 
+    // Appointment ID for grouping all payments related to an appointment
+    // - For APPOINTMENT_FEE: appointmentId = referenceId
+    // - For LAB_TEST: appointmentId links to the parent appointment
+    // - For PRESCRIPTION: appointmentId links to the parent appointment
+    // This field enables querying all payments (appointment fee + lab tests + prescriptions) for checkout
+    @Column(name = "appointment_id", nullable = true)
+    private String appointmentId;
+
     // DEPRECATED: Giữ lại để tương thích với code cũ, sẽ xóa sau
     @Deprecated
     @Column(name = "prescription_id")

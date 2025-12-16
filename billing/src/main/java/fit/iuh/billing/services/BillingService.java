@@ -1,6 +1,7 @@
 package fit.iuh.billing.services;
 
 import fit.iuh.billing.dto.BulkPaymentRequest;
+import fit.iuh.billing.dto.BulkPaymentResponse;
 import fit.iuh.billing.dto.CashPaymentRequest;
 import fit.iuh.billing.dto.CompositePaymentRequest;
 import fit.iuh.billing.dto.CompositePaymentResponse;
@@ -119,8 +120,9 @@ public interface BillingService {
      * Dùng cho receptionist khi thu tiền tổng hợp.
      * 
      * @param request Bulk payment request với danh sách payment codes
+     * @return BulkPaymentResponse với thông tin chi tiết về payments đã xử lý
      */
-    void processBulkPayment(BulkPaymentRequest request);
+    BulkPaymentResponse processBulkPayment(BulkPaymentRequest request);
 
     /**
      * Tạo thanh toán tổng hợp (composite payment) cho một appointment.
@@ -133,4 +135,14 @@ public interface BillingService {
      * @return Composite payment response với paymentUrl và breakdown
      */
     CompositePaymentResponse createCompositePayment(CompositePaymentRequest request);
+
+    /**
+     * Hủy một payment (chỉ áp dụng cho payments ở trạng thái PENDING hoặc PROCESSING).
+     * Thường dùng để hủy các online payments (MOMO/VNPAY) đã expired hoặc không hoàn tất,
+     * trước khi tạo payment tiền mặt mới.
+     * 
+     * @param paymentCode Mã payment cần hủy
+     * @return Payment response sau khi hủy (status = CANCELLED)
+     */
+    PaymentResponse cancelPayment(String paymentCode);
 }

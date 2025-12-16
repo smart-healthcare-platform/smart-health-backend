@@ -3,6 +3,9 @@ const config = require('../../config');
 const logger = require('../../config/logger');
 const redisService = require('../cache/redisService');
 
+// Set GATEWAY_SECRET for internal service calls
+process.env.GATEWAY_SECRET = process.env.GATEWAY_SECRET || 'your-super-secret-gateway-key-change-in-production';
+
 class DashboardAggregator {
   constructor() {
     // Cache TTL configuration (in seconds)
@@ -42,7 +45,7 @@ class DashboardAggregator {
         method: options.method || 'GET',
         headers: {
           'X-Internal-Request': 'true',
-          'X-Gateway-Secret': process.env.GATEWAY_SECRET || 'default-secret',
+          'X-Gateway-Secret': process.env.GATEWAY_SECRET || 'your-super-secret-gateway-key-change-in-production',
           'Content-Type': 'application/json',
           ...options.headers,
         },
@@ -61,14 +64,23 @@ class DashboardAggregator {
       return response.data;
     } catch (error) {
       const responseTime = Date.now() - startTime;
-      
+
       logger.error(`Service call failed: ${serviceName}${endpoint}`, {
         responseTime,
         error: error.message,
         status: error.response?.status,
         data: error.response?.data,
+        code: error.code,
+        errno: error.errno,
+        syscall: error.syscall,
+        hostname: error.hostname,
+        config: {
+          url: error.config?.url,
+          method: error.config?.method,
+          timeout: error.config?.timeout,
+        },
       });
-      
+
       // Don't throw - return null to allow partial data aggregation
       return null;
     }
@@ -105,7 +117,7 @@ class DashboardAggregator {
         medicineStats,
       ] = await Promise.allSettled([
         this.callService('patients', '/v1/admin/patients/stats'),
-        this.callService('appointments', '/v1/admin/appointments/stats'),
+        this.callService('appointments', '/v1/admin/appointments/stats', { timeout: 15000 }),
         this.callService('doctors', '/v1/admin/doctors/stats'),
         this.callService('billing', '/api/v1/admin/billing/revenue/stats'),
         this.callService('medicine', '/v1/admin/medicine/stats'),

@@ -1,6 +1,7 @@
 package fit.iuh.billing.controller;
 
 import fit.iuh.billing.dto.BulkPaymentRequest;
+import fit.iuh.billing.dto.BulkPaymentResponse;
 import fit.iuh.billing.dto.CompositePaymentRequest;
 import fit.iuh.billing.dto.CompositePaymentResponse;
 import fit.iuh.billing.dto.CreatePaymentRequest;
@@ -290,24 +291,25 @@ public class BillingController {
     }
 
     @Operation(summary = "Process bulk payment", 
-               description = "Process multiple payments in one transaction (CASH only)")
+               description = "Process multiple payments in one transaction. Automatically skips already completed payments.")
     @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Bulk payment processed successfully"),
+            @ApiResponse(responseCode = "200", description = "Bulk payment processed successfully",
+                    content = @Content(schema = @Schema(implementation = BulkPaymentResponse.class))),
             @ApiResponse(responseCode = "400", description = "Invalid request or validation failed")
     })
     @PostMapping("/bulk-payment")
-    public ResponseEntity<Map<String, String>> processBulkPayment(
+    public ResponseEntity<BulkPaymentResponse> processBulkPayment(
             @Valid @RequestBody BulkPaymentRequest request
     ) {
         log.info("Processing bulk payment for {} payments, total: {}", 
                  request.getPaymentCodes().size(), request.getTotalAmount());
         
-        billingService.processBulkPayment(request);
+        BulkPaymentResponse response = billingService.processBulkPayment(request);
         
-        Map<String, String> response = new HashMap<>();
-        response.put("message", "Bulk payment processed successfully");
-        response.put("paymentCount", String.valueOf(request.getPaymentCodes().size()));
-        response.put("totalAmount", request.getTotalAmount().toString());
+        log.info("Bulk payment result: {} successful, {} skipped, amount processed: {}", 
+                 response.getSuccessfullyProcessed(), 
+                 response.getAlreadyCompleted(),
+                 response.getAmountProcessed());
         
         return ResponseEntity.ok(response);
     }
@@ -338,6 +340,42 @@ public class BillingController {
             return ResponseEntity.badRequest().build();
         } catch (Exception e) {
             log.error("Error creating composite payment", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
+     * Cancel a payment (only for PENDING or PROCESSING payments)
+     * Typically used to cancel expired online payments before creating cash payment
+     *
+     * @param paymentCode Payment code to cancel
+     * @return Cancelled payment response
+     */
+    @PostMapping("/{paymentCode}/cancel")
+    @Operation(
+        summary = "Cancel a payment",
+        description = "Cancel a payment that is in PENDING or PROCESSING status. " +
+                     "Commonly used to cancel expired online payments (MOMO/VNPAY) before creating a cash payment."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Payment cancelled successfully"),
+        @ApiResponse(responseCode = "400", description = "Cannot cancel payment (invalid status or composite child)"),
+        @ApiResponse(responseCode = "404", description = "Payment not found")
+    })
+    public ResponseEntity<PaymentResponse> cancelPayment(
+        @PathVariable @Parameter(description = "Payment code to cancel", example = "PAY-123456") String paymentCode
+    ) {
+        log.info("Cancelling payment: {}", paymentCode);
+        
+        try {
+            PaymentResponse response = billingService.cancelPayment(paymentCode);
+            log.info("Payment cancelled successfully: {}", paymentCode);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            log.error("Cannot cancel payment {}: {}", paymentCode, e.getMessage());
+            return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            log.error("Error cancelling payment {}", paymentCode, e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
