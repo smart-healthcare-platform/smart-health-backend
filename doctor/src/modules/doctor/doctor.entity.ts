@@ -38,6 +38,9 @@ export class Doctor {
   })
   gender: Gender;
 
+  @Column({ length: 20, nullable: true })
+  room_number: string;
+
   @Column({ type: 'date', nullable: true })
   date_of_birth: Date;
 

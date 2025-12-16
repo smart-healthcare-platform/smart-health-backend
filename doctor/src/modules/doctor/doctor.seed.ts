@@ -88,6 +88,7 @@ export class DoctorSeed implements OnModuleInit {
         bio: d.bio,
         date_of_birth: d.date_of_birth,
         email: d.email,
+        room_number: String(index + 1),
       });
 
       // ================= CERTIFICATES =================
