@@ -1,0 +1,87 @@
+name: Demo CI - Build Dev Images
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch: # Cho phép chạy thủ công để test
+
+jobs:
+  build-and-push-dev:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # --- NODEJS SERVICES ---
+          - service: api-gateway
+            context: ./api-gateway
+            image_name: smart-health-api-gateway
+          
+          - service: patient
+            context: ./patient
+            image_name: smart-health-patient
+
+          - service: doctor
+            context: ./doctor
+            image_name: smart-health-doctor
+            
+          - service: chat
+            context: ./chat
+            image_name: smart-health-chat
+            
+          - service: notification
+            context: ./notification
+            image_name: smart-health-notification
+
+          # --- JAVA SERVICES ---
+          - service: auth
+            context: ./auth
+            image_name: smart-health-auth
+
+          - service: medicine
+            context: ./medicine
+            image_name: smart-health-medicine
+            
+          - service: billing
+            context: ./billing
+            image_name: smart-health-billing
+            
+          - service: appointment
+            context: ./appointment
+            image_name: smart-health-appointment
+
+          # --- PYTHON/AI SERVICES ---
+          - service: prediction
+            context: ./prediction
+            image_name: smart-health-prediction
+            
+          - service: chat-bot
+            context: ./chat-bot
+            image_name: smart-health-chatbot
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push (Dev Mode)
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ matrix.context }}
+          # QUAN TRỌNG: Trỏ vào Dockerfile.dev như bạn yêu cầu
+          file: ${{ matrix.context }}/Dockerfile.dev 
+          push: true
+          # Đánh tag là dev-latest để phân biệt với bản production
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.image_name }}:dev-latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.image_name }}:dev-${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.image_name }}:dev-buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/${{ matrix.image_name }}:dev-buildcache,mode=max
