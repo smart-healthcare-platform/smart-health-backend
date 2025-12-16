@@ -10,10 +10,11 @@ import {
 } from '@nestjs/common';
 import { AppointmentService } from '../appointment.service';
 import { UpdateAppointmentStatusDto } from '../dto/update-status.dto';
+import { CreateWalkInAppointmentDto } from '../dto/create-walk-in-appointment.dto';
 
 /**
  * Controller dành cho Receptionist (Lễ tân)
- * Các endpoints để quản lý check-in, xem danh sách appointments hôm nay
+ * Các endpoints để quản lý check-in, xem danh sách appointments hôm nay, tạo walk-in appointments
  */
 @Controller('api/appointments/receptionist')
 export class ReceptionistAppointmentController {
@@ -73,5 +74,22 @@ export class ReceptionistAppointmentController {
     this.logger.log(`Updating appointment ${id} status to ${dto.status}`);
     
     return this.appointmentsService.updateStatus(id, dto.status);
+  }
+
+  /**
+   * Tạo appointment mới cho bệnh nhân walk-in
+   * POST /api/v1/appointments/receptionist/create-walk-in
+   * 
+   * Flow: Sau khi lễ tân tạo tài khoản mới cho bệnh nhân → Đặt lịch ngay
+   * 
+   * Body: CreateWalkInAppointmentDto
+   */
+  @Post('create-walk-in')
+  async createWalkInAppointment(@Body() dto: CreateWalkInAppointmentDto) {
+    this.logger.log(
+      `Creating walk-in appointment - Patient: ${dto.patientName}, Doctor: ${dto.doctorName}, Slot: ${dto.slotId}`,
+    );
+    
+    return this.appointmentsService.createWalkInAppointment(dto);
   }
 }

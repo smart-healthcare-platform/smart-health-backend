@@ -9,10 +9,13 @@ import { Repository } from 'typeorm';
 import { Appointment } from './appointment.entity';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
+import { CreateWalkInAppointmentDto } from './dto/create-walk-in-appointment.dto';
 import { AppointmentProducerService } from 'src/kafka/appointment-producer.service';
 import { HttpService } from '@nestjs/axios';
 import { PaymentStatus } from './enums/payment-status.enum';
 import { AppointmentStatus } from './enums/appointment-status.enum';
+import { AppointmentType } from './enums/appointment-type.enum';
+import { AppointmentCategory } from './enums/appointment-category.enum';
 import { ConfirmPaymentDto } from './dto/confirm-payment.dto';
 import { CreatePaymentRequestDto } from './dto/create-payment-request.dto';
 import { CheckInDto } from './dto/check-in.dto';
@@ -720,5 +723,100 @@ export class AppointmentService {
     );
 
     return appointment;
+  }
+
+  /**
+   * Tạo appointment cho bệnh nhân walk-in (ngay sau khi tạo tài khoản)
+   * @param dto - CreateWalkInAppointmentDto
+   * @returns Appointment đã tạo với status CONFIRMED
+   */
+  async createWalkInAppointment(
+    dto: CreateWalkInAppointmentDto,
+  ): Promise<Appointment> {
+    this.logger.log(
+      `Creating walk-in appointment for patient ${dto.patientName} with doctor ${dto.doctorName}`,
+    );
+
+    // Validate slot exists và lấy thông tin slot từ Doctor service
+    const slotData = await this.validateAndGetSlotInfo(dto.slotId);
+
+    // Tạo appointment với status CONFIRMED ngay
+    const appointment = this.appointmentRepo.create({
+      patientId: dto.patientId,
+      patientName: dto.patientName,
+      doctorId: dto.doctorId,
+      doctorName: dto.doctorName,
+      slotId: dto.slotId,
+      type: AppointmentType.OFFLINE,
+      category: AppointmentCategory.NEW,
+      status: AppointmentStatus.CONFIRMED, // Walk-in luôn là CONFIRMED
+      paymentStatus: PaymentStatus.UNPAID,
+      notes: dto.notes || 'Walk-in appointment',
+      startAt: slotData.startTime,
+      endAt: slotData.endTime,
+    });
+
+    const saved = await this.appointmentRepo.save(appointment);
+    this.logger.log(`Walk-in appointment created with ID: ${saved.id}`);
+
+    // Gửi kafka event để book slot (mark as booked)
+    await this.producer.requestBooking({
+      id: saved.id,
+      doctorId: dto.doctorId,
+      slotId: dto.slotId,
+      patientId: dto.patientId,
+    });
+
+    this.logger.log(
+      `Booking request sent for walk-in appointment ${saved.id}`,
+    );
+
+    return saved;
+  }
+
+  /**
+   * Validate slot và lấy thông tin slot từ Doctor service
+   * @param slotId - ID của slot
+   * @returns Slot data (startTime, endTime, etc.)
+   */
+  private async validateAndGetSlotInfo(slotId: string): Promise<any> {
+    try {
+      const doctorServiceUrl = this.configService.get<string>(
+        'DOCTOR_SERVICE_URL',
+        'http://localhost:3002',
+      );
+
+      const response = await firstValueFrom(
+        this.http.get(`${doctorServiceUrl}/api/appointment-slots/${slotId}`),
+      );
+
+      if (!response.data?.data) {
+        throw new NotFoundException(`Slot ${slotId} không tồn tại`);
+      }
+
+      const slot = response.data.data;
+
+      // Validate slot is available
+      if (slot.status !== 'available') {
+        throw new BadRequestException(
+          `Slot ${slotId} không khả dụng (Status: ${slot.status})`,
+        );
+      }
+
+      return {
+        startTime: new Date(slot.start_time),
+        endTime: new Date(slot.end_time),
+        status: slot.status,
+      };
+    } catch (error) {
+      if (error instanceof NotFoundException || error instanceof BadRequestException) {
+        throw error;
+      }
+
+      this.logger.error(`Failed to validate slot ${slotId}`, error.stack);
+      throw new BadRequestException(
+        `Không thể xác thực slot. Vui lòng thử lại.`,
+      );
+    }
   }
 }
