@@ -343,4 +343,40 @@ public class BillingController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
+
+    /**
+     * Cancel a payment (only for PENDING or PROCESSING payments)
+     * Typically used to cancel expired online payments before creating cash payment
+     *
+     * @param paymentCode Payment code to cancel
+     * @return Cancelled payment response
+     */
+    @PostMapping("/{paymentCode}/cancel")
+    @Operation(
+        summary = "Cancel a payment",
+        description = "Cancel a payment that is in PENDING or PROCESSING status. " +
+                     "Commonly used to cancel expired online payments (MOMO/VNPAY) before creating a cash payment."
+    )
+    @ApiResponses(value = {
+        @ApiResponse(responseCode = "200", description = "Payment cancelled successfully"),
+        @ApiResponse(responseCode = "400", description = "Cannot cancel payment (invalid status or composite child)"),
+        @ApiResponse(responseCode = "404", description = "Payment not found")
+    })
+    public ResponseEntity<PaymentResponse> cancelPayment(
+        @PathVariable @Parameter(description = "Payment code to cancel", example = "PAY-123456") String paymentCode
+    ) {
+        log.info("Cancelling payment: {}", paymentCode);
+        
+        try {
+            PaymentResponse response = billingService.cancelPayment(paymentCode);
+            log.info("Payment cancelled successfully: {}", paymentCode);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            log.error("Cannot cancel payment {}: {}", paymentCode, e.getMessage());
+            return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            log.error("Error cancelling payment {}", paymentCode, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
 }

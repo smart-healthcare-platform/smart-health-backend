@@ -20,6 +20,10 @@ export class CreateDoctorDto {
   phone: string;
 
   @IsOptional()
+  @IsString()
+  room_number?: string;
+
+  @IsOptional()
   @IsInt()
   @Min(0)
   experience_years?: number;

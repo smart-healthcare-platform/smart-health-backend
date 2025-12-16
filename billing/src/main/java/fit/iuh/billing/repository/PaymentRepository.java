@@ -65,6 +65,14 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     List<Payment> findByAppointmentId(String appointmentId);
 
     /**
+     * Tìm tất cả child payments của một composite payment
+     * Dùng khi cancel composite payment - cần cancel tất cả child payments
+     * @param parentPaymentId ID của parent payment (composite payment)
+     * @return Danh sách child payments
+     */
+    List<Payment> findByParentPaymentId(Long parentPaymentId);
+
+    /**
      * Tìm outstanding payments cho composite payment
      * @param referenceIds Danh sách reference IDs (appointmentId + labTestOrderIds)
      * @param statuses Danh sách statuses (PENDING, PROCESSING)

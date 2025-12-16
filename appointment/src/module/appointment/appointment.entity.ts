@@ -59,6 +59,9 @@ export class Appointment {
   })
   category: AppointmentCategory;
 
+  @Column({ length: 10 })
+  roomNumber: string;
+
   @Column({ type: 'text', nullable: true })
   notes: string;
 

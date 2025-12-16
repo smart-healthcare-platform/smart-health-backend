@@ -1,5 +1,6 @@
 package fit.iuh.billing.dto;
 
+import fit.iuh.billing.enums.PaymentMethodType;
 import fit.iuh.billing.enums.PaymentStatus;
 import fit.iuh.billing.enums.PaymentType;
 import lombok.AllArgsConstructor;
@@ -52,4 +53,10 @@ public class PaymentItemDto {
      * When the payment was completed (null if not paid yet)
      */
     private LocalDateTime paidAt;
+
+    /**
+     * Payment method: CASH, MOMO, VNPAY, etc.
+     * Important for distinguishing online vs cash payments in bulk payment flow
+     */
+    private PaymentMethodType paymentMethod;
 }
