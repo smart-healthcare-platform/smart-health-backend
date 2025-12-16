@@ -92,13 +92,39 @@ const requireRole = (allowedRoles) => {
     }
 
     const roles = Array.isArray(allowedRoles) ? allowedRoles : [allowedRoles];
-    const userRole = req.user.role?.toUpperCase();
-    const hasRole = roles.some(role => role.toUpperCase() === userRole);
+    
+    // Check both role field and authorities array
+    // role might be string "RECEPTIONIST" or object, authorities has "ROLE_RECEPTIONIST" format
+    let userRole = req.user.role;
+    
+    // Handle case where role is an enum object
+    if (typeof userRole === 'object' && userRole !== null) {
+      userRole = userRole.toString();
+    }
+    
+    // Normalize to uppercase string
+    userRole = userRole?.toString().toUpperCase();
+    
+    // Check direct role match
+    let hasRole = roles.some(role => role.toUpperCase() === userRole);
+    
+    // If not found in role field, check authorities array (Spring Security format with ROLE_ prefix)
+    if (!hasRole && req.user.authorities && Array.isArray(req.user.authorities)) {
+      hasRole = req.user.authorities.some(auth => {
+        const authority = typeof auth === 'string' ? auth : auth.authority;
+        // Check both with and without ROLE_ prefix
+        return roles.some(role => 
+          authority.toUpperCase() === `ROLE_${role.toUpperCase()}` || 
+          authority.toUpperCase() === role.toUpperCase()
+        );
+      });
+    }
 
     if (!hasRole) {
       logger.securityLog('Authorization failed - insufficient role', {
         userId: req.user.id,
         userRole: req.user.role,
+        authorities: req.user.authorities,
         requiredRoles: roles,
         url: req.originalUrl,
       });

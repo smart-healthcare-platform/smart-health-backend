@@ -158,6 +158,13 @@ const createServiceProxy = (serviceName) => {
           JSON.stringify(req.user.authorities)
         );
         
+        // Forward original Authorization header to backend services
+        // This allows services to verify JWT themselves if needed
+        if (req.headers.authorization) {
+          proxyReq.setHeader("Authorization", req.headers.authorization);
+          console.log(`[PROXY DEBUG] Forwarding Authorization header`);
+        }
+        
         // Forward doctor-specific headers for medicine and other services
         if (req.user.role === 'DOCTOR') {
           proxyReq.setHeader("X-Doctor-Id", req.user.id);

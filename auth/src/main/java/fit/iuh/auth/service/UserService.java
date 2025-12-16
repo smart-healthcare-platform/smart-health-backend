@@ -26,20 +26,25 @@ public class UserService implements UserDetailsService {
         this.passwordEncoder = passwordEncoder;
     }
     /**
-     * Sửa lại để load user bằng email thay vì username
+     * Load user by username for Spring Security authentication
+     * Note: Despite the method name, this receives the username (not email) from JWT token's subject
      */
     @Override
-    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        User user = userRepository.findByEmail(email)
+    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+        // Try to find by username first
+        Optional<User> userOpt = userRepository.findByUsername(username);
+        
+        // If not found, try email (for backward compatibility)
+        if (userOpt.isEmpty()) {
+            userOpt = userRepository.findByEmail(username);
+        }
+        
+        User user = userOpt
                 .filter(User::getIsActive)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found or inactive: " + email));
+                .orElseThrow(() -> new UsernameNotFoundException("User not found or inactive: " + username));
 
-        // Convert User entity sang Spring Security UserDetails
-        return org.springframework.security.core.userdetails.User.builder()
-                .username(user.getEmail())
-                .password(user.getPassword())
-                .roles(user.getRole().name())
-                .build();
+        // Return the actual User entity (which implements UserDetails)
+        return user;
     }
 
     public User createUserForDoctor(String fullName, String dob, String email) {

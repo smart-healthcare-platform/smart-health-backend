@@ -2,8 +2,10 @@ package fit.iuh.auth.controller;
 
 import fit.iuh.auth.dto.request.LoginRequest;
 import fit.iuh.auth.dto.request.RegisterRequest;
+import fit.iuh.auth.dto.request.RegisterByReceptionistRequest;
 import fit.iuh.auth.dto.response.ApiResponse;
 import fit.iuh.auth.dto.response.AuthResponse;
+import fit.iuh.auth.dto.response.ReceptionistRegisterResponse;
 import fit.iuh.auth.entity.User;
 import fit.iuh.auth.service.AuthService;
 import fit.iuh.auth.service.UserService;
@@ -41,6 +43,33 @@ public class AuthController {
                     .body(ApiResponse.success("Đăng ký thành công", authResponse));
         } catch (Exception e) {
             log.error("Registration failed for email: {}", request.getEmail(), e);
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(ApiResponse.error(e.getMessage(), HttpStatus.BAD_REQUEST.value()));
+        }
+    }
+
+    /**
+     * Register walk-in patient by receptionist
+     * Only RECEPTIONIST and ADMIN roles can access this endpoint
+     */
+    @PostMapping("/register-by-receptionist")
+    @PreAuthorize("hasAnyRole('RECEPTIONIST', 'ADMIN')")
+    public ResponseEntity<ApiResponse<ReceptionistRegisterResponse>> registerByReceptionist(
+            @Valid @RequestBody RegisterByReceptionistRequest request) {
+        try {
+            log.info("Walk-in patient registration by receptionist - email: {}, phone: {}", 
+                    request.getEmail(), request.getPhone());
+            
+            ReceptionistRegisterResponse response = authService.registerByReceptionist(request);
+            
+            log.info("Walk-in patient registered successfully - userId: {}, username: {}", 
+                    response.getUser().getId(), response.getUser().getUsername());
+            
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ApiResponse.success("Tạo tài khoản bệnh nhân thành công", response));
+        } catch (Exception e) {
+            log.error("Walk-in patient registration failed - email: {}, error: {}", 
+                    request.getEmail(), e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(ApiResponse.error(e.getMessage(), HttpStatus.BAD_REQUEST.value()));
         }

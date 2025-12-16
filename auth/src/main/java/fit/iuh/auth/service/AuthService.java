@@ -2,8 +2,10 @@ package fit.iuh.auth.service;
 
 import fit.iuh.auth.dto.request.LoginRequest;
 import fit.iuh.auth.dto.request.RegisterRequest;
+import fit.iuh.auth.dto.request.RegisterByReceptionistRequest;
 import fit.iuh.auth.dto.request.UserCreatedEvent;
 import fit.iuh.auth.dto.response.AuthResponse;
+import fit.iuh.auth.dto.response.ReceptionistRegisterResponse;
 import fit.iuh.auth.entity.RefreshToken;
 import fit.iuh.auth.entity.User;
 import fit.iuh.auth.enums.Role;
@@ -11,6 +13,7 @@ import fit.iuh.auth.kafka.UserProducer;
 import fit.iuh.auth.repository.RefreshTokenRepository;
 import fit.iuh.auth.repository.UserRepository;
 import fit.iuh.auth.util.UsernameGenerator;
+import fit.iuh.auth.util.PasswordGenerator;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.transaction.Transactional;
@@ -79,7 +82,7 @@ public class AuthService {
         }
         // Tạo payload chứa role & authorities
         Map<String, Object> claims = new HashMap<>();
-        claims.put("role", savedUser.getRole());
+        claims.put("role", savedUser.getRole().name()); // Convert enum to string
         claims.put("authorities", savedUser.getAuthorities());
         claims.put("id", savedUser.getId());
 
@@ -118,7 +121,7 @@ public class AuthService {
         log.info("User logged in successfully: {}", user.getUsername());
 
         Map<String, Object> claims = new HashMap<>();
-        claims.put("role", user.getRole());
+        claims.put("role", user.getRole().name()); // Convert enum to string
         claims.put("authorities", user.getAuthorities());
         claims.put("id", user.getId());
 
@@ -162,7 +165,7 @@ public class AuthService {
         }
 
         Map<String, Object> claims = new HashMap<>();
-        claims.put("role", user.getRole());
+        claims.put("role", user.getRole().name()); // Convert enum to string
         claims.put("authorities", user.getAuthorities());
         claims.put("id", user.getId());
 
@@ -254,6 +257,81 @@ public class AuthService {
         }
 
         return savedUser;
+    }
+
+    /**
+     * Register walk-in patient by receptionist
+     * Auto-generates username and temporary password
+     * Sends event to Patient service via Kafka
+     * 
+     * @param request Registration data from receptionist
+     * @return ReceptionistRegisterResponse with user info and temporary password
+     */
+    public ReceptionistRegisterResponse registerByReceptionist(RegisterByReceptionistRequest request) {
+        log.info("Starting walk-in patient registration - email: {}, phone: {}", 
+                request.getEmail(), request.getPhone());
+
+        // Validate unique email and phone
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new RuntimeException("Email đã tồn tại trong hệ thống: " + request.getEmail());
+        }
+
+        // Generate username from full name and date of birth
+        String generatedUsername = UsernameGenerator.generateUsername(
+                request.getFullName(), 
+                request.getDateOfBirth()
+        );
+        
+        // Ensure username is unique
+        String finalUsername = generatedUsername;
+        int counter = 1;
+        while (userRepository.existsByUsername(finalUsername)) {
+            finalUsername = generatedUsername + "_" + counter;
+            counter++;
+        }
+
+        // Generate temporary password
+        String temporaryPassword = PasswordGenerator.generateTemporaryPassword();
+        
+        // Create user entity
+        User user = new User();
+        user.setUsername(finalUsername);
+        user.setEmail(request.getEmail());
+        user.setPasswordHash(passwordEncoder.encode(temporaryPassword));
+        user.setRole(Role.PATIENT);
+        user.setIsActive(true);
+
+        // Save user to database
+        User savedUser = userRepository.save(user);
+        log.info("Walk-in patient user created - userId: {}, username: {}", 
+                savedUser.getId(), savedUser.getUsername());
+
+        // Send event to Patient service to create patient profile
+        UserCreatedEvent event = new UserCreatedEvent(
+                savedUser.getId().toString(),
+                request.getFullName(),
+                request.getDateOfBirth(),
+                request.getGender(),
+                request.getAddress(),
+                request.getPhone()
+        );
+        userProducer.sendUserCreated(event);
+        log.info("UserCreatedEvent sent to Patient service for userId: {}", savedUser.getId());
+
+        // Build response with temporary password
+        return ReceptionistRegisterResponse.builder()
+                .user(ReceptionistRegisterResponse.UserInfo.builder()
+                        .id(savedUser.getId())
+                        .username(savedUser.getUsername())
+                        .email(savedUser.getEmail())
+                        .fullName(request.getFullName())
+                        .role(savedUser.getRole())
+                        .createdAt(savedUser.getCreatedAt())
+                        .build())
+                .temporaryPassword(temporaryPassword)
+                .patientId(null) // Will be populated after Patient service processes event
+                .message("Tài khoản đã được tạo. Vui lòng cung cấp mật khẩu tạm thời cho bệnh nhân.")
+                .build();
     }
 
 }

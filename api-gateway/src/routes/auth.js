@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const { getServiceProxy } = require("../services/serviceProxy");
 const { authLimiter, registerLimiter } = require("../middleware/rateLimiter");
-const { optionalAuth } = require("../middleware/auth");
+const { optionalAuth, authenticateJWT, requireRole } = require("../middleware/auth");
 const logger = require("../config/logger");
 
 /**
@@ -15,6 +15,25 @@ const logger = require("../config/logger");
  * Applies strict rate limiting to prevent abuse
  */
 router.use("/register", registerLimiter);
+
+/**
+ * Receptionist registration endpoint (walk-in patients)
+ * Requires RECEPTIONIST or ADMIN role
+ * Protected route with authentication
+ */
+router.use(
+  "/register-by-receptionist",
+  authenticateJWT,
+  requireRole(['RECEPTIONIST', 'ADMIN']),
+  (req, res, next) => {
+    logger.info('Walk-in patient registration initiated', {
+      receptionistId: req.user.id,
+      receptionistRole: req.user.role,
+      ip: req.ip,
+    });
+    next();
+  }
+);
 
 /**
  * Authentication endpoints (login, refresh-token)

@@ -45,12 +45,12 @@ public class SecurityConfig {
                                 "/api/auth/refresh-token",
                                 "/api/auth/logout",
                                 "/api/auth/health",
-                                "/api/auth/**",
                                 "/actuator/health",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html"
                         ).permitAll()
+                        .requestMatchers("/api/auth/register-by-receptionist").hasAnyRole("RECEPTIONIST", "ADMIN")
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/doctor/**").hasAnyRole("DOCTOR", "ADMIN")
                         .requestMatchers("/api/patient/**").hasAnyRole("PATIENT", "DOCTOR", "ADMIN")
