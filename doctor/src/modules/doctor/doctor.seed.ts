@@ -13,13 +13,14 @@ import { CertificateType } from '../doctor-certificates/enums/certificate-type.e
 import { DayOfWeek } from '../doctor-schedule/dto/create-doctor-weekly-availability.dto';
 import { AcademicDegree } from '../doctor-certificates/enums/academic_degree.enum';
 import { DoctorCertificateService } from '../doctor-certificates/doctor-certificates.service';
+import { createVietnamDate } from '../../common/utils/timezone.util';
 
+/**
+ * Helper function to create dates in Vietnam timezone
+ * This ensures dates are created consistently for seeding
+ */
 function toVNDate(str: string) {
-  const [y, m, d, h = 0, mi = 0, s = 0] = str
-    .replace(/[T\-:]/g, ' ')
-    .split(' ')
-    .map(Number);
-  return new Date(y, m - 1, d, h, mi, s);
+  return createVietnamDate(str);
 }
 
 @Injectable()

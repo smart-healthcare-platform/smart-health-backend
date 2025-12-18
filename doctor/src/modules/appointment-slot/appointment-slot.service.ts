@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { AppointmentSlot } from './appointment-slot.entity';
 import { CreateDoctorAppoinmentSlotDto } from './dto/create-doctor-appointment.dto';
 import { UpdateDoctorAppoinmentSlotDto } from './dto/update-doctor-appointment.dto';
+import { formatToVietnamDateTime } from '../../common/utils/timezone.util';
 
 @Injectable()
 export class AppointmentSlotService {
@@ -28,10 +29,10 @@ export class AppointmentSlotService {
 
     return slots.map(slot => ({
       ...slot,
-      start_time: formatDate(slot.start_time),
-      end_time: formatDate(slot.end_time),
-      created_at: formatDate(slot.created_at),
-      updated_at: formatDate(slot.updated_at),
+      start_time: formatToVietnamDateTime(slot.start_time),
+      end_time: formatToVietnamDateTime(slot.end_time),
+      created_at: formatToVietnamDateTime(slot.created_at),
+      updated_at: formatToVietnamDateTime(slot.updated_at),
     }));
   }
 
@@ -103,8 +104,4 @@ export class AppointmentSlotService {
     return this.appointment_slot_repo.save(slot);
   }
 
-}
-function formatDate(date: Date): string {
-  // Convert sang định dạng YYYY-MM-DD HH:mm:ss
-  return date.toISOString().replace('T', ' ').replace('Z', '').split('.')[0];
 }

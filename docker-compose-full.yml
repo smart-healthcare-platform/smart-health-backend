@@ -54,10 +54,19 @@ services:
       - ./auth:/app
       - /app/.gradle
     environment:
+      # === Datasource ===
       SPRING_DATASOURCE_URL: jdbc:mysql://host.docker.internal:3306/smart_health_auth
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: 1111
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: com.mysql.cj.jdbc.Driver
+
+      # === JPA ===
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      SPRING_JPA_SHOW_SQL: "true"
+      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.MySQLDialect
+      SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL: "true"
+
+      # === Kafka ===
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       SPRING_KAFKA_PRODUCER_KEY_SERIALIZER: org.apache.kafka.common.serialization.StringSerializer
       SPRING_KAFKA_PRODUCER_VALUE_SERIALIZER: org.apache.kafka.common.serialization.StringSerializer
@@ -65,16 +74,21 @@ services:
       SPRING_KAFKA_CONSUMER_KEY_DESERIALIZER: org.apache.kafka.common.serialization.StringDeserializer
       SPRING_KAFKA_CONSUMER_VALUE_DESERIALIZER: org.apache.kafka.common.serialization.StringDeserializer
 
-      # JWT Configuration
+      # === JWT ===
       JWT_SECRET: smartHealthSecretKeyForJWTTokenGenerationAndValidation2024
       JWT_EXPIRATION: 86400000
       JWT_REFRESH_EXPIRATION: 604800000
 
-      # Server Configuration
+      # === Server ===
       SERVER_PORT: 8081
       SERVER_SSL_ENABLED: "false"
 
-      # Logging Configuration
+      # === Cookie (for production, optional) ===
+      COOKIE_SECURE: "true"
+      COOKIE_DOMAIN: ""
+      COOKIE_SAME_SITE: None
+
+      # === Logging ===
       LOGGING_LEVEL_FIT_IUH_AUTH: DEBUG
       LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY: DEBUG
 
@@ -480,11 +494,11 @@ services:
       - doctor-service
       - appointment-service
       - chat-service
-      - notification-service
+      # - notification-service
       # - prediction-service
       # - chatbot-service
-      # - medicine-service
-      # - billing-service
+      - medicine-service
+      - billing-service
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
